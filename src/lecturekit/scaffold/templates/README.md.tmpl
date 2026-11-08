@@ -1,0 +1,19 @@
+# {{TITLE}}
+
+A lecturekit project: one `slides.qmd`, a live deck and a study PDF.
+
+```bash
+lk build            # both outputs into _build/, timing plan on the terminal
+lk build --to live  # the live deck only
+lk build --profile dark
+lk review shoot _build/slides-live.html --sheet
+lk review measure _build/slides-live.html
+```
+
+Method: `STORYBOARD.md` (intent) → `PLAN.md` (slides and minutes) →
+`sims/` (what the figures show) → `make_assets.py` (figures from numbers) →
+`slides.qmd` → review rounds → `FACTS.md` and `MANIFEST.md` → this file as the log.
+
+## Log
+
+- {{DATE}}: project created with `lk new` (lecturekit {{VERSION}}).

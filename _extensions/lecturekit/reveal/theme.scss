@@ -1,0 +1,224 @@
+/*-- scss:defaults --*/
+// lecturekit live deck. Colours come from the --nm-* variables that the
+// dual-output filter writes from _brand.yml; the Sass variables below only
+// set Quarto's Reveal defaults so that nothing of the stock theme shows
+// through. Fonts come from the brand's typography (Quarto writes the
+// @font-face rules for file fonts).
+
+$presentation-font-size-root: 26px;
+$presentation-line-height: 1.3;
+$presentation-h1-font-size: 1.9em;
+$presentation-h2-font-size: 1.55em;
+$presentation-h3-font-size: 1.2em;
+$presentation-heading-font-weight: 500;
+$presentation-heading-line-height: 1.1;
+$presentation-heading-letter-spacing: normal;
+$presentation-heading-text-transform: none;
+$presentation-heading-text-shadow: none;
+$presentation-block-margin: 0.6em;
+$presentation-selection-background-color: rgba(23, 91, 142, 0.25);
+
+$body-bg: #ffffff;
+$body-color: #202b33;
+$link-color: #175b8e;
+$link-color-hover: #175b8e;
+$code-block-bg: transparent;
+$code-block-border-color: transparent;
+
+/*-- scss:rules --*/
+// Geometry of the 1280 x 720 frame (see docs/LAYOUT.md):
+//   eyebrow at 40 px, title baseline block ends at ~150 px,
+//   content from 150 px, foot hairline at 677 px. 1 cm of Beamer = 80 px.
+:root {
+  --lk-frame-w: 1280px;
+  --lk-frame-h: 720px;
+  --lk-title-block: 150px;
+  --lk-foot-y: 677px;
+  --lk-gutter: 56px;
+}
+
+// optional tokens: heading (titles) and body (running text) fall back to ink
+:root { --lk-heading: var(--nm-heading, var(--nm-ink)); --lk-body: var(--nm-body, var(--nm-ink)); }
+
+.reveal {
+  color: var(--lk-body, #{$body-color});
+  background-color: var(--nm-slide, #{$body-bg});
+}
+.reveal .slide-background,
+.reveal .backgrounds { background-color: var(--nm-slide, #{$body-bg}); }
+.reveal-viewport { background: var(--nm-paper, #f3f2ee); }
+
+.reveal .slides { text-align: left; }
+.reveal .slides > section,
+.reveal .slides > section > section {
+  padding: 0;
+  height: var(--lk-frame-h);
+  box-sizing: border-box;
+}
+.reveal .slides section:not(.title-slide):not(#title-slide) {
+  padding: var(--lk-title-block) var(--lk-gutter) 0 var(--lk-gutter);
+}
+.reveal .slides section .lk-eyebrow {
+  position: absolute;
+  top: 40px;
+  left: var(--lk-gutter);
+  font-size: 0.6em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--nm-muted, #566573);
+  margin: 0;
+}
+@each $role in concept, caveat, example, anchor, question {
+  .reveal .slides section .lk-eyebrow.lk-role-#{$role} { color: var(--nm-#{$role}); }
+}
+.reveal .slides section > h2:first-of-type,
+.reveal .slides section > h1:first-of-type {
+  position: absolute;
+  top: 66px;
+  left: var(--lk-gutter);
+  right: var(--lk-gutter);
+  margin: 0;
+  color: var(--lk-heading);
+}
+.reveal h1, .reveal h2, .reveal h3 { color: var(--lk-heading); }
+
+// foot: deck short title left, slide number right, hairline above
+.lk-foot {
+  position: absolute;
+  left: var(--lk-gutter);
+  right: var(--lk-gutter);
+  top: var(--lk-foot-y);
+  display: flex;
+  justify-content: space-between;
+  font-size: 15px;
+  letter-spacing: 0.02em;
+  color: var(--nm-muted, #566573);
+  border-top: 1px solid var(--nm-hairline, #c8c3ba);
+  padding-top: 6px;
+  pointer-events: none;
+  z-index: 5;
+}
+// pacing.js moves the foot into .slides so that it scales with the deck;
+// Reveal hides non-present children of .slides, hence the !important
+.reveal .slides > .lk-foot { display: flex !important; }
+.reveal.lk-on-title .slides > .lk-foot { display: none !important; }
+
+// text
+.reveal p, .reveal li { color: var(--lk-body); }
+.reveal section code { color: inherit !important; background: transparent; font-size: 0.9em; }
+.reveal ul, .reveal ol { margin: 0 0 0 1.1em; }
+.reveal li { margin-bottom: 0.25em; }
+.reveal li::marker { color: var(--nm-muted); }
+.reveal strong { font-weight: 600; color: var(--nm-ink); }   // emphasis in ink (green-tinted white on the dark preset)
+.reveal em { color: inherit; }
+.reveal a { color: var(--nm-concept, #{$link-color}); text-decoration: none; }
+.reveal .muted, .reveal small { color: var(--nm-muted); }
+.reveal hr { border: 0; border-top: 1px solid var(--nm-hairline); }
+
+// figures and clips: as large as the slide allows, never upscaled
+.reveal .lk-figure, .reveal .lk-movie {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  margin: 0.3em auto 0 auto;
+  width: 100%;
+}
+.reveal .lk-figure img, .reveal img.lk-tikz {
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.reveal .lk-movie video {
+  max-width: 100%;
+  max-height: inherit;
+  height: 100%;
+  display: block;
+  background: var(--nm-slide);
+  cursor: pointer;
+}
+.reveal .lk-movie-caption, .reveal figcaption {
+  font-size: 0.65em;
+  color: var(--nm-muted);
+  text-align: center;
+  margin-top: 0.2em;
+}
+.reveal .lk-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--nm-caveat, #a33a32);
+  color: var(--nm-caveat, #a33a32);
+  font-size: 0.7em;
+  width: 100%;
+}
+
+// columns keep the figure beside its text
+.reveal .columns { display: flex; gap: 32px; align-items: flex-start; }
+.reveal .columns > .column { flex: 1 1 0; }
+
+// role colour utility spans: [text]{.concept}
+@each $role in concept, caveat, example, anchor, question {
+  .reveal .#{$role} { color: var(--nm-#{$role}); }
+}
+@each $mark in input, state, update, context {
+  .reveal .mark-#{$mark} { color: var(--nm-#{$mark}); }
+}
+
+// math
+.reveal .math { color: var(--nm-ink); }
+.reveal .MathJax, .reveal mjx-container { font-size: 100% !important; }
+
+// speaker notes are never visible in the live frame
+.reveal aside.notes { display: none; }
+
+// title slide
+.reveal .slides section.title-slide,
+.reveal .slides section#title-slide {
+  padding: 0 var(--lk-gutter);
+  text-align: left !important;
+  display: flex !important;
+  flex-direction: column;
+  justify-content: center;
+}
+.reveal .title-slide .lk-title-eyebrow {
+  order: -1;
+  font-size: 0.6em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nm-muted);
+  margin-bottom: 0.6em;
+}
+.reveal .title-slide h1.title { font-size: 2.2em; margin: 0 0 0.3em 0; color: var(--lk-heading); text-align: left; }
+.reveal .title-slide .subtitle { font-size: 1.1em; color: var(--nm-muted); margin: 0 0 1.2em 0; }
+.reveal .title-slide .author, .reveal .title-slide .institute, .reveal .title-slide .date {
+  font-size: 0.8em;
+  margin: 0;
+  color: var(--lk-body);
+}
+.reveal .title-slide .date { color: var(--nm-muted); }
+
+// pacing clock: only present in the speaker view (pacing.js)
+.lk-pacing {
+  position: fixed;
+  right: 16px;
+  bottom: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  color: var(--nm-muted);
+  background: var(--nm-slide);
+  border: 1px solid var(--nm-hairline);
+  padding: 4px 8px;
+  border-radius: 4px;
+  z-index: 50;
+}
+.lk-pacing.lk-behind { color: var(--nm-caveat, #a33a32); }
+.lk-pacing.lk-ahead { color: var(--nm-anchor, #006c65); }
+
+// print to PDF (?print-pdf) keeps the geometry
+@media print {
+  .lk-pacing { display: none; }
+}

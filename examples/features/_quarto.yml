@@ -1,0 +1,23 @@
+project:
+  type: default
+  output-dir: _build
+  render:
+    - slides.qmd
+  # clips and data are referenced from raw HTML, so Quarto must be told to copy them
+  resources:
+    - assets/**
+
+# the lecturekit formats come from the vendored extension in _extensions/
+format:
+  lecturekit-revealjs:
+    output-file: slides-live.html
+  lecturekit-beamer:
+    output-file: slides-study.pdf
+
+brand: _brand.yml
+
+# deck-wide options read by the dialect filter
+budget: 15
+eyebrow-preset: course
+short-title: features
+bibliography: references.bib

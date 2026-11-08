@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "lecturekit"
+version = "0.1.0"
+description = "One Markdown source, a live Reveal.js deck and a Beamer study PDF: a Quarto extension, figure and clip kits, and review tools for computed lectures."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Tomas Knapen" }]
+requires-python = ">=3.11"
+keywords = ["quarto", "revealjs", "beamer", "lecture", "tikz", "manim"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Topic :: Education",
+]
+dependencies = [
+  "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+figures = ["numpy", "matplotlib", "pillow", "pymupdf>=1.24"]
+review = ["playwright>=1.45", "pymupdf>=1.24", "pillow"]
+clips = ["manim>=0.19,<0.23", "pillow<11.3", "imageio-ffmpeg"]
+manim8 = ["manim8 @ git+https://github.com/tknapen/manim8@main"]
+dev = ["pytest", "pymupdf>=1.24", "playwright>=1.45", "pillow", "imageio-ffmpeg"]
+
+[project.scripts]
+lk = "lecturekit.cli:main"
+lecturekit = "lecturekit.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/tknapen/lecturekit"
+Issues = "https://github.com/tknapen/lecturekit/issues"
+
+[tool.hatch.metadata]
+allow-direct-references = true   # the manim8 extra points at a git tag until its first PyPI release
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lecturekit"]
+
+# the Quarto extension ships inside the wheel so that `lk new` can vendor it
+[tool.hatch.build.targets.wheel.force-include]
+"_extensions/lecturekit" = "lecturekit/_extension"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "_extensions", "examples/features", "docs", "README.md", "LICENSE", "NOTICE.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

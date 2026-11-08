@@ -1,0 +1,138 @@
+% lecturekit.tex
+% The study PDF: Beamer theme for the lecturekit dialect. Colours are the
+% nm<Name> tokens that the dual-output filter defines from _brand.yml ahead
+% of this file; fonts are set by the filter from the brand's typography.
+% Geometry: 16:9 frame of 16 cm x 9 cm. 1 cm here is 80 px in the live deck.
+
+\usepackage{adjustbox}      % \lkfigureh: a maximum height that never upscales
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,decorations.pathreplacing}
+\usepackage{etoolbox}
+\usepackage{ragged2e}
+
+% the brand's tokens, written by filters/tokens.lua before xelatex runs
+\InputIfFileExists{_lecturekit/tokens.tex}{}{}
+
+% fall-backs for a deck without a brand file
+\providecolor{nmInk}{HTML}{202B33}
+\providecolor{nmMuted}{HTML}{566573}
+\providecolor{nmHairline}{HTML}{C8C3BA}
+\providecolor{nmPaper}{HTML}{F3F2EE}
+\providecolor{nmSlide}{HTML}{FFFFFF}
+\providecolor{nmConcept}{HTML}{175B8E}
+\providecolor{nmCaveat}{HTML}{A33A32}
+\providecolor{nmExample}{HTML}{956000}
+\providecolor{nmAnchor}{HTML}{006C65}
+\providecolor{nmQuestion}{HTML}{70508C}
+\providecolor{nmPlain}{HTML}{566573}
+% optional tokens: heading (titles) and body (running text) fall back to ink
+\providecolor{nmHeading}{named}{nmInk}
+\providecolor{nmBody}{named}{nmInk}
+
+\providecommand{\lkheadfont}{\sffamily}
+
+% ---------------------------------------------------------------- colours
+\setbeamercolor{normal text}{fg=nmBody,bg=nmSlide}
+\setbeamercolor{background canvas}{bg=nmSlide}
+\setbeamercolor{structure}{fg=nmInk}
+\setbeamercolor{frametitle}{fg=nmHeading,bg=}
+\setbeamercolor{title}{fg=nmHeading}
+\setbeamercolor{subtitle}{fg=nmMuted}
+\setbeamercolor{author}{fg=nmBody}
+\setbeamercolor{institute}{fg=nmBody}
+\setbeamercolor{date}{fg=nmMuted}
+\setbeamercolor{itemize item}{fg=nmMuted}
+\setbeamercolor{itemize subitem}{fg=nmMuted}
+\setbeamercolor{enumerate item}{fg=nmMuted}
+\setbeamercolor{caption name}{fg=nmMuted}
+\setbeamercolor{footline}{fg=nmMuted}
+\setbeamercolor{block title}{fg=nmInk,bg=}
+\setbeamercolor{block body}{fg=nmBody,bg=}
+% strong text in ink (the emphasis colour), as in the live deck
+\renewcommand{\textbf}[1]{{\color{nmInk}\bfseries #1}}
+\setbeamercolor{alerted text}{fg=nmCaveat}
+\setbeamercolor{example text}{fg=nmExample}
+\hypersetup{colorlinks=true,linkcolor=nmConcept,urlcolor=nmConcept,citecolor=nmConcept}
+
+% ---------------------------------------------------------------- fonts
+\setbeamerfont{frametitle}{size=\Large,series=\mdseries,family=\lkheadfont}
+\setbeamerfont{title}{size=\LARGE,series=\mdseries,family=\lkheadfont}
+\setbeamerfont{subtitle}{size=\normalsize,series=\mdseries}
+\setbeamerfont{author}{size=\small}
+\setbeamerfont{institute}{size=\small}
+\setbeamerfont{date}{size=\small}
+\setbeamerfont{footline}{size=\tiny}
+\setbeamerfont{caption}{size=\scriptsize}
+\setbeamerfont{block title}{series=\bfseries,size=\normalsize}
+
+% ---------------------------------------------------------------- templates
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize items}{\raisebox{0.18ex}{\scriptsize$\bullet$}}
+\setbeamertemplate{itemize subitem}{\raisebox{0.2ex}{\tiny$\circ$}}
+\setbeamertemplate{blocks}[default]
+\setbeamertemplate{caption}{\insertcaption}
+\setbeamertemplate{bibliography item}{}
+\setbeamersize{text margin left=0.7cm,text margin right=0.7cm}
+
+% the eyebrow: a role set by \lkrole{<colour>}{<label>} inside the frame;
+% the frame title is typeset when the frame ends, so the body may set it
+\newcommand{\lkCurrentRoleColor}{}
+\newcommand{\lkCurrentRoleLabel}{}
+\newcommand{\lkrole}[2]{%
+  \gdef\lkCurrentRoleColor{#1}%
+  \gdef\lkCurrentRoleLabel{#2}%
+}
+\BeforeBeginEnvironment{frame}{\gdef\lkCurrentRoleColor{}\gdef\lkCurrentRoleLabel{}}
+
+\setbeamertemplate{frametitle}{%
+  \vskip 0.45cm%
+  \ifdefempty{\lkCurrentRoleLabel}{%
+    \vphantom{\scriptsize X}\par\vskip 0.05cm%
+  }{%
+    {\scriptsize\bfseries\color{nm\lkCurrentRoleColor}%
+      \addfontfeature{LetterSpace=12}\MakeUppercase{\lkCurrentRoleLabel}}\par\vskip 0.05cm%
+  }%
+  {\usebeamerfont{frametitle}\usebeamercolor[fg]{frametitle}\insertframetitle}\par%
+  \vskip 0.15cm%
+}
+\setbeamertemplate{footline}{%
+  \begin{beamercolorbox}[wd=\paperwidth,ht=0.45cm,dp=0.15cm,leftskip=0.7cm,rightskip=0.7cm]{footline}%
+    {\color{nmHairline}\rule{\dimexpr\paperwidth-1.4cm\relax}{0.3pt}}\par\vskip 0.08cm%
+    \usebeamerfont{footline}\insertshorttitle\hfill\insertframenumber\,/\,\inserttotalframenumber%
+  \end{beamercolorbox}%
+}
+
+% ---------------------------------------------------------------- figures
+% \lkfigureh{<max height>}{<file>}: as wide as the line allows, at most the
+% given height, never upscaled (draw TikZ at display size).
+\newcommand{\lkfigureh}[2]{%
+  \begin{center}%
+    \adjustbox{max height=#1,max width=\linewidth,center}{\includegraphics{#2}}%
+  \end{center}%
+}
+\newcommand{\nmfigureh}[2]{\lkfigureh{#1}{#2}}
+% a labelled placeholder so that a deck with a missing figure still builds
+\newcommand{\lkplaceholder}[2]{%
+  \begin{center}%
+    \begin{tikzpicture}%
+      \draw[nmCaveat,dashed,thin] (0,0) rectangle (0.8\linewidth,#1);%
+      \node[nmCaveat,font=\scriptsize] at (0.4\linewidth,0.5*#1) {#2};%
+    \end{tikzpicture}%
+  \end{center}%
+}
+
+% role colour utility spans: [text]{.concept} from Pandoc arrive as \textcolor
+% via Quarto; these macros exist for hand-written LaTeX in slides
+\newcommand{\lkconcept}[1]{{\color{nmConcept}#1}}
+\newcommand{\lkcaveat}[1]{{\color{nmCaveat}#1}}
+\newcommand{\lkexample}[1]{{\color{nmExample}#1}}
+\newcommand{\lkanchor}[1]{{\color{nmAnchor}#1}}
+\newcommand{\lkquestion}[1]{{\color{nmQuestion}#1}}
+
+% speaker notes stay out of the study PDF unless asked for
+\setbeameroption{hide notes}
+
+% tight lists, ragged right
+\RaggedRight
+\setlength{\parskip}{0.3em}
+\setlength{\leftmargini}{1.2em}

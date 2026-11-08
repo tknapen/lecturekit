@@ -1,0 +1,7 @@
+_build/
+_build-*/
+_lecturekit/
+review/
+anim/media/
+*.log
+.quarto/

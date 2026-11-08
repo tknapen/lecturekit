@@ -1,0 +1,12 @@
+% a two-stage pipeline, drawn at display size (4.2 cm tall)
+\begin{tikzpicture}[node distance=0.9cm]
+  \node[nm/box] (src) {slides.qmd};
+  \node[nm/box, right=of src, nm/concept] (lk) {lecturekit filter};
+  \node[nm/box, above right=0.2cm and 0.9cm of lk, nm/anchor] (live) {live deck\\Reveal.js};
+  \node[nm/box, below right=0.2cm and 0.9cm of lk, nm/example] (study) {study PDF\\Beamer};
+  \draw[nm/arrow] (src) -- (lk);
+  \draw[nm/arrow] (lk) -- (live);
+  \draw[nm/arrow] (lk) -- (study);
+  \node[nm/muted, below=0.35cm of src] {one source};
+  \node[nm/muted, below=0.35cm of study] {two outputs};
+\end{tikzpicture}

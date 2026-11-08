@@ -1,0 +1,57 @@
+# The paper preset: the single source of truth for the deck's look.
+# Every colour below becomes a token: nm<Name> in Beamer and TikZ,
+# --nm-<name> in the live deck, lecturekit.tokens.<NAME> in Python.
+meta:
+  name: lecturekit paper
+color:
+  palette:
+    # surfaces and text (engine semantics)
+    paper: "#F3F2EE"
+    slide: "#FFFFFF"
+    ink: "#202B33"
+    muted: "#566573"
+    hairline: "#C8C3BA"
+    # teaching roles (eyebrows, coloured spans)
+    concept: "#175B8E"
+    caveat: "#A33A32"
+    example: "#956000"
+    anchor: "#006C65"
+    question: "#70508C"
+    # marks in figures and clips
+    input: "#0072B2"
+    state: "#007F73"
+    update: "#C45A00"
+    context: "#7A5195"
+    # project tokens: the deck's domain colours (a project adds its own)
+    gauss: "#175B8E"
+    dog: "#B87400"
+    css: "#B63564"
+    dn: "#009999"
+    future: "#7A5195"
+  foreground: ink
+  background: slide
+  primary: concept
+  secondary: muted
+  tertiary: hairline
+  success: anchor
+  info: concept
+  warning: example
+  danger: caveat
+  light: paper
+  dark: ink
+  link: concept
+typography:
+  fonts:
+    - family: TeX Gyre Heros
+      source: system
+    - family: TeX Gyre Pagella
+      source: system
+  base:
+    family: TeX Gyre Heros
+    size: 26px
+    line-height: 1.3
+  headings:
+    family: TeX Gyre Pagella
+    weight: 500
+  monospace:
+    family: TeX Gyre Cursor

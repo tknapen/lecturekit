@@ -1,0 +1,111 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [paper, dark]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.11.9
+          tinytex: true
+
+      - name: TeX packages and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-texgyre fonts-texgyre-math fonts-roboto lmodern
+          tlmgr install beamer adjustbox collectbox etoolbox ragged2e pgf xcolor standalone fontspec unicode-math \
+            lm tex-gyre tex-gyre-math varwidth || true
+          fc-cache -f
+
+      - uses: astral-sh/setup-uv@v5
+      - name: Python environment
+        run: |
+          uv venv .venv
+          uv pip install -p .venv/bin/python -e ".[dev]"
+          .venv/bin/playwright install --with-deps chromium
+
+      - name: Build the feature deck
+        run: |
+          source .venv/bin/activate
+          ln -sfn ../../_extensions examples/features/_extensions
+          if [ "${{ matrix.preset }}" = "dark" ]; then
+            lk build examples/features --profile dark
+          else
+            lk build examples/features
+          fi
+
+      - name: Checks
+        run: |
+          source .venv/bin/activate
+          OUT=examples/features/_build; [ "${{ matrix.preset }}" = "dark" ] && OUT=examples/features/_build-dark
+          BRAND=examples/features/_brand.yml; MODE=light
+          [ "${{ matrix.preset }}" = "dark" ] && BRAND=examples/features/_brand-dark.yml && MODE=dark
+          lk review contrast $BRAND --mode $MODE
+          lk review measure $OUT/slides-live.html
+          lk review frags $OUT/slides-live.html
+          lk review shoot $OUT/slides-live.html --out review/${{ matrix.preset }} --sheet
+
+      - name: Tests
+        if: matrix.preset == 'paper'
+        run: |
+          source .venv/bin/activate
+          pytest -q
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: slides-${{ matrix.preset }}
+          path: |
+            examples/features/_build*/slides-live.html
+            examples/features/_build*/slides-study.pdf
+            review/${{ matrix.preset }}
+
+      - name: Assemble the Pages site
+        if: matrix.preset == 'paper'
+        run: |
+          mkdir -p site/features
+          cp -r examples/features/_build/. site/features/
+          cp -r review/paper site/features/review
+          cat > site/index.html <<'EOF'
+          <!doctype html><meta charset="utf-8"><title>lecturekit</title>
+          <h1>lecturekit</h1>
+          <p><a href="features/slides-live.html">feature deck, live</a> ·
+             <a href="features/slides-study.pdf">study PDF</a> ·
+             <a href="features/review/sheet.png">contact sheet</a></p>
+          EOF
+      - uses: actions/upload-pages-artifact@v3
+        if: matrix.preset == 'paper'
+        with:
+          path: site
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

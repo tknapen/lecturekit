@@ -1,0 +1,33 @@
+% figure-preamble.tex
+% Loaded into every standalone TikZ figure compiled by filters/tikz.lua,
+% after the colour tokens (nmInk, nmConcept, ...) and the deck's fonts.
+% Define TikZ styles here so that figures name a style, never a value.
+\usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,shapes.geometric,decorations.pathreplacing}
+\usepackage{amsmath}
+\providecolor{nmInk}{HTML}{202B33}
+\providecolor{nmMuted}{HTML}{566573}
+\providecolor{nmHairline}{HTML}{C8C3BA}
+\providecolor{nmSlide}{HTML}{FFFFFF}
+\providecolor{nmConcept}{HTML}{175B8E}
+\providecolor{nmCaveat}{HTML}{A33A32}
+\providecolor{nmExample}{HTML}{956000}
+\providecolor{nmAnchor}{HTML}{006C65}
+\providecolor{nmQuestion}{HTML}{70508C}
+% styles: nm/<role> colours a box or a line; nm/<role> text colours a bare label
+\tikzset{
+  nm/.style={line width=0.8pt, color=nmInk, font=\small},
+  nm/box/.style={nm, draw=nmInk, rounded corners=2pt, inner sep=5pt, align=center, fill=nmSlide},
+  nm/arrow/.style={nm, -{Stealth[length=5pt]}},
+  nm/hairline/.style={line width=0.4pt, color=nmHairline},
+  nm/muted/.style={text=nmMuted, font=\footnotesize},
+  nm/concept/.style={draw=nmConcept, text=nmConcept},
+  nm/concept text/.style={text=nmConcept},
+  nm/caveat/.style={draw=nmCaveat, text=nmCaveat},
+  nm/caveat text/.style={text=nmCaveat},
+  nm/example/.style={draw=nmExample, text=nmExample},
+  nm/example text/.style={text=nmExample},
+  nm/anchor/.style={draw=nmAnchor, text=nmAnchor},
+  nm/anchor text/.style={text=nmAnchor},
+  nm/question/.style={draw=nmQuestion, text=nmQuestion},
+  nm/question text/.style={text=nmQuestion},
+}

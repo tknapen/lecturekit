@@ -1,0 +1,5 @@
+# quarto render --profile dark   (or: lk build --profile dark)
+project:
+  output-dir: _build-dark
+brand: _brand-dark.yml
+brand-mode: dark

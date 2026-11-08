@@ -1,0 +1,66 @@
+title: lecturekit
+author: Tomas Knapen
+version: 0.1.0
+quarto-required: ">=1.6.0"
+contributes:
+  formats:
+    common:
+      # The dialect filter runs before Quarto's own slide handling, so that
+      # study-only and live-only sections are gone before slides are split.
+      filters:
+        - at: pre-quarto
+          path: filters/dual-output.lua
+        - at: pre-quarto
+          path: filters/tikz.lua
+        - at: post-quarto
+          path: filters/tokens.lua
+      slide-level: 2
+      budget: 45                 # planned minutes for the whole deck
+      eyebrow-preset: course     # course | prf | none
+      cite-method: citeproc
+      link-citations: false
+      csl: lecturekit.csl
+    revealjs:
+      theme: [default, reveal/theme.scss]
+      width: 1280
+      height: 720
+      margin: 0.04
+      min-scale: 0.2
+      max-scale: 2.0
+      center: false
+      controls: false
+      progress: false
+      slide-number: false
+      hash: true
+      history: false
+      transition: none
+      background-transition: none
+      auto-animate: false
+      navigation-mode: linear
+      menu: false
+      chalkboard: false
+      pdf-separate-fragments: false
+      embed-resources: false
+      template-partials:
+        - reveal/title-slide.html
+      include-in-header: reveal/live-head.html
+      include-after-body: reveal/live-after.html
+      format-resources:
+        - reveal/pacing.js
+        - reveal/movie.js
+    beamer:
+      pdf-engine: xelatex
+      aspectratio: 169
+      classoption: [t]
+      theme: default
+      colortheme: default
+      fonttheme: professionalfonts
+      navigation: empty
+      section-titles: false
+      keep-tex: true
+      latex-auto-install: false
+      latex-clean: true
+      include-in-header:
+        - beamer/lecturekit.tex
+      template-partials:
+        - beamer/title.tex

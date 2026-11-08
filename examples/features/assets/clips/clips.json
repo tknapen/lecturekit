@@ -1,0 +1,11 @@
+{
+  "bar_bold": {
+    "video": "assets/clips/bar_bold.mp4",
+    "still": "assets/clips/bar_bold.png",
+    "width": 960,
+    "height": 540,
+    "duration": 1.5,
+    "source": "synthetic stand-in",
+    "revision": "none"
+  }
+}

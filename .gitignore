@@ -1,0 +1,32 @@
+# build outputs of decks
+_build/
+_build-*/
+_lecturekit/
+*.log
+*.aux
+*.toc
+*.nav
+*.snm
+*.out
+*.vrb
+*.synctex.gz
+.quarto/
+/examples/*/slides.tex
+/examples/*/timing.txt
+
+# review output
+review/
+shots/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# clip renders
+media/
+anim/media/

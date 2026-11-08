@@ -1,0 +1,31 @@
+project:
+  type: default
+  output-dir: _build
+  render:
+    - slides.qmd
+  pre-render:
+    - make_assets.py          # figures from assets/data, on lecturekit.tikz
+  resources:
+    - assets/**               # clips and data referenced from raw HTML
+
+# the lecturekit formats come from the vendored extension (lk new --vendor-only . to update)
+format:
+  lecturekit-revealjs:
+    output-file: slides-live.html
+  lecturekit-beamer:
+    output-file: slides-study.pdf
+
+brand: _brand.yml
+
+# deck-wide options read by the dialect filter
+budget: 45                   # planned minutes
+eyebrow-preset: course       # course | prf | none
+short-title: "{{SHORT}}"
+bibliography: references.bib
+
+# escape hatches for one-off tweaks (keep them empty if you can)
+# format:
+#   lecturekit-revealjs:
+#     css: [project.css]
+#   lecturekit-beamer:
+#     include-in-header: [project.tex]
