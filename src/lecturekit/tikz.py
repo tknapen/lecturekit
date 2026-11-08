@@ -10,7 +10,9 @@ overlap (stack), curves clipped to a range, boxes, contour lines, and a writer f
     write('name', L)                       # assets/figures/name.tex, placed with \\nmfigureh{4cm}{assets/figures/name.tex}
 
 Colours are TikZ colour names (nmInk, nmConcept, nmGauss, ...), never values: the theme owns them, through
-_brand.yml, in both outputs. hex(name) gives the value of a token for a script that must write a raster image.
+_brand.yml, in both outputs. The slide surface is SLIDE (nmSlide), never 'white'; a fill that fades into the slide
+is tint(col, pct), never col!pct, which TikZ mixes with white. hex(name) gives the value of a token for a script
+that must write a raster image.
 Figures are drawn at the size they should appear (12 to 13 cm wide for a full-width slide, about 4.2 cm high for two
 bullets); \\nmfigureh never scales up.
 """
@@ -25,7 +27,7 @@ from pathlib import Path
 import numpy as np
 
 # ------------------------------------------------------------------------------------------------ colour names
-INK, MUTED, HAIR, PAPER = 'nmInk', 'nmMuted', 'nmHairline', 'nmPaper'
+INK, MUTED, HAIR, PAPER, SLIDE = 'nmInk', 'nmMuted', 'nmHairline', 'nmPaper', 'nmSlide'
 BLUE, TEAL, ORANGE, PURPLE, CAVEAT = 'nmConcept', 'nmState', 'nmUpdate', 'nmContext', 'nmCaveat'
 CONCEPT, EXAMPLE, ANCHOR, QUESTION, INPUT = 'nmConcept', 'nmExample', 'nmAnchor', 'nmQuestion', 'nmInput'
 GAUSS, DOG, CSS, DN, FUTURE = 'nmGauss', 'nmDoG', 'nmCSS', 'nmDN', 'nmFuture'   # the four pRF models (workshop lecture 2; course lectures 7, 8)
@@ -37,6 +39,14 @@ PT_PER_CM = 28.4528
 
 #: heights that leave room for text beside or above the figure (docs/LAYOUT.md)
 FIGURE_HEIGHTS = {'full': '5.6cm', 'one_bullet': '4.8cm', 'two_bullets': '4.2cm', 'column': '4.4cm'}
+
+
+def tint(col: str, pct) -> str:
+    """A tint of a token towards the slide surface: tint(BLUE, 6) is 'nmConcept!6!nmSlide'.
+
+    TikZ's own `col!6` mixes with white, which is wrong on any surface that is not white; a fill or a stroke that
+    should fade into the slide mixes with the slide's token, so a restyle carries it along."""
+    return f'{col}!{pct}!{SLIDE}'
 
 
 def color(name: str) -> str:
@@ -130,7 +140,7 @@ def contours(P, A, Bl, Z, levels, col=INK, lw=0.45):
     for k, (lev, segs) in enumerate(zip(cs.levels, cs.allsegs)):
         shade = int(100 - 65 * k / max(len(cs.levels) - 1, 1))
         for seg in segs:
-            if len(seg) > 2: L.append(P.path(seg[::2].tolist() + [seg[-1].tolist()], f'{col}!{shade},line width={lw}pt'))
+            if len(seg) > 2: L.append(P.path(seg[::2].tolist() + [seg[-1].tolist()], f'{tint(col, shade)},line width={lw}pt'))
     plt.close('all'); return L
 
 
@@ -156,7 +166,7 @@ def polyline(points, fmt='{:.3f}'):
     return ' -- '.join(f'({fmt.format(x)},{fmt.format(y)})' for x, y in points)
 
 
-__all__ = ['INK', 'MUTED', 'HAIR', 'PAPER', 'BLUE', 'TEAL', 'ORANGE', 'PURPLE', 'CAVEAT', 'CONCEPT', 'EXAMPLE',
+__all__ = ['INK', 'MUTED', 'HAIR', 'PAPER', 'SLIDE', 'BLUE', 'TEAL', 'ORANGE', 'PURPLE', 'CAVEAT', 'CONCEPT', 'EXAMPLE',
            'ANCHOR', 'QUESTION', 'INPUT', 'GAUSS', 'DOG', 'CSS', 'DN', 'FUTURE', 'STYLE', 'SMALL', 'TINY', 'HEAD',
-           'PX_PER_CM', 'PT_PER_CM', 'FIGURE_HEIGHTS', 'color', 'hex', 'Panel', 'stack', 'clipped_path', 'writer',
+           'PX_PER_CM', 'PT_PER_CM', 'FIGURE_HEIGHTS', 'tint', 'color', 'hex', 'Panel', 'stack', 'clipped_path', 'writer',
            'box', 'contours', 'load_data', 'escape', 'nohyphen', 'polyline', 'np', 'Path', 'math']

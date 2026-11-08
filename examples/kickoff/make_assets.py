@@ -51,18 +51,18 @@ def lineage():
         text(L, x + w / 2, y + 0.07, sub, MUTED, TINYI, 'south', w - 0.2)
         return x, y, w, h
 
-    mv = node(0.3, 4.15, 2.5, 1.15, 'mrVista', 'Wandell and Dumoulin labs, 2008', BLUE, f'{BLUE}!6')
+    mv = node(0.3, 4.15, 2.5, 1.15, 'mrVista', 'Wandell and Dumoulin labs, 2008', BLUE, f'{BLUE}!6!{SLIDE}')
     fam = [('analyzePRF', 'Kay lab'), ('SamSrf', 'Schwarzkopf lab'), ('mrTools', 'Gardner lab'), ('VSNLabTools', 'Cornelissen lab'), ('AFNI', 'NIH'), ('BrainVoyager', 'Goebel')]
     x0 = 3.15; wf = 1.52
     for i, (n, g) in enumerate(fam):
-        xi = x0 + i * (wf + 0.1); rbox(L, xi, 4.3, wf, 0.85, HAIR, 'white', 0.5)
+        xi = x0 + i * (wf + 0.1); rbox(L, xi, 4.3, wf, 0.85, HAIR, SLIDE, 0.5)
         text(L, xi + wf / 2, 4.88, n, MUTED, r'font=\sffamily\tiny\bfseries'); text(L, xi + wf / 2, 4.55, g, MUTED, TINYI)
     text(L, x0 + 3 * (wf + 0.1) - 0.05, 5.3, 'the wider family: many packages, one model each, few shared tests', MUTED, TINYI, 'south')
 
-    po = node(0.6, 1.75, 2.4, 1.15, 'popeye', 'DeSimone, Rokem, Schneider, 2016', PURPLE, f'{PURPLE}!6')
-    pp = node(4.9, 1.75, 2.5, 1.15, 'prfpy', 'Dumoulin and Knapen labs, VU and NIN', TEAL, f'{TEAL}!6')
-    bc = node(4.9, 0.2, 2.5, 1.15, 'braincoder', 'de Hollander; TensorFlow', ORANGE, f'{ORANGE}!6')
-    pm = node(9.5, 0.85, 3.2, 1.6, '', 'Popylar, 2025 onward; Keras on JAX, PyTorch, TensorFlow', BLUE, f'{BLUE}!10', 1.3)
+    po = node(0.6, 1.75, 2.4, 1.15, 'popeye', 'DeSimone, Rokem, Schneider, 2016', PURPLE, f'{PURPLE}!6!{SLIDE}')
+    pp = node(4.9, 1.75, 2.5, 1.15, 'prfpy', 'Dumoulin and Knapen labs, VU and NIN', TEAL, f'{TEAL}!6!{SLIDE}')
+    bc = node(4.9, 0.2, 2.5, 1.15, 'braincoder', 'de Hollander; TensorFlow', ORANGE, f'{ORANGE}!6!{SLIDE}')
+    pm = node(9.5, 0.85, 3.2, 1.6, '', 'Popylar, 2025 onward; Keras on JAX, PyTorch, TensorFlow', BLUE, f'{BLUE}!10!{SLIDE}', 1.3)
     text(L, pm[0] + pm[2] / 2, pm[1] + pm[3] - 0.38, 'prfmodel', BLUE, r'font=\sffamily\large\bfseries')
 
     arrow(L, (1.55, 4.15), (5.6, 2.9), BLUE, 0.8)
@@ -91,7 +91,7 @@ def engine():
     x = 0.2; xs = []; L2 = []     # L2: the second stage (data, fitter, estimate, the update loop)
     for k, (w, title, sub, col) in enumerate(boxes):
         T = L if k < 3 else L2
-        rbox(T, x, y, w, h, col, f'{col}!6' if col != INK else 'white', 0.9)
+        rbox(T, x, y, w, h, col, f'{col}!6!{SLIDE}' if col != INK else SLIDE, 0.9)
         text(T, x + w / 2, y + h - 0.1, title, col, LABB, 'north'); text(T, x + w / 2, y + 0.08, sub, MUTED, TINYI, 'south', w - 0.15)
         xs.append((x, w)); x += w + 0.32
     for i in range(5):
@@ -101,7 +101,7 @@ def engine():
         else: arrow(T, (x0 + w0, y + h / 2), (x1, y + h / 2), boxes[i + 1][3] if i != 3 else ORANGE)
     # parameters above the model, and the loop back from the fitter
     mx = xs[1][0] + xs[1][1] / 2; fx = xs[4][0] + xs[4][1] / 2
-    rbox(L, mx - 1.05, 4.5, 2.1, 0.7, PURPLE, f'{PURPLE}!6'); text(L, mx, 4.85, 'parameters $\\theta$', PURPLE, LABB)
+    rbox(L, mx - 1.05, 4.5, 2.1, 0.7, PURPLE, f'{PURPLE}!6!{SLIDE}'); text(L, mx, 4.85, 'parameters $\\theta$', PURPLE, LABB)
     arrow(L, (mx, 4.5), (mx, y + h), PURPLE)
     L2.append(f'\\draw[-{{Latex[length=5pt]}},{ORANGE},line width=0.8pt,dashed] ({fx:.3f},{y + h:.3f}) -- ({fx:.3f},4.85) -- ({mx + 1.05:.3f},4.85);')
     text(L2, (mx + 1.05 + fx) / 2, 4.9, 'update $\\theta$, predict again', ORANGE, TINYI, 'south')
@@ -133,7 +133,7 @@ def community():
             (4.7, -1.55, 'Hacks and workshops', 'coding sprints at the Spinoza Centre; a hands-on school each year: this is one', TEAL)]
     for dx, dy, t, b, col in sats:
         x, y = cx + dx, cy + dy; w, h = 3.6, 1.25
-        rbox(L, x - w / 2, y - h / 2, w, h, col, 'white', 0.8)
+        rbox(L, x - w / 2, y - h / 2, w, h, col, SLIDE, 0.8)
         text(L, x, y + h / 2 - 0.1, t, col, LABB, 'north'); text(L, x, y + h / 2 - 0.42, b, INK, TINYI, 'north', w - 0.3)
         # connector from the circle edge to the box edge
         ang = math.atan2(dy, dx); sx, sy = cx + 1.25 * math.cos(ang), cy + 1.25 * math.sin(ang)
@@ -158,7 +158,7 @@ def shelf():
     for k, (name, sub, col, kind) in enumerate(cards):
         r, c = divmod(k, 6); x = 0.2 + c * (cw + gap); y = 0.2 + (1 - r) * (ch + gap)
         L = L2 if kind == 'custom' else L1
-        rbox(L, x, y, cw, ch, col, 'white' if kind != 'custom' else None, 0.8, dashed=(kind == 'custom'))
+        rbox(L, x, y, cw, ch, col, SLIDE if kind != 'custom' else None, 0.8, dashed=(kind == 'custom'))
         text(L, x + cw / 2, y + ch - 0.08, name, col, LABB, 'north', cw - 0.2); text(L, x + cw / 2, y + 0.06, sub, MUTED, TINYI, 'south', cw - 0.2)
         # drawing area
         ax0, ay0, aw, ah = x + 0.25, y + 0.55, cw - 0.5, 1.25
@@ -180,11 +180,11 @@ def shelf():
         elif kind == 'dn':
             L.append(P.path([(u, 0.55 + 0.4 * math.exp(-u * u / 0.06)) for u in x_grid], f'{col},line width=1pt'))
             L.append(P.hline(0.5, f'{INK},line width=0.6pt', -0.8, 0.8))
-            L.append(P.path([(u, 0.05 + 0.35 * math.exp(-u * u / 0.5)) for u in x_grid], f'{col}!60,line width=1pt'))
+            L.append(P.path([(u, 0.05 + 0.35 * math.exp(-u * u / 0.5)) for u in x_grid], f'{col}!60!{SLIDE},line width=1pt'))
         elif kind == 'cs':
             mx, my = P(0, 0.5)
-            L.append(f'\\fill[{col},fill opacity=0.18] ({mx:.3f},{my:.3f}) circle (0.52);'); L.append(f'\\fill[white] ({mx:.3f},{my:.3f}) circle (0.26);')
-            L.append(f'\\fill[{col},fill opacity=0.8] ({mx:.3f},{my:.3f}) circle (0.26);'); text(L, mx + 0.62, my + 0.35, '$-$', col, LAB); text(L, mx, my, '$+$', 'white', LAB)
+            L.append(f'\\fill[{col},fill opacity=0.18] ({mx:.3f},{my:.3f}) circle (0.52);'); L.append(f'\\fill[{SLIDE}] ({mx:.3f},{my:.3f}) circle (0.26);')
+            L.append(f'\\fill[{col},fill opacity=0.8] ({mx:.3f},{my:.3f}) circle (0.26);'); text(L, mx + 0.62, my + 0.35, '$-$', col, LAB); text(L, mx, my, '$+$', SLIDE, LAB)
         elif kind == 'cf':
             # a folded cortex strip with a Gaussian on it
             pts = [(u, 0.3 + 0.12 * math.sin(3 * u)) for u in x_grid]
@@ -201,8 +201,8 @@ def shelf():
         elif kind == 'cst':
             tt = np.linspace(0, 1, 80)
             L.append(P.path(list(zip(2 * tt - 1, [0.1 + 0.6 * (1 - math.exp(-t * 12)) * (t < 0.65) + 0.6 * math.exp(-(t - 0.65) * 12) * (t >= 0.65) for t in tt])), f'{col},line width=1pt'))
-            L.append(P.path(list(zip(2 * tt - 1, [0.1 + 0.8 * math.exp(-((t - 0.08) ** 2) / 0.003) + 0.8 * math.exp(-((t - 0.69) ** 2) / 0.003) for t in tt])), f'{col}!55,line width=1pt'))
-            text(L, P(0.5, 0.75)[0], P(0.5, 0.75)[1], 'S', col, TINYI); text(L, P(-0.55, 0.9)[0], P(-0.55, 0.9)[1], 'T', f'{col}!70', TINYI)
+            L.append(P.path(list(zip(2 * tt - 1, [0.1 + 0.8 * math.exp(-((t - 0.08) ** 2) / 0.003) + 0.8 * math.exp(-((t - 0.69) ** 2) / 0.003) for t in tt])), f'{col}!55!{SLIDE},line width=1pt'))
+            text(L, P(0.5, 0.75)[0], P(0.5, 0.75)[1], 'S', col, TINYI); text(L, P(-0.55, 0.9)[0], P(-0.55, 0.9)[1], 'T', f'{col}!70!{SLIDE}', TINYI)
         elif kind == 'hrf':
             from math import gamma
             tt = np.linspace(0, 25, 90)
@@ -212,7 +212,7 @@ def shelf():
             L.append(P.hline(0.2, f'{HAIR},line width=0.4pt'))
         elif kind == 'custom':
             for i, (lab, cc) in enumerate((('stimulus', BLUE), ('tuning', TEAL), ('impulse', INK), ('scaling', ORANGE))):
-                yy = ay0 + ah - 0.12 - i * 0.28; rbox(L, ax0 + 0.15, yy - 0.22, aw - 0.3, 0.24, cc, f'{cc}!8', 0.5); text(L, ax0 + aw / 2, yy - 0.1, lab, cc, TINYI)
+                yy = ay0 + ah - 0.12 - i * 0.28; rbox(L, ax0 + 0.15, yy - 0.22, aw - 0.3, 0.24, cc, f'{cc}!8!{SLIDE}', 0.5); text(L, ax0 + aw / 2, yy - 0.1, lab, cc, TINYI)
     write('shelf', L1 + L2)
     write('shelf-0', L1 + ['\\begin{scope}[opacity=0]'] + L2 + ['\\end{scope}'])
 
@@ -253,7 +253,7 @@ def timeline():
     for name, n, col in counts:
         w = n * scale
         L.append(f'\\fill[{col}] ({x:.3f},{yb:.3f}) rectangle ({x + w:.3f},{yb + 0.4:.3f});')
-        if n > 200: text(L, x + 0.1, yb + 0.2, f'{name}: {n}', 'white', LAB, 'west')
+        if n > 200: text(L, x + 0.1, yb + 0.2, f'{name}: {n}', SLIDE, LAB, 'west')
         elif n > 50: text(L, x + w / 2, yb - 0.05, f'{name}: {n}', col, TINYI, 'north')
         else: text(L, x + w + 0.1, yb + 0.2, f'{name}: {n}', col, TINYI, 'west')
         x += w + 0.05
@@ -264,7 +264,7 @@ def timeline():
 def programme():
     """The two days as two columns with a shared vertical time axis: lectures, prfmodel sessions, practicals, breaks."""
     L = []
-    KIND = {'lec': (BLUE, f'{BLUE}!8'), 'pm': (TEAL, f'{TEAL}!10'), 'prac': (ORANGE, f'{ORANGE}!10'), 'brk': (HAIR, 'white'), 'misc': (MUTED, 'white')}
+    KIND = {'lec': (BLUE, f'{BLUE}!8!{SLIDE}'), 'pm': (TEAL, f'{TEAL}!10!{SLIDE}'), 'prac': (ORANGE, f'{ORANGE}!10!{SLIDE}'), 'brk': (HAIR, SLIDE), 'misc': (MUTED, SLIDE)}
     thu = [(9.0, 9.25, 'Welcome', 'misc', 'Tomas Knapen'), (9.25, 9.75, 'Historic origins', 'lec', 'Serge Dumoulin'), (9.75, 10.25, 'Designing experiments', 'lec', 'Tomas Knapen'),
            (10.25, 10.5, '', 'brk'), (10.5, 11.0, 'Cognitive pRF models', 'lec', 'Ben Harvey'), (11.0, 11.5, 'Introduction to prfmodel', 'pm', 'Malte Lüken'),
            (11.5, 11.75, '', 'brk'), (11.75, 13.0, 'Practical 1', 'prac'), (13.0, 14.0, 'lunch', 'brk'), (14.0, 16.5, 'Practical 2', 'prac'), (16.5, 17.0, 'Recap and discussion', 'misc')]

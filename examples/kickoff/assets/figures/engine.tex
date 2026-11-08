@@ -1,16 +1,16 @@
 \begin{tikzpicture}[x=1cm,y=1cm,every node/.style={font=\sffamily\footnotesize,text=nmInk,inner sep=1.5pt}]
-\draw[nmConcept,line width=0.9pt,fill=nmConcept!6,rounded corners=3pt] (0.200,2.850) rectangle (2.000,4.150);
+\draw[nmConcept,line width=0.9pt,fill=nmConcept!6!nmSlide,rounded corners=3pt] (0.200,2.850) rectangle (2.000,4.150);
 \node[anchor=north,text=nmConcept,font=\sffamily\scriptsize\bfseries] at (1.100,4.050) {stimulus $x$};
 \node[anchor=south,text=nmMuted,font=\sffamily\tiny\itshape,text width=1.65cm,align=center] at (1.100,2.930) {\hyphenchar\font=-1 bars, images, sounds};
-\draw[nmState,line width=0.9pt,fill=nmState!6,rounded corners=3pt] (2.320,2.850) rectangle (5.320,4.150);
+\draw[nmState,line width=0.9pt,fill=nmState!6!nmSlide,rounded corners=3pt] (2.320,2.850) rectangle (5.320,4.150);
 \node[anchor=north,text=nmState,font=\sffamily\scriptsize\bfseries] at (3.820,4.050) {model $f(x, \theta)$};
 \node[anchor=south,text=nmMuted,font=\sffamily\tiny\itshape,text width=2.85cm,align=center] at (3.820,2.930) {\hyphenchar\font=-1 pRF $\circ$ impulse response $\circ$ scaling: one graph};
-\draw[nmState,line width=0.9pt,fill=nmState!6,rounded corners=3pt] (5.640,2.850) rectangle (7.540,4.150);
+\draw[nmState,line width=0.9pt,fill=nmState!6!nmSlide,rounded corners=3pt] (5.640,2.850) rectangle (7.540,4.150);
 \node[anchor=north,text=nmState,font=\sffamily\scriptsize\bfseries] at (6.590,4.050) {prediction};
 \node[anchor=south,text=nmMuted,font=\sffamily\tiny\itshape,text width=1.75cm,align=center] at (6.590,2.930) {\hyphenchar\font=-1 the model as a data generator};
 \draw[-{Latex[length=5pt]},nmState,line width=0.7pt] (2.000,3.500) -- (2.320,3.500);
 \draw[-{Latex[length=5pt]},nmState,line width=0.7pt] (5.320,3.500) -- (5.640,3.500);
-\draw[nmContext,line width=0.8pt,fill=nmContext!6,rounded corners=3pt] (2.770,4.500) rectangle (4.870,5.200);
+\draw[nmContext,line width=0.8pt,fill=nmContext!6!nmSlide,rounded corners=3pt] (2.770,4.500) rectangle (4.870,5.200);
 \node[anchor=center,text=nmContext,font=\sffamily\scriptsize\bfseries] at (3.820,4.850) {parameters $\theta$};
 \draw[-{Latex[length=5pt]},nmContext,line width=0.7pt] (3.820,4.500) -- (3.820,4.150);
 \draw[nmConcept,line width=0.8pt,rounded corners=3pt] (0.200,0.200) rectangle (4.600,2.350);
@@ -22,13 +22,13 @@
 \draw[nmUpdate,line width=0.8pt,rounded corners=3pt] (9.600,0.200) rectangle (14.000,2.350);
 \node[anchor=north west,text=nmUpdate,font=\sffamily\scriptsize\bfseries] at (9.750,2.250) {Built to be extended};
 \node[anchor=north west,text=nmInk,font=\sffamily\scriptsize,text width=4.10cm,align=left] at (9.750,1.900) {\hyphenchar\font=-1 Stimulus encoder, tuning, impulse response, scaling, regressors: a new model is a new part, the fitting and tests stay.};
-\draw[nmInk,line width=0.9pt,fill=white,rounded corners=3pt] (7.860,2.850) rectangle (9.760,4.150);
+\draw[nmInk,line width=0.9pt,fill=nmSlide,rounded corners=3pt] (7.860,2.850) rectangle (9.760,4.150);
 \node[anchor=north,text=nmInk,font=\sffamily\scriptsize\bfseries] at (8.810,4.050) {data};
 \node[anchor=south,text=nmMuted,font=\sffamily\tiny\itshape,text width=1.75cm,align=center] at (8.810,2.930) {\hyphenchar\font=-1 fMRI, ECoG, electrodes};
-\draw[nmUpdate,line width=0.9pt,fill=nmUpdate!6,rounded corners=3pt] (10.080,2.850) rectangle (11.880,4.150);
+\draw[nmUpdate,line width=0.9pt,fill=nmUpdate!6!nmSlide,rounded corners=3pt] (10.080,2.850) rectangle (11.880,4.150);
 \node[anchor=north,text=nmUpdate,font=\sffamily\scriptsize\bfseries] at (10.980,4.050) {fitter};
 \node[anchor=south,text=nmMuted,font=\sffamily\tiny\itshape,text width=1.65cm,align=center] at (10.980,2.930) {\hyphenchar\font=-1 grid, then gradients};
-\draw[nmUpdate,line width=0.9pt,fill=nmUpdate!6,rounded corners=3pt] (12.200,2.850) rectangle (14.000,4.150);
+\draw[nmUpdate,line width=0.9pt,fill=nmUpdate!6!nmSlide,rounded corners=3pt] (12.200,2.850) rectangle (14.000,4.150);
 \node[anchor=north,text=nmUpdate,font=\sffamily\scriptsize\bfseries] at (13.100,4.050) {estimate $\hat\theta$};
 \node[anchor=south,text=nmMuted,font=\sffamily\tiny\itshape,text width=1.65cm,align=center] at (13.100,2.930) {\hyphenchar\font=-1 cross-validated fit};
 \draw[nmInk,line width=0.7pt] (7.540,3.500) -- (7.860,3.500);
