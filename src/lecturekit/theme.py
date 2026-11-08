@@ -23,7 +23,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import yaml
 
@@ -201,7 +201,6 @@ class Tokens:
             key = name.replace("-", "_")
             if key not in palette and name not in SEMANTIC_COLORS:
                 palette[key] = c[name]
-        body = pick("ink", default="#202B33")
         typography = {}
         head = self.heading_font or self.base_font
         fonts = [f for f in (self.base_font, "TeX Gyre Heros", "Helvetica", "sans-serif") if f]
@@ -269,8 +268,10 @@ def _mode_value(v: Any, mode: str) -> Any:
 
 def tokens_from_dict(data: dict[str, Any], name: str | None, path: Path | None, mode: str = "light") -> Tokens:
     meta = data.get("meta") or {}
-    brand_name = name or (meta.get("name") if isinstance(meta.get("name"), str) else None) \
-        or (meta.get("name", {}) or {}).get("short") if isinstance(meta.get("name"), dict) else name or meta.get("name") or "brand"
+    meta_name = meta.get("name")
+    if isinstance(meta_name, dict):
+        meta_name = meta_name.get("short") or meta_name.get("full")
+    brand_name = name or meta_name or "brand"
     color = data.get("color") or {}
     palette: dict[str, str] = {}
     for k, v in (color.get("palette") or {}).items():

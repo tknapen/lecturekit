@@ -7,7 +7,7 @@ that a simulation did not write. Draw at display size: 1 cm here is 80 px live.
 """
 from pathlib import Path
 
-from lecturekit.tikz import FIGURE_HEIGHTS, write_tikz
+from lecturekit.tikz import write_tikz
 
 FIG = Path("assets/figures")
 DATA = Path("assets/data")
