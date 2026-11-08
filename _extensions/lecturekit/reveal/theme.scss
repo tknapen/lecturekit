@@ -1,23 +1,15 @@
 /*-- scss:defaults --*/
-// lecturekit live deck. Colours come from the --nm-* variables that the
-// dual-output filter writes from _brand.yml; the Sass variables below only
-// set Quarto's Reveal defaults so that nothing of the stock theme shows
-// through. Fonts come from the brand's typography (Quarto writes the
-// @font-face rules for file fonts).
-
-$presentation-font-size-root: 26px;
-$presentation-line-height: 1.3;
-$presentation-h1-font-size: 1.9em;
-$presentation-h2-font-size: 1.55em;
-$presentation-h3-font-size: 1.2em;
-$presentation-heading-font-weight: 500;
-$presentation-heading-line-height: 1.1;
-$presentation-heading-letter-spacing: normal;
-$presentation-heading-text-transform: none;
+// lecturekit live deck (the course's live.css, as a Quarto theme). Colours are the --nm-* variables that
+// tokens.lua writes from _brand.yml; the fonts are the brand's typography (Quarto writes --r-main-font and
+// --r-heading-font from it). The Sass variables below only set Quarto's Reveal defaults so that nothing of the
+// stock theme shows through where our rules do not reach.
+$presentation-font-size-root: 30px;
+$presentation-line-height: 1.4;
+$presentation-heading-font-weight: 400;
+$presentation-heading-line-height: 1.14;
+$presentation-heading-text-transform: uppercase;
 $presentation-heading-text-shadow: none;
-$presentation-block-margin: 0.6em;
-$presentation-selection-background-color: rgba(23, 91, 142, 0.25);
-
+$presentation-block-margin: 0;
 $body-bg: #ffffff;
 $body-color: #202b33;
 $link-color: #175b8e;
@@ -26,199 +18,186 @@ $code-block-bg: transparent;
 $code-block-border-color: transparent;
 
 /*-- scss:rules --*/
-// Geometry of the 1280 x 720 frame (see docs/LAYOUT.md):
-//   eyebrow at 40 px, title baseline block ends at ~150 px,
-//   content from 150 px, foot hairline at 677 px. 1 cm of Beamer = 80 px.
-:root {
-  --lk-frame-w: 1280px;
-  --lk-frame-h: 720px;
-  --lk-title-block: 150px;
-  --lk-foot-y: 677px;
-  --lk-gutter: 56px;
+// the engine’s names for the brand tokens, with the paper preset as fall-back
+:root{
+  --ink:var(--nm-ink,#202b33);--muted:var(--nm-muted,#566573);--hairline:var(--nm-hairline,#c8c3ba);
+  --paper:var(--nm-paper,#f3f2ee);--slide:var(--nm-slide,#ffffff);
+  --concept:var(--nm-concept,#175b8e);--caveat:var(--nm-caveat,#a33a32);--example:var(--nm-example,#956000);
+  --anchor:var(--nm-anchor,#006c65);--question:var(--nm-question,#70508c);
+  --input:var(--nm-input,#0072b2);--state:var(--nm-state,#007f73);--update:var(--nm-update,#c45a00);--context:var(--nm-context,#7a5195);
+  --heading:var(--nm-heading,var(--ink));--body:var(--nm-body,var(--ink));
+  --sans:var(--r-main-font,"TeX Gyre Heros",Helvetica,Arial,sans-serif);
+  --serif:var(--r-heading-font,"TeX Gyre Pagella",Palatino,"Palatino Linotype",serif);
 }
-
-// optional tokens: heading (titles) and body (running text) fall back to ink
-:root { --lk-heading: var(--nm-heading, var(--nm-ink)); --lk-body: var(--nm-body, var(--nm-ink)); }
-
-.reveal {
-  color: var(--lk-body, #{$body-color});
-  background-color: var(--nm-slide, #{$body-bg});
+/* Type scale matches the study PDF relative to the slide (policy of 14 October 2026: 12pt body, 20pt titles on the
+   160mm page; measured body 10.6pt = 30px on 1280px). */
+.reveal{font:30px/1.4 var(--sans);color:var(--body);background:var(--slide)}
+.reveal-viewport{background:var(--slide)}
+.reveal .slide-background{background-color:var(--slide)}
+.reveal .slides{text-align:left}
+.reveal .slides section{box-sizing:border-box;padding:25px 45px 70px;height:720px;top:0}
+.reveal .slides>section,.reveal .slides>section>section{padding:25px 45px 70px}
+/* Titles: regular-weight serif capitals, lightly tracked; labels tracked wider. */
+.reveal h1,.reveal h2{font-family:var(--serif);font-weight:400;text-transform:uppercase;line-height:1.14;color:var(--role,var(--heading));letter-spacing:.02em;margin:0}
+.reveal h1{font-size:70px}
+.reveal h2{font-size:54px;margin:0 0 30px}
+.reveal h3{font-family:var(--sans);font-size:34px;font-weight:600;color:var(--heading);text-transform:none;margin:0 0 .3em}
+.reveal p,.reveal li{line-height:1.4;color:var(--body)}
+.reveal p{margin:0 0 .5em}
+.reveal li{margin:12px 0}
+.reveal ul,.reveal ol{display:block;margin-left:1.1em}
+.reveal ul ul,.reveal ol ul{font-size:.85em}
+.reveal strong{font-weight:700;color:var(--ink)}
+.reveal em{font-style:italic}
+/* Colour emphasis: [words]{.blue} the term to keep, [words]{.red} the trap; the mark and role colours for a word that
+   names an element of a figure. */
+.reveal .blue{color:var(--input)}
+.reveal .red{color:var(--caveat)}
+.reveal .teal{color:var(--state)}
+.reveal .purple{color:var(--context)}
+.reveal .orange{color:var(--update)}
+.reveal .grey,.reveal .muted{color:var(--muted)}
+.reveal .gauss{color:var(--nm-gauss,#175B8E)}
+.reveal .concept{color:var(--concept)}
+.reveal .caveat{color:var(--caveat)}
+.reveal .example{color:var(--example)}
+.reveal .anchor{color:var(--anchor)}
+.reveal .question{color:var(--question)}
+.reveal .mark-input{color:var(--input)}
+.reveal .mark-state{color:var(--state)}
+.reveal .mark-update{color:var(--update)}
+.reveal .mark-context{color:var(--context)}
+.reveal blockquote{width:100%;margin:8px 0;padding:0 0 0 24px;border-left:4px solid var(--hairline);box-shadow:none;background:none;font-style:italic;font-size:.9em;line-height:1.35}
+.reveal .role-concept{--role:var(--concept)}
+.reveal .role-caveat{--role:var(--caveat)}
+.reveal .role-example{--role:var(--example)}
+.reveal .role-goals,.reveal .role-summary{--role:var(--anchor)}
+.reveal .role-question,.reveal .role-pause{--role:var(--question)}
+.reveal .role-section{--role:var(--anchor)}
+/* Role label, then a short rule in the role colour, then the title. */
+.reveal section[data-role-label]::before{content:attr(data-role-label);display:block;font-family:var(--sans);font-size:22px;color:var(--role,var(--heading));letter-spacing:.08em;margin-bottom:12px;text-transform:uppercase}
+.reveal section[data-role-label] > h2::before{content:"";display:block;width:53px;height:2px;background:var(--role,var(--heading));margin:0 0 18px}
+/* Running foot: hairline, short title, slide of total. */
+.reveal .nm-foot{position:absolute;left:45px;right:45px;bottom:22px;display:flex;justify-content:space-between;border-top:1px solid var(--hairline);padding-top:8px;font-size:18px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+/* Numbered points carry the role colour; the text stays charcoal. */
+.reveal ol{list-style:none;counter-reset:nm;margin-left:0}
+.reveal ol > li{counter-increment:nm;position:relative;padding-left:2.1em}
+.reveal ol > li::before{content:counter(nm,decimal-leading-zero);position:absolute;left:0;top:.26em;font-size:.68em;color:var(--role,var(--heading))}
+.reveal video{display:block;width:100%;height:440px;margin:auto;object-fit:contain;cursor:pointer}
+/* A clip slide gives the clip everything below the title: the section becomes a column (Reveal sets display:block
+   inline on the present slide, hence !important), the title block tightens, and the clip’s wrapper grows to the foot
+   at the clip’s own 16:9, so the controls sit on the frame. The video itself fills the wrapper. */
+.reveal .slides>section.present:has(video){display:flex !important;flex-direction:column;padding-top:15px;padding-bottom:42px}
+.reveal .slides section:has(video) h2{margin-bottom:12px}
+.reveal .slides section:has(video) .live-only:has(> video){flex:1 1 0;min-height:0;aspect-ratio:16/9;align-self:center;position:relative;width:auto;max-width:100%}
+.reveal .slides section:has(video) video{position:absolute;inset:0;width:100%;height:100%;margin:0;object-fit:contain}
+.reveal img{max-height:420px;display:block;margin:8px auto;max-width:100%;background:transparent;border:0;box-shadow:none}
+.reveal table{font-size:.78em;margin:.4em auto;border-collapse:collapse}
+.reveal table th,.reveal table td{padding:.15em .7em;border-bottom:1px solid var(--hairline)}
+.reveal table th{font-weight:600;text-align:left}
+.reveal .small table{font-size:.78em}
+/* TikZ figures arrive at their study-page proportion; cap them at the body height. Never upscaled: the SVG’s own
+   width and height are its natural size at 1280 px per study page. */
+.reveal img.tikz{max-height:400px;width:auto;height:auto;margin:0 auto}
+.reveal .row{display:flex;justify-content:center;align-items:center;gap:36px;margin:8px 0}
+.reveal .row img{display:inline-block;margin:0;width:auto}
+/* Paper-slide figures: multiply turns a white figure background into the slide background. The section carries the
+   paper colour itself (Reveal’s background layer sits behind the slide, outside the blend’s backdrop). */
+.reveal .slides section.role-goals,.reveal .slides section.role-summary,.reveal .slides section.role-section,.reveal .slides section.role-pause{background:var(--paper)}
+.reveal img.paper,.reveal video.paper{mix-blend-mode:multiply}
+.reveal .small{font-size:25px}
+.reveal #refs{font-size:23px;max-height:500px;overflow-y:auto;padding-right:12px}
+.reveal #refs div.csl-entry{margin-bottom:.35em}
+.reveal a{color:var(--concept);text-decoration:none}
+.reveal math{font-family:"TeX Gyre Pagella Math","STIX Two Math","Cambria Math",serif}
+.reveal .math.display{display:block;text-align:center;margin:24px 0}
+.reveal code{font-size:.85em;color:inherit;background:transparent}
+/* Citations in italics (rule of 27 October 2026); citation-size: small in a deck header also sets them smaller. */
+.reveal .citation{font-style:italic}
+.reveal .cite-small{font-size:.68em}
+/* Title slide: eyebrow line, capitals, a short rule, subtitle, author, date. */
+.reveal .slides section#title-slide{padding-top:120px;display:block !important;text-align:left}
+.reveal #title-slide::before{content:attr(data-eyebrow);display:block;font-family:var(--sans);font-size:22px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:28px}
+.reveal #title-slide h1{margin:0}
+.reveal #title-slide h1::after{content:"";display:block;width:53px;height:2px;background:var(--ink);margin-top:24px}
+.reveal #title-slide .subtitle{font-family:var(--serif);font-size:40px;color:var(--muted);margin:24px 0 0;text-transform:none}
+.reveal #title-slide .author{font-size:30px;margin:56px 0 0;color:var(--body)}
+.reveal #title-slide .institute{font-size:24px;color:var(--muted);margin:4px 0 0}
+.reveal #title-slide .date{font-size:24px;color:var(--muted);margin:8px 0 0}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
 }
-.reveal .slide-background,
-.reveal .backgrounds { background-color: var(--nm-slide, #{$body-bg}); }
-.reveal-viewport { background: var(--nm-paper, #f3f2ee); }
-
-.reveal .slides { text-align: left; }
-.reveal .slides > section,
-.reveal .slides > section > section {
-  padding: 0;
-  height: var(--lk-frame-h);
-  box-sizing: border-box;
-}
-.reveal .slides section:not(.title-slide):not(#title-slide) {
-  padding: var(--lk-title-block) var(--lk-gutter) 0 var(--lk-gutter);
-}
-.reveal .slides section .lk-eyebrow {
-  position: absolute;
-  top: 40px;
-  left: var(--lk-gutter);
-  font-size: 0.6em;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-weight: 600;
-  color: var(--nm-muted, #566573);
-  margin: 0;
-}
-@each $role in concept, caveat, example, anchor, question {
-  .reveal .slides section .lk-eyebrow.lk-role-#{$role} { color: var(--nm-#{$role}); }
-}
-.reveal .slides section > h2:first-of-type,
-.reveal .slides section > h1:first-of-type {
-  position: absolute;
-  top: 66px;
-  left: var(--lk-gutter);
-  right: var(--lk-gutter);
-  margin: 0;
-  color: var(--lk-heading);
-}
-.reveal h1, .reveal h2, .reveal h3 { color: var(--lk-heading); }
-
-// foot: deck short title left, slide number right, hairline above
-.lk-foot {
-  position: absolute;
-  left: var(--lk-gutter);
-  right: var(--lk-gutter);
-  top: var(--lk-foot-y);
-  display: flex;
-  justify-content: space-between;
-  font-size: 15px;
-  letter-spacing: 0.02em;
-  color: var(--nm-muted, #566573);
-  border-top: 1px solid var(--nm-hairline, #c8c3ba);
-  padding-top: 6px;
-  pointer-events: none;
-  z-index: 5;
-}
-// pacing.js moves the foot into .slides so that it scales with the deck;
-// Reveal hides non-present children of .slides, hence the !important
-.reveal .slides > .lk-foot { display: flex !important; }
-.reveal.lk-on-title .slides > .lk-foot { display: none !important; }
-
-// text
-.reveal p, .reveal li { color: var(--lk-body); }
-.reveal section code { color: inherit !important; background: transparent; font-size: 0.9em; }
-.reveal ul, .reveal ol { margin: 0 0 0 1.1em; }
-.reveal li { margin-bottom: 0.25em; }
-.reveal li::marker { color: var(--nm-muted); }
-.reveal strong { font-weight: 600; color: var(--nm-ink); }   // emphasis in ink (green-tinted white on the dark preset)
-.reveal em { color: inherit; }
-.reveal a { color: var(--nm-concept, #{$link-color}); text-decoration: none; }
-.reveal .muted, .reveal small { color: var(--nm-muted); }
-.reveal hr { border: 0; border-top: 1px solid var(--nm-hairline); }
-
-// figures and clips: as large as the slide allows, never upscaled
-.reveal .lk-figure, .reveal .lk-movie {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  margin: 0.3em auto 0 auto;
-  width: 100%;
-}
-.reveal .lk-figure img, .reveal img.lk-tikz {
-  max-width: 100%;
-  height: auto;
-  margin: 0;
-  background: transparent;
-  border: 0;
-  box-shadow: none;
-}
-.reveal .lk-movie video {
-  max-width: 100%;
-  max-height: inherit;
-  height: 100%;
-  display: block;
-  background: var(--nm-slide);
-  cursor: pointer;
-}
-.reveal .lk-movie-caption, .reveal figcaption {
-  font-size: 0.65em;
-  color: var(--nm-muted);
-  text-align: center;
-  margin-top: 0.2em;
-}
-.reveal .lk-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px dashed var(--nm-caveat, #a33a32);
-  color: var(--nm-caveat, #a33a32);
-  font-size: 0.7em;
-  width: 100%;
-}
-
-// columns keep the figure beside its text
-.reveal .columns { display: flex; gap: 32px; align-items: flex-start; }
-.reveal .columns > .column { flex: 1 1 0; }
-
-// role colour utility spans: [text]{.concept}
-@each $role in concept, caveat, example, anchor, question {
-  .reveal .#{$role} { color: var(--nm-#{$role}); }
-}
-@each $mark in input, state, update, context {
-  .reveal .mark-#{$mark} { color: var(--nm-#{$mark}); }
-}
-
-// math
-.reveal .math { color: var(--nm-ink); }
-.reveal .MathJax, .reveal mjx-container { font-size: 100% !important; }
-
-// speaker notes are never visible in the live frame
-.reveal aside.notes { display: none; }
-
-// title slide
-.reveal .slides section.title-slide,
-.reveal .slides section#title-slide {
-  padding: 0 var(--lk-gutter);
-  text-align: left !important;
-  display: flex !important;
-  flex-direction: column;
-  justify-content: center;
-}
-.reveal .title-slide .lk-title-eyebrow {
-  order: -1;
-  font-size: 0.6em;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--nm-muted);
-  margin-bottom: 0.6em;
-}
-.reveal .title-slide h1.title { font-size: 2.2em; margin: 0 0 0.3em 0; color: var(--lk-heading); text-align: left; }
-.reveal .title-slide .subtitle { font-size: 1.1em; color: var(--nm-muted); margin: 0 0 1.2em 0; }
-.reveal .title-slide .author, .reveal .title-slide .institute, .reveal .title-slide .date {
-  font-size: 0.8em;
-  margin: 0;
-  color: var(--lk-body);
-}
-.reveal .title-slide .date { color: var(--nm-muted); }
-
-// pacing clock: only present in the speaker view (pacing.js)
-.lk-pacing {
-  position: fixed;
-  right: 16px;
-  bottom: 12px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 14px;
-  color: var(--nm-muted);
-  background: var(--nm-slide);
-  border: 1px solid var(--nm-hairline);
-  padding: 4px 8px;
-  border-radius: 4px;
-  z-index: 50;
-}
-.lk-pacing.lk-behind { color: var(--nm-caveat, #a33a32); }
-.lk-pacing.lk-ahead { color: var(--nm-anchor, #006c65); }
-
-// print to PDF (?print-pdf) keeps the geometry
+/* Brief-exposure slides (data-flash): the image starts hidden and live-head.html shows it for the set time; the fixation
+   cross sits where the image is. */
+.reveal section[data-flash] img{visibility:hidden}
+.reveal section[data-flash] p{position:relative}
+.reveal .nm-fix{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-size:72px;color:var(--muted);visibility:hidden;pointer-events:none}
+/* Buttons on a live slide that open a local demonstration in a new tab. */
+.reveal .nm-buttons{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:4px 0 10px}
+.reveal .nm-button{font-size:22px;padding:8px 18px;border:2px solid var(--concept);border-radius:6px;color:var(--concept);text-decoration:none;background:var(--slide)}
+.reveal .nm-button:hover{background:var(--concept);color:var(--slide)}
+/* The three objectives of the pRF workshop decks: role colour and an icon before the eyebrow label. The icon is a
+   mask filled with the role colour, so a restyle recolours it. */
+.reveal .role-detection{--role:var(--concept)}
+.reveal .role-estimation{--role:var(--state)}
+.reveal .role-discrimination{--role:var(--context)}
+.reveal section:is(.role-detection,.role-estimation,.role-discrimination,.role-where,.role-how,.role-what,.role-when)::before{padding-left:36px}
+.reveal section:is(.role-detection,.role-estimation,.role-discrimination,.role-where,.role-how,.role-what,.role-when)::after{content:"";position:absolute;left:45px;top:24px;width:27px;height:27px;background-color:var(--role,var(--heading));-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-size:27px 27px;mask-size:27px 27px}
+.reveal section.role-detection::after{-webkit-mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48cG9seWxpbmUgcG9pbnRzPSctMS4wNTAsMC4wMDIgLTAuOTgwLC0wLjI4MyAtMC45MTAsLTAuNTE5IC0wLjg0MCwtMC42NjUgLTAuNzcwLC0wLjY5NiAtMC43MDAsLTAuNjA3IC0wLjYzMCwtMC40MTIgLTAuNTYwLC0wLjE0NiAtMC40OTAsMC4xNDUgLTAuNDIwLDAuNDExIC0wLjM1MCwwLjYwNiAtMC4yODAsMC42OTYgLTAuMjEwLDAuNjY2IC0wLjE0MCwwLjUyMCAtMC4wNzAsMC4yODUgMC4wMDAsLTAuMDAwIDAuMDcwLC0wLjI4NSAwLjE0MCwtMC41MjAgMC4yMTAsLTAuNjY2IDAuMjgwLC0wLjY5NiAwLjM1MCwtMC42MDYgMC40MjAsLTAuNDExIDAuNDkwLC0wLjE0NSAwLjU2MCwwLjE0NiAwLjYzMCwwLjQxMiAwLjcwMCwwLjYwNyAwLjc3MCwwLjY5NiAwLjg0MCwwLjY2NSAwLjkxMCwwLjUxOSAwLjk4MCwwLjI4MyAxLjA1MCwtMC4wMDInIGZpbGw9J25vbmUnIHN0cm9rZT0nYmxhY2snIHN0cm9rZS13aWR0aD0nMC4xMicvPjwvc3ZnPg==");mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48cG9seWxpbmUgcG9pbnRzPSctMS4wNTAsMC4wMDIgLTAuOTgwLC0wLjI4MyAtMC45MTAsLTAuNTE5IC0wLjg0MCwtMC42NjUgLTAuNzcwLC0wLjY5NiAtMC43MDAsLTAuNjA3IC0wLjYzMCwtMC40MTIgLTAuNTYwLC0wLjE0NiAtMC40OTAsMC4xNDUgLTAuNDIwLDAuNDExIC0wLjM1MCwwLjYwNiAtMC4yODAsMC42OTYgLTAuMjEwLDAuNjY2IC0wLjE0MCwwLjUyMCAtMC4wNzAsMC4yODUgMC4wMDAsLTAuMDAwIDAuMDcwLC0wLjI4NSAwLjE0MCwtMC41MjAgMC4yMTAsLTAuNjY2IDAuMjgwLC0wLjY5NiAwLjM1MCwtMC42MDYgMC40MjAsLTAuNDExIDAuNDkwLC0wLjE0NSAwLjU2MCwwLjE0NiAwLjYzMCwwLjQxMiAwLjcwMCwwLjYwNyAwLjc3MCwwLjY5NiAwLjg0MCwwLjY2NSAwLjkxMCwwLjUxOSAwLjk4MCwwLjI4MyAxLjA1MCwtMC4wMDInIGZpbGw9J25vbmUnIHN0cm9rZT0nYmxhY2snIHN0cm9rZS13aWR0aD0nMC4xMicvPjwvc3ZnPg==")}
+.reveal section.role-estimation::after{-webkit-mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48Y2lyY2xlIHI9JzAuOCcgZmlsbD0nbm9uZScgc3Ryb2tlPSdibGFjaycgc3Ryb2tlLXdpZHRoPScwLjEyJy8+PGNpcmNsZSByPScwLjIyJyBmaWxsPSdibGFjaycvPjwvc3ZnPg==");mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48Y2lyY2xlIHI9JzAuOCcgZmlsbD0nbm9uZScgc3Ryb2tlPSdibGFjaycgc3Ryb2tlLXdpZHRoPScwLjEyJy8+PGNpcmNsZSByPScwLjIyJyBmaWxsPSdibGFjaycvPjwvc3ZnPg==")}
+.reveal section.role-discrimination::after{-webkit-mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48cG9seWxpbmUgcG9pbnRzPSctMSwwLjUgMCwwIDEsLTAuNzUnIGZpbGw9J25vbmUnIHN0cm9rZT0nYmxhY2snIHN0cm9rZS13aWR0aD0nMC4xMicvPjxwb2x5bGluZSBwb2ludHM9JzAsMCAxLDAuNicgZmlsbD0nbm9uZScgc3Ryb2tlPSdibGFjaycgc3Ryb2tlLXdpZHRoPScwLjEyJy8+PC9zdmc+");mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48cG9seWxpbmUgcG9pbnRzPSctMSwwLjUgMCwwIDEsLTAuNzUnIGZpbGw9J25vbmUnIHN0cm9rZT0nYmxhY2snIHN0cm9rZS13aWR0aD0nMC4xMicvPjxwb2x5bGluZSBwb2ludHM9JzAsMCAxLDAuNicgZmlsbD0nbm9uZScgc3Ryb2tlPSdibGFjaycgc3Ryb2tlLXdpZHRoPScwLjEyJy8+PC9zdmc+")}
+/* The four dimensions of the advanced-models lecture: eyebrow and title in the heading colour (colour stays with the
+   models), an icon each. */
+.reveal .role-where,.reveal .role-how,.reveal .role-what,.reveal .role-when{--role:var(--heading)}
+.reveal section.role-where::after{-webkit-mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48bGluZSB4MT0nLTEuMScgeTE9JzAnIHgyPScxLjEnIHkyPScwJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTEnLz48bGluZSB4MT0nMCcgeTE9Jy0xLjEnIHgyPScwJyB5Mj0nMS4xJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTEnLz48Y2lyY2xlIGN4PScwLjUnIGN5PSctMC40JyByPScwLjMzJyBmaWxsPSdibGFjaycvPjwvc3ZnPg==");mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48bGluZSB4MT0nLTEuMScgeTE9JzAnIHgyPScxLjEnIHkyPScwJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTEnLz48bGluZSB4MT0nMCcgeTE9Jy0xLjEnIHgyPScwJyB5Mj0nMS4xJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTEnLz48Y2lyY2xlIGN4PScwLjUnIGN5PSctMC40JyByPScwLjMzJyBmaWxsPSdibGFjaycvPjwvc3ZnPg==")}
+.reveal section.role-how::after{-webkit-mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48cG9seWxpbmUgcG9pbnRzPSctMS4wMDAsMC43NTAgLTAuOTAwLDAuNDE1IC0wLjgwMCwwLjI3NiAtMC43MDAsMC4xNjkgLTAuNjAwLDAuMDc5IC0wLjUwMCwtMC4wMDAgLTAuNDAwLC0wLjA3MiAtMC4zMDAsLTAuMTM3IC0wLjIwMCwtMC4xOTkgLTAuMTAwLC0wLjI1NiAwLjAwMCwtMC4zMTEgMC4xMDAsLTAuMzYyIDAuMjAwLC0wLjQxMiAwLjMwMCwtMC40NTkgMC40MDAsLTAuNTA1IDAuNTAwLC0wLjU0OSAwLjYwMCwtMC41OTIgMC43MDAsLTAuNjMzIDAuODAwLC0wLjY3MyAwLjkwMCwtMC43MTIgMS4wMDAsLTAuNzUwJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTEnIGZpbGw9J25vbmUnLz48L3N2Zz4=");mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48cG9seWxpbmUgcG9pbnRzPSctMS4wMDAsMC43NTAgLTAuOTAwLDAuNDE1IC0wLjgwMCwwLjI3NiAtMC43MDAsMC4xNjkgLTAuNjAwLDAuMDc5IC0wLjUwMCwtMC4wMDAgLTAuNDAwLC0wLjA3MiAtMC4zMDAsLTAuMTM3IC0wLjIwMCwtMC4xOTkgLTAuMTAwLC0wLjI1NiAwLjAwMCwtMC4zMTEgMC4xMDAsLTAuMzYyIDAuMjAwLC0wLjQxMiAwLjMwMCwtMC40NTkgMC40MDAsLTAuNTA1IDAuNTAwLC0wLjU0OSAwLjYwMCwtMC41OTIgMC43MDAsLTAuNjMzIDAuODAwLC0wLjY3MyAwLjkwMCwtMC43MTIgMS4wMDAsLTAuNzUwJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTEnIGZpbGw9J25vbmUnLz48L3N2Zz4=")}
+.reveal section.role-what::after{-webkit-mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48Y2xpcFBhdGggaWQ9J2MnPjxjaXJjbGUgcj0nMS4yJy8+PC9jbGlwUGF0aD48ZyBjbGlwLXBhdGg9J3VybCglMjNjKSc+PGxpbmUgeDE9Jy0yLjEnIHkxPScxLjQnIHgyPSctMC4zJyB5Mj0nLTEuNCcgc3Ryb2tlPSdibGFjaycgc3Ryb2tlLXdpZHRoPScwLjExJy8+PGxpbmUgeDE9Jy0xLjMnIHkxPScxLjQnIHgyPScwLjUnIHkyPSctMS40JyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTEnLz48bGluZSB4MT0nLTAuNScgeTE9JzEuNCcgeDI9JzEuMycgeTI9Jy0xLjQnIHN0cm9rZT0nYmxhY2snIHN0cm9rZS13aWR0aD0nMC4xMScvPjxsaW5lIHgxPScwLjMnIHkxPScxLjQnIHgyPScyLjEnIHkyPSctMS40JyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTEnLz48L2c+PC9zdmc+");mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48Y2xpcFBhdGggaWQ9J2MnPjxjaXJjbGUgcj0nMS4yJy8+PC9jbGlwUGF0aD48ZyBjbGlwLXBhdGg9J3VybCglMjNjKSc+PGxpbmUgeDE9Jy0yLjEnIHkxPScxLjQnIHgyPSctMC4zJyB5Mj0nLTEuNCcgc3Ryb2tlPSdibGFjaycgc3Ryb2tlLXdpZHRoPScwLjExJy8+PGxpbmUgeDE9Jy0xLjMnIHkxPScxLjQnIHgyPScwLjUnIHkyPSctMS40JyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTEnLz48bGluZSB4MT0nLTAuNScgeTE9JzEuNCcgeDI9JzEuMycgeTI9Jy0xLjQnIHN0cm9rZT0nYmxhY2snIHN0cm9rZS13aWR0aD0nMC4xMScvPjxsaW5lIHgxPScwLjMnIHkxPScxLjQnIHgyPScyLjEnIHkyPSctMS40JyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTEnLz48L2c+PC9zdmc+")}
+.reveal section.role-when::after{-webkit-mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48cG9seWxpbmUgcG9pbnRzPSctMS4xLDAuNTUgLTAuNDUsMC41NSAtMC40NSwtMC42IDAuMzUsLTAuNiAwLjM1LDAuNTUgMS4xLDAuNTUnIHN0cm9rZT0nYmxhY2snIHN0cm9rZS13aWR0aD0nMC4xMScgZmlsbD0nbm9uZScvPjwvc3ZnPg==");mask-image:url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0yIC0yIDQgNCc+PGNpcmNsZSByPScxLjc1JyBmaWxsPSdibGFjaycgZmlsbC1vcGFjaXR5PScwLjEyJyBzdHJva2U9J2JsYWNrJyBzdHJva2Utd2lkdGg9JzAuMTInLz48cG9seWxpbmUgcG9pbnRzPSctMS4xLDAuNTUgLTAuNDUsMC41NSAtMC40NSwtMC42IDAuMzUsLTAuNiAwLjM1LDAuNTUgMS4xLDAuNTUnIHN0cm9rZT0nYmxhY2snIHN0cm9rZS13aWR0aD0nMC4xMScgZmlsbD0nbm9uZScvPjwvc3ZnPg==")}
+/* Clips that are not 16:9 (movie aspect=4:3 or 1:1), usually in a column. */
+.reveal .slides section:has(video) .live-only:has(> video.aspect-4-3){aspect-ratio:4/3}
+.reveal .slides section:has(video) .live-only:has(> video.aspect-1-1){aspect-ratio:1/1}
+/* A sequence of clips on one slide: ::: {.r-stack} inside .live-only, each later clip in a ::: {.fragment}; the
+   clips share the 16:9 frame, and Reveal starts a fragment’s clip when the fragment appears. */
+.reveal .slides section:has(video) .live-only:has(> .r-stack){flex:1 1 0;min-height:0;display:flex;justify-content:center}
+.reveal .slides section:has(video) .live-only > .r-stack{position:relative;height:100%;aspect-ratio:16/9;max-width:100%;display:block}
+.reveal .slides section:has(video) .r-stack > .fragment{position:absolute;inset:0}
+/* An r-stack inside a column: the column sets the width and the clip’s aspect (4:3 unless the wrapper says otherwise)
+   the height. */
+.reveal .slides section:has(video) .column .live-only:has(> .r-stack){display:block}
+.reveal .slides section:has(video) .column .live-only > .r-stack{width:100%;height:auto;aspect-ratio:4/3}
+.reveal .slides section:has(video) .column .r-stack > .fragment{display:flex;align-items:center;justify-content:center}
+/* Slides with an r-stack keep their content above the footer (its top sits 54 px above the slide’s bottom edge). */
+.reveal .slides>section.present:has(.r-stack){padding-bottom:58px}
+/* A build in an r-stack replaces the step before it: once a later fragment of the stack is visible, every earlier child
+   fades out, so figures and clips of different extent never show through one another. */
+.reveal .r-stack > :has(~ .fragment.visible){opacity:0 !important;visibility:hidden !important;transition:opacity .25s ease,visibility 0s linear .25s}
+/* On a clip slide the title block and an equation under the clip keep their margins small, so the clip gets the
+   height. */
+.reveal .slides>section.present:has(video){padding-top:10px}
+.reveal .slides section:has(video)[data-role-label]::before{margin-bottom:4px}
+.reveal .slides section:has(video)[data-role-label] > h2::before{margin:0 0 8px}
+.reveal .slides section:has(video) h2{margin-bottom:6px}
+.reveal .slides section:has(video) p:has(> math[display="block"]){margin:2px 0 0;line-height:1.1}
+.reveal .slides section:has(video) .fragment:has(> p > math[display="block"]){margin:0}
+.reveal .slides section:has(video) .eqline{margin:2px 0 0;line-height:1.1}
+/* .eqline: a line of inline equation pieces, centred like a display equation (MathML has no colour command). */
+.reveal .eqline{text-align:center;margin:8px 0 0}
+.reveal .eqline p{margin:0}
+/* A clip slide with an equation or a line of text under the clip keeps that line above the footer, like an r-stack. */
+.reveal .slides>section.present:has(video):has(> .live-only ~ :is(p, ul, .fragment, .eqline, .movie-caption)){padding-bottom:58px}
+.reveal .movie-caption{font-size:.7em;color:var(--muted);text-align:center;margin:4px 0 8px;line-height:1.2}
+.reveal .movie-caption p{margin:0}
+/* Columns keep the figure beside its text. */
+.reveal .columns{display:flex;gap:32px;align-items:flex-start}
+.reveal .columns > .column{flex:1 1 0;min-width:0}
+/* A labelled placeholder for a figure that is missing or failed to compile: the deck builds and says so. */
+.reveal .lk-placeholder{display:flex;align-items:center;justify-content:center;border:1px dashed var(--caveat);color:var(--caveat);font-size:.7em;width:100%;min-height:120px;margin:8px auto}
+/* Pacing clock in the speaker view (live-head.html): elapsed against the plan of the current slide. */
+.lk-pacing{position:fixed;right:16px;bottom:12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;color:var(--muted);background:var(--slide);border:1px solid var(--hairline);padding:4px 8px;border-radius:4px;z-index:50}
+.lk-pacing.lk-behind{color:var(--caveat)}
+.lk-pacing.lk-ahead{color:var(--anchor)}
+/* speaker notes never show in the live frame */
+.reveal aside.notes{display:none}
 @media print {
   .lk-pacing { display: none; }
 }

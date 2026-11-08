@@ -1,0 +1,224 @@
+---
+title: "Welcome to the Popylar workshop"
+subtitle: "Population receptive field modelling with prfmodel: where it came from, what we meant to build, and where we stand"
+shorttitle: "Coimbra · Welcome"
+eyebrow: "Popylar pRF workshop · Coimbra · Thursday 5 November 2026, 09:00"
+author: "Tomas Knapen"
+date: ""
+budget: 15
+bibliography: references.bib
+citation-size: small
+---
+
+## Why we are here {role=concept time=2}
+
+:::: {.live-only}
+::: {.movie src="assets/clips/bar-bold.mp4" label="A bar sweeps across the visual field in two directions; the overlap with one population's receptive field rises and falls in blue and the predicted BOLD response follows in charcoal a few seconds later; simulated with prfmodel"}
+:::
+::::
+
+::: {.study-only}
+```{=latex}
+\nmfigureh{3.8cm}{assets/figures/bar-bold.tex}
+```
+:::
+
+- A pRF: [a model of what a neural population responds to]{.blue} [@DumoulinWandell2008].
+- Eighteen years on: [over a thousand papers, over a hundred labs]{.blue}, across species and measurements.
+
+::: notes
+Line: Good morning. Two days, one method, one piece of software. Here is the method in eighteen seconds.
+
+Say: A bar sweeps across the visual field. One population of neurons has a receptive field, the teal disc. Where the bar overlaps it, the population responds; the blood flow follows a few seconds later. That curve is the whole idea: a model that turns a stimulus into a predicted time course, and a fit that turns the measured time course back into the receptive field. Serge will tell you how this started in 2008. Since then the method has left vision: numerosity, time, touch, memory; and left fMRI: ECoG, electrodes in monkeys, calcium imaging in mice. The clip was made with prfmodel's forward model, which is what you will be running this afternoon.
+
+Ask: Hands up who has fitted a pRF before. Keep them up if you wrote the code yourself. That second group is the problem this workshop exists to solve.
+
+Housekeeping, if it is not on a slide of its own: room 1.2 for both days; lunch at 13:00; drinks at 17:00 today; dinner tomorrow at 19:30; the materials and solutions are on the workshop site.
+:::
+
+
+## Credit where credit is due {role=explanation time=2}
+
+:::: {.live-only}
+```{=latex}
+\nmfigureh{4.1cm}{assets/figures/lineage.tex}
+```
+::::
+
+::: {.study-only}
+```{=latex}
+\nmfigureh{3.5cm}{assets/figures/lineage.tex}
+```
+:::
+
+- Descended from [mrVista, popeye, prfpy and braincoder]{.blue} [@DeSimone2016; @Aqil2021].
+- In 2024: over ten packages, [limited model coverage, fragmented development]{.red}.
+
+::: notes
+Line: Nothing here was invented this year. prfmodel is the fourth generation of a lineage, and the people who built the earlier generations are in this room or in the references.
+
+Say: mrVista, the original Matlab implementation from the Wandell and Dumoulin labs, 2008: well tested, validated, a huge community, but closed-source dependencies that stopped being supported in 2017. popeye, 2016: Kevin DeSimone, Ariel Rokem and Keith Schneider wrote the first object-oriented Python pRF package; I contributed to it, and it taught us how to structure a Python pRF fit. prfpy, from Serge's lab and mine: the workhorse at the Spinoza Centre for years, where the model family grew, divisive normalization included, and was validated on 7T data; written by scientists, under publication pressure, with the cruft that implies. braincoder, Gilles de Hollander's TensorFlow implementation: fast, gradients on tensors, built for decoding, and the fitting workflow prfmodel's README still credits. Around these, a wider family in Matlab, C and C++: analyzePRF, SamSrf, mrTools, VSNLabTools, AFNI, BrainVoyager. Eleven packages. Most support one model. Almost none share tests. Several retractions in our field trace back to code, not to data.
+
+Ask: Which of these have you used? The point is not that any of them was bad. The point is that every one was built by a lab for its own question, and the field inherited eleven answers to one question.
+
+Status: the package list and the characterisation of each are from section 9 of the Popylar full proposal (May 2024); the braincoder credit is the sentence in prfmodel's README.
+:::
+
+
+## What we proposed: an engine {role=concept time=2}
+
+:::::: {.live-only}
+::::: {.r-stack}
+```{=latex}
+\nmfigureh{3.9cm}{assets/figures/engine-0.tex}
+```
+
+:::: {.fragment}
+```{=latex}
+\nmfigureh{3.9cm}{assets/figures/engine.tex}
+```
+::::
+:::::
+::::::
+
+::: {.study-only}
+```{=latex}
+\nmfigureh{3.5cm}{assets/figures/engine.tex}
+```
+:::
+
+- [Popylar]{.blue}, Open eScience Call 2024: eScience Center engineers, 2025 to 2027.
+- One graph per model; [simulate before you fit]{.blue}; run anywhere.
+
+::: notes
+Line: So in 2024 we wrote a proposal. Not for a new model: for a new engine, and for a community to own it.
+
+Say: The architecture half of the brief is this diagram, redrawn from the proposal. First (before the keypress) the forward half: a stimulus and a parameter vector go into one model definition, and the model predicts time courses. Keypress: data arrive, a fitter compares prediction with data and updates the parameters, round and round, until the estimate. Three commitments made it different from what came before. First, a model is written once, in Keras, and runs on JAX, PyTorch or TensorFlow, on a laptop CPU or on a GPU; the gradients and the compilation come with the backend, so the coarse-to-fine fit that used to need a cluster runs on a desk. Second, simulation first: every model generates data before it fits data, and the test of a model is that it recovers the parameters it was simulated with. That is the practice we want the field to adopt, and this workshop is organised around it. Third, extensibility: a model is composed from parts, stimulus encoder, tuning, impulse response, scaling, regressors, so that the new model you need for your question is a new part, and the fitting and the tests are already there.
+
+Ask: What fraction of your fitting time is spent waiting? With gradients on a GPU the answer changes by about two orders of magnitude, and that changes which analyses you attempt.
+
+Status: the applicants named in the proposal are Knapen (VU and NIN), Cornelissen (UMCG), Dumoulin (NIN), Groen (UvA), Haak (Tilburg), Harvey (Utrecht) and Petridou (UMC Utrecht); the eScience Center's contribution is about two person-years of research software engineering, January 2025 to July 2027.
+:::
+
+
+## What we proposed: a community {role=concept time=2}
+
+:::: {.live-only}
+```{=latex}
+\nmfigureh{4.1cm}{assets/figures/community.tex}
+```
+::::
+
+::: {.study-only}
+```{=latex}
+\nmfigureh{3.5cm}{assets/figures/community.tex}
+```
+:::
+
+- [29 letters of support]{.blue}, several from authors of the other packages.
+- Committee, Brain Hacks, shared tutorials and data, [a yearly workshop]{.blue}.
+
+::: notes
+Line: The other half of the proposal is not code. Software that one lab maintains dies when that lab's postdoc leaves; software the field owns does not.
+
+Say: Twenty-nine letters of support arrived with the proposal, from labs around the world, pledging data, teaching, testing and architecture advice; several came from the authors of what might have been competing packages, and those authors sit on the development committee. The plan has a governance structure, a code of conduct, a release schedule, an open licence. It has Brain Hacks, coding sprints at the Spinoza Centre. It has a tutorial for every model family, each starting from simulated data and moving to a benchmark dataset small enough to run in a browser: fMRI, ECoG, primate electrophysiology, mouse imaging. And it has a hands-on workshop every year. This is the first one abroad, and we are grateful to our hosts at the Faculty of Psychology here in Coimbra.
+
+Ask: If you leave on Friday with one thing to contribute, what would it be: a dataset, a model, a tutorial, a bug report? Think about it over the two days; we will ask again at the end.
+
+Status: the letters, the committee, the Brain Hacks, the benchmark datasets and the yearly workshop are commitments in sections 7c and 8d of the proposal; "the first one abroad" and the host to name (Jorge Almeida's group signed a letter of support) are for Tomas to confirm; the proposal planned the first workshop at the Spinoza Centre.
+:::
+
+
+## Where we stand: prfmodel 0.2.0 {role=explanation time=3}
+
+:::::: {.live-only}
+::::: {.r-stack}
+```{=latex}
+\nmfigureh{3.9cm}{assets/figures/shelf-0.tex}
+```
+
+:::: {.fragment}
+```{=latex}
+\nmfigureh{3.9cm}{assets/figures/shelf.tex}
+```
+::::
+:::::
+::::::
+
+::: {.study-only}
+```{=latex}
+\nmfigureh{3.5cm}{assets/figures/shelf.tex}
+```
+:::
+
+- [3 November]{.blue}: on PyPI, Apache 2.0, Keras on JAX, PyTorch or TensorFlow.
+- Three fitters; six tutorials; four examples: [fMRI, ECoG, numerosity, CF]{.blue}.
+
+::: notes
+Line: And here is where we stand, twenty-two months in. Version 0.2.0 came out on Monday, and it is what is installed on your laptops.
+
+Say: The shelf. The canonical Gaussian pRF in one and two dimensions, so numerosity and tonotopy are the same code as retinotopy. Compressive spatial summation. Difference of Gaussians and a centre-surround model. Divisive normalization, the model of the PNAS paper, now written once instead of three times. Connective fields: a pRF defined on the cortex instead of the screen. A neural contrast sensitivity function model, which Marcus will present tomorrow. On the temporal side, delayed normalization and the compressive spatiotemporal model, and a library of impulse responses: two-gamma HRFs, their derivatives, shifted gammas, sustained and transient channels. Keypress: the empty card. Your model, composed from the same parts, with the tutorial on how. Underneath, three fitters, grid search, least squares and stochastic gradient descent, on any of three backends. Six tutorials on simulated data, four worked examples on real data: visual fMRI, numerosity fMRI, ECoG with model comparison, connective fields. Type-checked, linted, tested on every merge, documented for every branch.
+
+Ask: Count the models you have fitted in your life. Then count the ones on this shelf you could fit by Friday. The second number is the point of the two days.
+
+Status: the model and fitter names are those of the 0.2.0 API reference (popylar-org.github.io/prfmodel); release dates from PyPI (0.1.0 on 27 October, 0.2.0 on 3 November 2026); licence and Python range (3.10 to 3.13) from the repository.
+:::
+
+
+## The person who built it {role=concept time=2}
+
+:::: {.live-only}
+```{=latex}
+\nmfigureh{4.1cm}{assets/figures/timeline.tex}
+```
+::::
+
+::: {.study-only}
+```{=latex}
+\nmfigureh{3.5cm}{assets/figures/timeline.tex}
+```
+:::
+
+- [Malte Lüken]{.blue}, eScience Center: architecture, models, tests, docs, releases.
+- With José Angel Daza and colleagues, and our labs' modellers: [thank you]{.blue}.
+
+::: notes
+Line: Proposals do not write software. Malte did.
+
+Say: Malte Lüken is the research software engineer the eScience Center assigned to Popylar, and the timeline is his: the connective field model in December, the difference of Gaussians and documentation for every branch in February, the tutorials in March, the first release on PyPI in October, and version 0.2.0 on Monday, so that you would have it this week. Three hundred and eighty-nine commits of the four hundred and ninety-one in the repository. More than the count: the architecture that lets a model be composed from parts is his design, and so is the discipline around it, type checking, linting, tests on every merge, documentation that builds for every branch, so that the package will survive all of us. José Angel Daza and other colleagues at the eScience Center contributed, and the modellers in our labs brought their models to the table. Malte will introduce prfmodel at eleven, run the recaps, and give the session on modelling choices tomorrow. Please direct your hardest questions at him; he likes them.
+
+Ask: none; applaud.
+
+Status: commit counts from the GitHub contributors API on 4 November 2026 (maltelueken 389, angel-daza 79, f-hafner 22, KiranMauro 1); milestone dates from commit history; the proposal's start date from section 8a.
+:::
+
+
+## Two days {role=summary time=2}
+
+:::: {.live-only}
+```{=latex}
+\nmfigureh{5.3cm}{assets/figures/programme.tex}
+```
+::::
+
+::: {.study-only}
+```{=latex}
+\nmfigureh{4.6cm}{assets/figures/programme.tex}
+```
+
+- Mornings: lectures. The rest: [prfmodel in your hands]{.blue}, seven notebooks.
+- Break it and tell us: an issue on GitHub is [a contribution]{.blue}.
+:::
+
+::: notes
+Line: The plan. Mornings for the ideas, the rest of each day for the code.
+
+Say: Today: Serge on where the method came from, me on designing a pRF experiment, Ben on pRFs beyond vision, then Malte introduces prfmodel and you start fitting. Tomorrow: advanced models from me, Ilona on electrophysiology, Marcus on contrast sensitivity, Malte on the choices that matter when you fit, then two more practicals. The materials are seven notebooks: the canonical Gaussian 2D pRF, cross-validation, model comparison and selection, the connective field model, pRF models for ECoG data, the 1D model for numerosity, and the neural contrast sensitivity function. Solutions are online; use them after you have tried. One request. This is version 0.2.0. You will find rough edges. Every rough edge you report on GitHub is a contribution to the field's shared tool, and every model you wish were on the shelf is a conversation to have with Malte or me over lunch.
+
+Ask: Before Serge starts: one sentence to your neighbour, what do you want to be able to fit by Friday afternoon?
+
+Status: the schedule is the workshop site's, marked provisional there; the seven notebooks are its materials list.
+:::
+
+
+## References {.references .allowframebreaks role=explanation}

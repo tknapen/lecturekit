@@ -2,7 +2,7 @@
 
     lk new <dir>            scaffold a project (vendors the Quarto extension)
     lk build [dir]          render live deck and study PDF, print the timing plan
-    lk clips [dir]          render clips into assets/clips and write clips.json
+    lk clips [deck]         render anim/clip_*.py into assets/clips and write clips.json
     lk theme [dir]          write tokens.tex, tokens.css, tokens.py (and a manim8 style)
     lk review <tool> ...    shoot | frags | measure | contrast | overflow | figs
     lk docs                 where the documentation is
@@ -41,7 +41,7 @@ def cmd_build(a: argparse.Namespace) -> int:
 def cmd_clips(a: argparse.Namespace) -> int:
     from .clips import render_all
     deck = Path(a.dir) if a.dir else Path.cwd()
-    index = render_all(deck, only=a.only or None, quality=a.quality)
+    index = render_all(deck, only=a.only or None, size=a.size, crop=a.crop)
     print(f"{len(index)} clip(s) in {deck / 'assets' / 'clips' / 'clips.json'}")
     return 0
 
@@ -116,7 +116,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("clips", help="render clips and write clips.json")
     p.add_argument("dir", nargs="?")
     p.add_argument("--only", nargs="*", help="clip names")
-    p.add_argument("--quality", default="h", choices=["l", "m", "h", "p", "k"], help="manim quality flag")
+    p.add_argument("--size", default="1280x720", help="render size, WxH (the kit reads NM_CLIP_SIZE)")
+    p.add_argument("--crop", action="store_true", help="crop video and still to the content's bounding box")
     p.set_defaults(fn=cmd_clips)
 
     p = sub.add_parser("theme", help="write token files from _brand.yml")

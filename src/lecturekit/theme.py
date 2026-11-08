@@ -34,6 +34,23 @@ ENGINE_COLORS = (
     "input", "state", "update", "context",
 )
 
+#: the families bundled in the extension's fonts/ directory, used by file whatever the brand says about their source
+BUNDLED_FONTS = {
+    "TeX Gyre Heros": {"dir": "", "r": "texgyreheros-regular.otf", "b": "texgyreheros-bold.otf",
+                       "ri": "texgyreheros-italic.otf", "bi": "texgyreheros-bolditalic.otf"},
+    "TeX Gyre Pagella": {"dir": "", "r": "texgyrepagella-regular.otf", "b": "texgyrepagella-bold.otf",
+                         "ri": "texgyrepagella-italic.otf", "bi": "texgyrepagella-bolditalic.otf"},
+    "Roboto": {"dir": "roboto", "r": "Roboto-Regular.ttf", "b": "Roboto-Bold.ttf",
+               "ri": "Roboto-Italic.ttf", "bi": "Roboto-BoldItalic.ttf"},
+}
+MATH_FONT = "texgyrepagella-math.otf"
+
+
+def bundled_fonts_dir() -> Path:
+    from .project import extension_source
+    return (extension_source() / "fonts").resolve()
+
+
 #: brand.yml semantic names that may alias palette entries
 SEMANTIC_COLORS = (
     "foreground", "background", "primary", "secondary", "tertiary",
@@ -109,39 +126,55 @@ class Tokens:
         return "\n".join(lines) + "\n"
 
     def fontspec_lines(self) -> list[str]:
-        out: list[str] = []
-        if self.base_font:
-            args = self._fontspec_args(self.base_font)
-            out.append(f"\\setmainfont{args}")
-            out.append(f"\\setsansfont{args}")
-        if self.heading_font:
-            out.append(f"\\newfontfamily\\lkheadfont{self._fontspec_args(self.heading_font)}")
-        return out
+        """The fontspec lines of tokens.tex: the serif (headings) family as the main font, the sans (base) family
+        as the sans font, the theme's two letterspaced families, and the math font, as lkbrand.lua writes them."""
+        serif = self.heading_font or "TeX Gyre Pagella"
+        sans = self.base_font or "TeX Gyre Heros"
+        return [
+            "\\setmainfont" + self._fontspec_args(serif),
+            "\\setsansfont" + self._fontspec_args(sans),
+            "\\newfontfamily\\nmSerifCaps" + self._fontspec_args(serif, "LetterSpace=2.0"),
+            "\\newfontfamily\\nmSansCaps" + self._fontspec_args(sans, "LetterSpace=8.0"),
+            f"\\setmathfont{{{MATH_FONT}}}[Path={bundled_fonts_dir().as_posix()}/]",
+        ]
 
-    def _fontspec_args(self, family: str) -> str:
+    def faces(self, family: str) -> dict[str, Path] | None:
+        """The files of a family by face (r, b, ri, bi): from the brand's `source: file` entry, else the bundle."""
         face = self.fonts.get(family)
-        if not face or face.source != "file" or not face.files:
-            return f"{{{family}}}"
-        by: dict[str, str] = {}
-        for f in face.files:
-            path = f["path"] if isinstance(f, dict) else str(f)
-            weight = str(f.get("weight", 400)) if isinstance(f, dict) else "400"
-            style = (f.get("style", "normal") if isinstance(f, dict) else "normal")
-            bold = weight in ("bold", "semibold") or (weight.isdigit() and int(weight) >= 600)
-            key = ("b" if bold else "r") + ("i" if style == "italic" else "")
-            by.setdefault(key, path)
-        upright = by.get("r") or by.get("b") or by.get("ri") or by.get("bi")
-        if not upright:
-            return f"{{{family}}}"
-        p = Path(upright)
-        opts = [f"Path={p.parent.as_posix()}/"]
+        if face and face.source == "file" and face.files:
+            by: dict[str, Path] = {}
+            base = (self.path.parent if self.path else Path.cwd()).resolve()
+            for f in face.files:
+                path = Path(f["path"] if isinstance(f, dict) else str(f))
+                weight = str(f.get("weight", 400)) if isinstance(f, dict) else "400"
+                style = (f.get("style", "normal") if isinstance(f, dict) else "normal")
+                bold = weight in ("bold", "semibold") or (weight.isdigit() and int(weight) >= 600)
+                key = ("b" if bold else "r") + ("i" if style == "italic" else "")
+                by.setdefault(key, path if path.is_absolute() else base / path)
+            if "r" in by or "b" in by:
+                return by
+        if family in BUNDLED_FONTS:
+            d = bundled_fonts_dir() / BUNDLED_FONTS[family]["dir"]
+            return {k: d / v for k, v in BUNDLED_FONTS[family].items() if k != "dir"}
+        return None
+
+    def _fontspec_args(self, family: str, extra: str | None = None) -> str:
+        by = self.faces(family)
+        if not by:
+            return f"{{{family}}}[{extra}]" if extra else f"{{{family}}}"
+        upright = by.get("r") or by.get("b")
+        opts = [f"Path={upright.parent.as_posix()}/"]
         if "b" in by:
-            opts.append(f"BoldFont={Path(by['b']).name}")
+            opts.append(f"BoldFont={by['b'].name}")
         if "ri" in by:
-            opts.append(f"ItalicFont={Path(by['ri']).name}")
+            opts.append(f"ItalicFont={by['ri'].name}")
         if "bi" in by:
-            opts.append(f"BoldItalicFont={Path(by['bi']).name}")
-        return f"{{{p.name}}}[{','.join(opts)}]"
+            opts.append(f"BoldItalicFont={by['bi'].name}")
+        if upright.suffix == ".otf":
+            opts.append("Ligatures=TeX")
+        if extra:
+            opts.append(extra)
+        return f"{{{upright.name}}}[{','.join(opts)}]"
 
     def css(self) -> str:
         body = "".join(f"--nm-{name}:{self.colors[name]};" for name in sorted(self.colors))

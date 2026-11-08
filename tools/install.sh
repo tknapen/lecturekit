@@ -36,7 +36,7 @@ if ! command -v xelatex >/dev/null 2>&1; then
       fonts-texgyre fonts-texgyre-math fonts-roboto lmodern fonts-lmodern
   else
     quarto install tinytex --no-prompt
-    tlmgr install beamer adjustbox collectbox etoolbox ragged2e pgf xcolor standalone fontspec unicode-math tex-gyre tex-gyre-math varwidth || true
+    tlmgr install beamer adjustbox collectbox etoolbox ragged2e pgf xcolor standalone fontspec unicode-math textcase lm lm-math varwidth caption booktabs || true
   fi
 fi
 
@@ -56,10 +56,11 @@ else
   .venv/bin/playwright install chromium
 fi
 
-say "Building the feature deck"
-ln -sfn ../../_extensions examples/features/_extensions
+say "Building the example decks"
+for d in kickoff features; do ln -sfn ../../_extensions examples/$d/_extensions; done
+.venv/bin/lk build examples/kickoff
 .venv/bin/lk build examples/features
 
 say "Done"
 echo "activate with: source .venv/bin/activate"
-echo "then: lk review shoot examples/features/_build/slides-live.html --sheet"
+echo "then: lk review shoot examples/kickoff/_build/slides-live.html --sheet"

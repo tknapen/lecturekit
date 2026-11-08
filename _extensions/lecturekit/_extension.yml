@@ -1,12 +1,14 @@
 title: lecturekit
 author: Tomas Knapen
-version: 0.1.0
+version: 0.2.0
 quarto-required: ">=1.6.0"
 contributes:
   formats:
     common:
       # The dialect filter runs before Quarto's own slide handling, so that
-      # study-only and live-only sections are gone before slides are split.
+      # study-only and live-only content is gone before slides are split;
+      # tikz.lua then compiles the figures it left; tokens.lua puts the brand
+      # into the output after Quarto's filters.
       filters:
         - at: pre-quarto
           path: filters/dual-output.lua
@@ -15,16 +17,13 @@ contributes:
         - at: post-quarto
           path: filters/tokens.lua
       slide-level: 2
-      budget: 45                 # planned minutes for the whole deck
-      eyebrow-preset: course     # course | prf | none
       cite-method: citeproc
       link-citations: false
-      csl: lecturekit.csl
     revealjs:
       theme: [default, reveal/theme.scss]
       width: 1280
       height: 720
-      margin: 0.04
+      margin: 0.03
       min-scale: 0.2
       max-scale: 2.0
       center: false
@@ -33,25 +32,25 @@ contributes:
       slide-number: false
       hash: true
       history: false
-      transition: none
-      background-transition: none
+      transition: fade
+      background-transition: fade
       auto-animate: false
+      auto-stretch: false
       navigation-mode: linear
       menu: false
       chalkboard: false
       pdf-separate-fragments: false
       embed-resources: false
+      html-math-method: mathml
       template-partials:
         - reveal/title-slide.html
       include-in-header: reveal/live-head.html
-      include-after-body: reveal/live-after.html
-      format-resources:
-        - reveal/pacing.js
-        - reveal/movie.js
     beamer:
       pdf-engine: xelatex
       aspectratio: 169
       classoption: [t]
+      fontsize: 12pt
+      colorlinks: true
       theme: default
       colortheme: default
       fonttheme: professionalfonts
@@ -59,8 +58,6 @@ contributes:
       section-titles: false
       keep-tex: true
       latex-auto-install: false
-      latex-clean: true
+      latex-clean: false
       include-in-header:
         - beamer/lecturekit.tex
-      template-partials:
-        - beamer/title.tex

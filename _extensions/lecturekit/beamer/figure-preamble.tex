@@ -1,33 +1,32 @@
 % figure-preamble.tex
-% Loaded into every standalone TikZ figure compiled by filters/tikz.lua,
-% after the colour tokens (nmInk, nmConcept, ...) and the deck's fonts.
-% Define TikZ styles here so that figures name a style, never a value.
+% Standalone preamble for TikZ figures extracted from a deck for the browser output, and for `lk review figs`.
+% The fonts and the brand's colour tokens are written ahead of this file by the filter (lkbrand.lua), so a
+% figure matches the slide it sits on; the sizes match a 12pt Beamer frame whose body text is sans, so \small,
+% \footnotesize and the families render as on the page.
+\renewcommand{\familydefault}{\sfdefault}
+\usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc,fit,backgrounds,shapes.geometric,decorations.pathreplacing}
-\usepackage{amsmath}
+% fall-backs for a deck without a brand file (the tokens above win when present)
 \providecolor{nmInk}{HTML}{202B33}
 \providecolor{nmMuted}{HTML}{566573}
 \providecolor{nmHairline}{HTML}{C8C3BA}
+\providecolor{nmPaper}{HTML}{F3F2EE}
 \providecolor{nmSlide}{HTML}{FFFFFF}
+\providecolor{nmInput}{HTML}{0072B2}
+\providecolor{nmState}{HTML}{007F73}
+\providecolor{nmUpdate}{HTML}{C45A00}
+\providecolor{nmContext}{HTML}{7A5195}
 \providecolor{nmConcept}{HTML}{175B8E}
 \providecolor{nmCaveat}{HTML}{A33A32}
 \providecolor{nmExample}{HTML}{956000}
 \providecolor{nmAnchor}{HTML}{006C65}
 \providecolor{nmQuestion}{HTML}{70508C}
-% styles: nm/<role> colours a box or a line; nm/<role> text colours a bare label
-\tikzset{
-  nm/.style={line width=0.8pt, color=nmInk, font=\small},
-  nm/box/.style={nm, draw=nmInk, rounded corners=2pt, inner sep=5pt, align=center, fill=nmSlide},
-  nm/arrow/.style={nm, -{Stealth[length=5pt]}},
-  nm/hairline/.style={line width=0.4pt, color=nmHairline},
-  nm/muted/.style={text=nmMuted, font=\footnotesize},
-  nm/concept/.style={draw=nmConcept, text=nmConcept},
-  nm/concept text/.style={text=nmConcept},
-  nm/caveat/.style={draw=nmCaveat, text=nmCaveat},
-  nm/caveat text/.style={text=nmCaveat},
-  nm/example/.style={draw=nmExample, text=nmExample},
-  nm/example text/.style={text=nmExample},
-  nm/anchor/.style={draw=nmAnchor, text=nmAnchor},
-  nm/anchor text/.style={text=nmAnchor},
-  nm/question/.style={draw=nmQuestion, text=nmQuestion},
-  nm/question text/.style={text=nmQuestion},
-}
+% The four pRF models of the workshop's advanced lecture (and the course's lectures 7 and 8); distinguishable under
+% deutan, protan and tritan vision against each other and against nmInk (CIELAB difference at least 19.6).
+\providecolor{nmGauss}{HTML}{175B8E}
+\providecolor{nmDoG}{HTML}{B87400}
+\providecolor{nmCSS}{HTML}{B63564}
+\providecolor{nmDN}{HTML}{009999}
+\providecolor{nmFuture}{HTML}{7A5195}
+% the named TikZ styles (nm/box, nm/arrow, nm/<role> ...) are inlined ahead of this file from tikz-styles.tex
+\color{nmInk}

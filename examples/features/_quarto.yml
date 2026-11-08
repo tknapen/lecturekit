@@ -5,7 +5,7 @@ project:
     - slides.qmd
   # clips and data are referenced from raw HTML, so Quarto must be told to copy them
   resources:
-    - assets/**
+    - /assets/**              # the clips and data, referenced from raw HTML (anchored: not _build/assets)
 
 # the lecturekit formats come from the vendored extension in _extensions/
 format:
@@ -15,9 +15,3 @@ format:
     output-file: slides-study.pdf
 
 brand: _brand.yml
-
-# deck-wide options read by the dialect filter
-budget: 15
-eyebrow-preset: course
-short-title: features
-bibliography: references.bib

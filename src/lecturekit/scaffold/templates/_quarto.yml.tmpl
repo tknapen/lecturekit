@@ -6,7 +6,7 @@ project:
   pre-render:
     - make_assets.py          # figures from assets/data, on lecturekit.tikz
   resources:
-    - assets/**               # clips and data referenced from raw HTML
+    - /assets/**              # the clips and data, referenced from raw HTML (anchored: not _build/assets)
 
 # the lecturekit formats come from the vendored extension (lk new --vendor-only . to update)
 format:
@@ -17,11 +17,7 @@ format:
 
 brand: _brand.yml
 
-# deck-wide options read by the dialect filter
-budget: 45                   # planned minutes
-eyebrow-preset: course       # course | prf | none
-short-title: "{{SHORT}}"
-bibliography: references.bib
+# the deck's own keys (budget, shorttitle, eyebrow, citation-size) live in slides.qmd's front matter
 
 # escape hatches for one-off tweaks (keep them empty if you can)
 # format:

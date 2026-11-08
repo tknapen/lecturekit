@@ -1,30 +1,28 @@
-"""The Manim kit (stand-in).
+"""The shared Manim kit: every deck's clips import this package instead of carrying their own style.
 
-The course project's kit (`nmstyle`, `nmnet`, `nmpix`, `nmfield`, `nmprf`) is
-being extracted into this package. Until it lands, :mod:`lecturekit.manim.nmstyle`
-provides the part every clip needs: the brand's colours and fonts as Manim
-constants, so that a clip rendered after a restyle follows the new palette.
-
-A clip is a Manim scene in a deck's `anim/clip_<name>.py`:
+A deck's `anim/kit.py` is two lines (`lk new` writes it):
 
     from lecturekit.manim import *
+    HERE = Path(__file__).resolve().parent; DATA = HERE.parent / 'assets' / 'data'
 
-    class BarBold(Scene):
-        still = "last"            # which frame becomes the study PDF's still
-        def construct(self):
-            ...
+and every clip starts with `from kit import *`, which gives it:
 
-`lk clips` renders every such scene, crops the video to its content, writes
-the still, and records the result in `assets/clips/clips.json`.
+- `nmstyle`: the house style (the bundled TeX Gyre fonts, the colours of the deck's _brand.yml, `label()`, `Frame`
+  with `inv()` and `scale`, `normal_pdf`);
+- `nmnet`: `Net` (units in layers; weights, activations, forward and backward sweeps) and `unit_diagram`;
+- `nmpix`: `PixelGrid`, `colour_for`, `conv2d`, `maxpool`;
+- `nmfield`: `arrows` and `streams` for a 2-D flow in a `Frame`, `integrate`, `trajectory`, `fixed_point`;
+- `nmprf`: population receptive field primitives (`VisualField`, `HeightSurface`, `FeatureStack`, `TracePanel`,
+  `Dial`, `Bars`, `clip_size`, the numpy fields and colour ramps).
+
+The designs of nmnet, nmpix and nmfield follow scenes from 3Blue1Brown's videos (github.com/3b1b/videos), used as
+storyboards only; the code is written for Manim Community and each clip's docstring names the scene it follows.
+Manim Community 0.22 with Pillow below 11.3 (`pip install lecturekit[clips]`).
 """
+from pathlib import Path  # noqa: F401  (re-exported for kit.py shims)
 
 from .nmstyle import *  # noqa: F401,F403
-from .nmstyle import __all__ as _style_all
-
-try:  # Manim is an optional dependency (`pip install lecturekit[clips]`)
-    from manim import *  # type: ignore # noqa: F401,F403
-    HAS_MANIM = True
-except ImportError:  # pragma: no cover
-    HAS_MANIM = False
-
-__all__ = list(_style_all) + ["HAS_MANIM"]
+from .nmnet import *  # noqa: F401,F403
+from .nmpix import *  # noqa: F401,F403
+from .nmfield import *  # noqa: F401,F403
+from .nmprf import *  # noqa: F401,F403

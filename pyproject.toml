@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lecturekit"
-version = "0.1.0"
+version = "0.2.0"
 description = "One Markdown source, a live Reveal.js deck and a Beamer study PDF: a Quarto extension, figure and clip kits, and review tools for computed lectures."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -46,7 +46,12 @@ packages = ["src/lecturekit"]
 "_extensions/lecturekit" = "lecturekit/_extension"
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "_extensions", "examples/features", "docs", "README.md", "LICENSE", "NOTICE.md"]
+include = ["src", "_extensions", "examples", "docs", "README.md", "LICENSE", "NOTICE.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff.lint.per-file-ignores]
+# the Manim kit modules import the kit and Manim with star imports, as their clips do
+"src/lecturekit/manim/*" = ["F403", "F405"]
+"src/lecturekit/scaffold/templates/*" = ["F403", "F405"]

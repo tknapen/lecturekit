@@ -1,30 +1,33 @@
 #!/usr/bin/env python3
-"""Figures for this deck, from the numbers in assets/data, on lecturekit.tikz.
+"""TikZ figures for this deck, from the numbers in assets/data, on the lecturekit TikZ kit.
 
-Run by the build (pre-render) and by hand: `python make_assets.py`.
-Every figure names colours (nmConcept) and styles (nm/box); none holds a value
-that a simulation did not write. Draw at display size: 1 cm here is 80 px live.
+Run by the build (pre-render in _quarto.yml) and by hand: `python make_assets.py [name ...]`.
+Every figure names colours (nmConcept) and never a value a simulation did not write. Draw at the size the figure
+should appear: 12 to 13 cm wide for a full-width slide, about 4.2 cm high above two bullets.
 """
+import sys
 from pathlib import Path
 
-from lecturekit.tikz import write_tikz
+from lecturekit.tikz import *       # colour names, Panel, stack, box, writer
 
-FIG = Path("assets/figures")
-DATA = Path("assets/data")
+HERE = Path(__file__).resolve().parent
+write = writer(HERE / 'assets' / 'figures')
+DATA = HERE / 'assets' / 'data'
 
 
 def example():
-    body = r"""
-  \node[nm/box] (a) {question};
-  \node[nm/box, nm/concept, right=1.2cm of a] (b) {model};
-  \node[nm/box, nm/anchor, right=1.2cm of b] (c) {prediction};
-  \draw[nm/arrow] (a) -- (b);
-  \draw[nm/arrow] (b) -- (c);
-  \node[nm/muted, below=0.3cm of b] {drawn at display size: 1 cm here is 80 px in the live deck};
-"""
-    write_tikz(FIG / "example.tikz", body, options="node distance=0.6cm",
-               comment="example figure written by make_assets.py; replace it")
+    """A data-to-page panel with axes and one curve: replace it with the deck's first figure."""
+    L = []
+    P = Panel(0.9, 0.6, 11.5, 3.2, (0, 60), (0, 1))
+    L.extend(P.axes(u_ticks=(0, 30, 60), v_ticks=(0, 1), u_label='time (s)', v_label='response'))
+    t = np.linspace(0, 60, 121)
+    y = np.exp(-((t - 20) / 6) ** 2) + 0.8 * np.exp(-((t - 45) / 6) ** 2)
+    L.append(P.path(list(zip(t, y)), f'{BLUE},line width=1pt'))
+    L.append(f'\\node[anchor=south west,text={MUTED},{SMALL}] at {P.pt(1, 0.88)} {{drawn at display size: 12 by 4 cm}};')
+    write('example', L)
 
 
-if __name__ == "__main__":
-    example()
+ALL = {'example': example}
+if __name__ == '__main__':
+    names = sys.argv[1:] or list(ALL)
+    for n in names: ALL[n]()

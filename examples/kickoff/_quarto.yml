@@ -1,0 +1,17 @@
+project:
+  type: default
+  output-dir: _build
+  render:
+    - slides.qmd
+  pre-render:
+    - make_assets.py            # the TikZ figures from assets/data, on lecturekit.tikz
+  resources:
+    - /assets/**              # the clips and data, referenced from raw HTML (anchored: not _build/assets)
+
+format:
+  lecturekit-revealjs:
+    output-file: slides-live.html
+  lecturekit-beamer:
+    output-file: slides-study.pdf
+
+brand: _brand.yml

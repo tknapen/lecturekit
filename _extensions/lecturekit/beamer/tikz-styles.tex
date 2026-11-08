@@ -1,0 +1,16 @@
+% tikz-styles.tex: named TikZ styles for figures in both outputs (inlined into tokens.tex and the standalone
+% figure preamble by the filters, so that a figure names a style and never a value).
+% named styles, so that a figure names a style and never a value: nm/<role> colours a box or a line,
+% nm/<role> text a bare label (tikzkit's own figures set their styles inline)
+\tikzset{
+  nm/.style={line width=0.8pt, color=nmInk, font=\sffamily\footnotesize},
+  nm/box/.style={nm, draw=nmInk, rounded corners=3pt, inner sep=5pt, align=center, fill=white},
+  nm/arrow/.style={nm, -{Latex[length=5pt]}},
+  nm/hairline/.style={line width=0.4pt, color=nmHairline},
+  nm/muted/.style={text=nmMuted, font=\sffamily\scriptsize},
+  nm/concept/.style={draw=nmConcept, text=nmConcept},  nm/concept text/.style={text=nmConcept},
+  nm/caveat/.style={draw=nmCaveat, text=nmCaveat},     nm/caveat text/.style={text=nmCaveat},
+  nm/example/.style={draw=nmExample, text=nmExample},  nm/example text/.style={text=nmExample},
+  nm/anchor/.style={draw=nmAnchor, text=nmAnchor},     nm/anchor text/.style={text=nmAnchor},
+  nm/question/.style={draw=nmQuestion, text=nmQuestion}, nm/question text/.style={text=nmQuestion},
+}

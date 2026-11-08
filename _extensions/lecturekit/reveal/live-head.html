@@ -1,3 +1,112 @@
-<!-- lecturekit live deck: head includes -->
 <meta name="lecturekit" content="live">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<script>
+// Presenting: R replays the clip on the current slide from the start (clips also autoplay when their slide appears),
+// or re-runs a flashed image. A slide with data-flash="500" shows its image for 500 ms after a short fixation cross, then
+// blanks it; the title stays. Used for the brief-exposure trials of lecture 2.
+(function () {
+  var timer = null;
+  function flash(slide) {
+    if (!slide || !slide.hasAttribute('data-flash')) return;
+    var img = slide.querySelector('img'); if (!img) return;
+    var ms = parseInt(slide.getAttribute('data-flash'), 10) || 500;
+    if (img.getAttribute('data-src')) { img.src = img.getAttribute('data-src'); img.removeAttribute('data-src'); }
+    var fix = slide.querySelector('.nm-fix');
+    if (!fix) { fix = document.createElement('div'); fix.className = 'nm-fix'; fix.textContent = '+'; img.parentNode.insertBefore(fix, img); }
+    if (timer) { clearTimeout(timer); timer = null; }
+    img.style.visibility = 'hidden'; fix.style.visibility = 'visible';
+    timer = setTimeout(function () {
+      fix.style.visibility = 'hidden'; img.style.visibility = 'visible';
+      timer = setTimeout(function () { img.style.visibility = 'hidden'; timer = null; }, ms);
+    }, 600);
+  }
+  // Is an element shown? Not inside a hidden fragment, nor inside an r-stack step that a later fragment replaced.
+  function shown(el) {
+    for (var n = el; n && !(n.tagName === 'SECTION'); n = n.parentElement) {
+      var cs = window.getComputedStyle(n);
+      if (cs.visibility === 'hidden' || cs.display === 'none' || parseFloat(cs.opacity) === 0) return false;
+      if (n.classList && n.classList.contains('fragment') && !n.classList.contains('visible')) return false;
+    }
+    return true;
+  }
+  window.addEventListener('load', function () {
+    if (!window.Reveal) return;
+    Reveal.on('ready', function (e) { flash(e.currentSlide); });
+    Reveal.on('slidechanged', function (e) { flash(e.currentSlide); });
+    // A step of an r-stack that a later fragment replaces stops its clip, so only the visible clip plays.
+    Reveal.on('fragmentshown', function (e) {
+      (e.fragments || [e.fragment]).forEach(function (f) {
+        var stack = f.parentElement; if (!stack || !stack.classList.contains('r-stack')) return;
+        for (var k = stack.firstElementChild; k && k !== f; k = k.nextElementSibling)
+          k.querySelectorAll('video').forEach(function (v) { v.pause(); });
+        f.querySelectorAll('video').forEach(function (v) { v.currentTime = 0; var p = v.play(); if (p && p.catch) p.catch(function () {}); });
+      });
+    });
+  });
+  // Clips carry no browser controls: a click on a clip pauses or resumes it; the space bar does the same for the
+  // visible clip of the current slide (Reveal's own space-to-advance is suppressed while a clip is on the slide).
+  function toggle(v) { if (v.paused) { var p = v.play(); if (p && p.catch) p.catch(function () {}); } else v.pause(); }
+  document.addEventListener('click', function (e) {
+    var v = e.target && e.target.closest ? e.target.closest('video') : null;
+    if (v) { e.preventDefault(); toggle(v); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === ' ' && !(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName))) {
+      var sl = document.querySelector('.reveal .slides section.present');
+      var cs = sl ? Array.prototype.filter.call(sl.querySelectorAll('video'), shown) : [];
+      if (cs.length) { e.preventDefault(); e.stopImmediatePropagation(); toggle(cs[cs.length - 1]); return; }
+    }
+    if (e.key !== 'r' && e.key !== 'R') return;
+    if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
+    var slide = document.querySelector('.reveal .slides section.present');
+    var vs = slide ? Array.prototype.filter.call(slide.querySelectorAll('video'), shown) : [];
+    var v = vs.length ? vs[vs.length - 1] : null;
+    if (v) { e.preventDefault(); v.currentTime = 0; v.play(); return; }
+    if (slide && slide.hasAttribute('data-flash')) { e.preventDefault(); flash(slide); }
+  }, true);
+})();
+
+// Pacing clock in the speaker view: every slide heading carries data-timing (its planned seconds, from time=);
+// the clock compares the elapsed time with the plan up to the current slide, turns red when more than a minute
+// behind, and resets on P. The deck's budget comes from the title slide's data-budget.
+(function () {
+  var start = null;
+  function fmt(min) {
+    var sign = min < 0 ? '-' : ''; min = Math.abs(min);
+    var m = Math.floor(min), s = Math.round((min - m) * 60); if (s === 60) { m += 1; s = 0; }
+    return sign + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  function planned() {
+    var cur = Reveal.getCurrentSlide(), total = 0;
+    var all = Array.prototype.slice.call(document.querySelectorAll('.reveal .slides section'));
+    for (var i = 0; i < all.length; i++) {
+      var t = parseFloat(all[i].getAttribute('data-timing') || '0');
+      total += isNaN(t) ? 0 : t;
+      if (all[i] === cur) return total / 60;
+    }
+    return null;
+  }
+  function tick() {
+    if (!(window.Reveal && Reveal.isSpeakerNotes && Reveal.isSpeakerNotes())) return;
+    var box = document.querySelector('.lk-pacing');
+    if (!box) { box = document.createElement('div'); box.className = 'lk-pacing'; document.body.appendChild(box); }
+    if (start === null) start = Date.now();
+    var elapsed = (Date.now() - start) / 60000, plan = planned();
+    var text = 'elapsed ' + fmt(elapsed);
+    box.classList.remove('lk-behind', 'lk-ahead');
+    if (plan !== null) {
+      var diff = elapsed - plan;
+      text += ' | plan ' + fmt(plan) + ' | ' + (diff > 0 ? '+' : '') + fmt(diff);
+      if (diff > 1) box.classList.add('lk-behind'); else if (diff < -1) box.classList.add('lk-ahead');
+    }
+    var title = document.getElementById('title-slide');
+    var budget = title && title.getAttribute('data-budget');
+    if (budget) text += ' | budget ' + fmt(parseFloat(budget));
+    box.textContent = text;
+  }
+  window.addEventListener('load', function () {
+    if (!window.Reveal) return;
+    Reveal.on('ready', tick); Reveal.on('slidechanged', tick); setInterval(tick, 1000);
+    document.addEventListener('keydown', function (e) { if (e.key === 'p' || e.key === 'P') { start = Date.now(); tick(); } });
+  });
+})();
+</script>

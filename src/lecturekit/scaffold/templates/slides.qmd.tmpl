@@ -1,27 +1,40 @@
 ---
 title: "{{TITLE}}"
 subtitle: ""
+shorttitle: "{{SHORT}}"
+eyebrow: ""
 author: ""
-institute: ""
-date: {{DATE}}
-series: ""
+date: ""
+budget: 45
+bibliography: references.bib
 ---
 
-## The question {.concept time=3}
+## Learning goals {role=goals time=2}
 
-- One line per bullet at the live font
-- A visual on every slide, as large as the slide allows
+- The one thing the audience can do afterwards that they could not before.
+- A second observable outcome.
 
-![](assets/figures/example.tikz){height=4.2cm}
+::: notes
+Line: what the time is for.
+:::
+
+## The question {role=concept time=3}
+
+```{=latex}
+\nmfigureh{4.2cm}{assets/figures/example.tex}
+```
+
+- One line per bullet at the live font; [the phrase to keep]{.blue} in blue.
+- A visual on every slide, as large as the slide allows; [the trap]{.red} in red.
 
 ::: notes
 Line: the one sentence this slide exists for.
 Ask: the question to the room, if any.
-Say: what to add beyond the slide.
+Say: what to say beyond the slide.
 Status: draft.
 :::
 
-## A pause with its answer {.question time=2}
+## A pause with its answer {role=question time=2}
 
 What does the audience expect here?
 
@@ -33,7 +46,9 @@ What does the audience expect here?
 **Answer.** The same answer, printed for the reader.
 :::
 
-## References {time=0}
+## Takeaways {role=summary time=1}
 
-::: {#refs}
-:::
+- The claim, in one line.
+- What follows from it.
+
+## References {.references .allowframebreaks role=explanation}

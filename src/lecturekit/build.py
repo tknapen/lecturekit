@@ -62,10 +62,13 @@ def build(project: Path | None = None, to: str | None = None, profile: str | Non
     sys.stderr.write(_strip_timing(proc.stderr))
     if report:
         print(report)
+    timing = proj / "_build" / "timing.txt"
+    if proc.returncode == 0 and timing.exists():
+        print(f"(per slide in {timing})")
     return proc.returncode
 
 
-_TIMING_RE = re.compile(r"(lecturekit timing[^\n]*\n(?:  [^\n]*\n?)*)")
+_TIMING_RE = re.compile(r"(lecturekit timing \((?:live|study)\):\n(?:(?!lecturekit timing)[^\n]*\n)*?slides \d+[^\n]*\n?)")
 
 
 def _extract_timing(stderr: str) -> str:

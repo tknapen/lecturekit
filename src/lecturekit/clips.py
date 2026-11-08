@@ -1,36 +1,33 @@
 """`lk clips`: render a deck's clips and write `assets/clips/clips.json`.
 
-The seam between the deck and whatever made the clip. A deck's movie block
-names a clip:
+The seam between the deck and whatever made the clip. A deck's movie block names a clip:
 
-    ::: {.movie clip="bar_bold" height=4.4cm}
+    ::: {.movie clip="bar-bold" height=4cm}
 
 and `assets/clips/clips.json` says what that name means:
 
-    {"bar_bold": {"video": "assets/clips/bar_bold.mp4",
-                  "still": "assets/clips/bar_bold.png",
-                  "width": 1920, "height": 1080, "duration": 12.0,
-                  "source": "anim/clip_bar_bold.py:BarBold", "revision": "<hash>"}}
+    {"bar-bold": {"video": "assets/clips/bar-bold.mp4", "still": "assets/clips/bar-bold.png",
+                  "width": 1280, "height": 720, "duration": 20.0,
+                  "source": "anim/clip_bar_bold.py:BarBold", "revision": "<sha1 of the script>"}}
 
 Two producers fill it:
 
-* kit scenes: `anim/clip_<name>.py` with one or more Manim `Scene` classes on
-  `lecturekit.manim`; rendered with Manim at 1920 by 1080, cropped to the
-  content's bounding box (plus a margin), the still taken from the last frame
-  unless the scene sets `still = <seconds>`;
-* manim8 projects: `clips/families/<family>/<name>/` rendered with
-  `scianim render --profile final`; the final video and the named checkpoint
-  PNG are copied in and the render manifest supplies dimensions, duration and
-  revision.
+* kit scenes: `anim/clip_<name>.py`, one or more Manim `Scene` classes on the shared kit (`from kit import *`).
+  Rendered with Manim at 1280 by 720 on white, as the presentation policy asks (`--size 1920x1080` or the
+  environment variable NM_CLIP_SIZE for another size; the kit reads it), 30 fps, without a title. The video is
+  copied to `assets/clips/<name>.mp4`; its last frame becomes the still `<name>.png` unless the scene class sets
+  `still = <seconds>`; `--crop` trims the video and the still to the content's bounding box (for a clip in a
+  column), and clips.json records the resulting shape, which the deck uses as the clip's aspect.
+* manim8 projects: `clips/families/<family>/<name>/` rendered with `scianim render --profile final` (the second
+  release); the final video and the named checkpoint PNG are copied in and the render manifest supplies the
+  dimensions, duration and revision.
 
-Everything the deck needs to know about a clip is in clips.json, so the study
-PDF's still and the live deck's `aspect` come from the same record.
+A re-rendered clip that looks unchanged on screen is a browser cache at work: browsers cache clips by file name.
 """
 
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import json
 import os
 import re
@@ -111,9 +108,7 @@ def crop_video(src: Path, dst: Path, box: tuple[int, int, int, int]) -> None:
 
 
 def file_hash(path: Path) -> str:
-    h = hashlib.sha1()
-    h.update(path.read_bytes())
-    return h.hexdigest()[:12]
+    return hashlib.sha1(path.read_bytes()).hexdigest()[:12]
 
 
 # --------------------------------------------------------------------- kit scenes
@@ -127,34 +122,42 @@ def kit_scenes(deck: Path) -> list[tuple[Path, str]]:
     return out
 
 
-def render_kit_scene(deck: Path, script: Path, scene: str, quality: str = "h", background: str | None = None) -> ClipRecord:
-    """Render one Manim scene, crop, still, record."""
-    media = deck / "anim" / "media"
-    name = script.stem[len("clip_"):] if script.stem.startswith("clip_") else script.stem
+def clip_name(script: Path, scene: str, deck: Path) -> str:
+    """`clip_bar_bold.py` -> `bar-bold`; a second scene in the same script gets its class name appended."""
+    stem = script.stem[len("clip_"):] if script.stem.startswith("clip_") else script.stem
+    name = stem.replace("_", "-")
     if sum(1 for s, _ in kit_scenes(deck) if s == script) > 1:
-        name = f"{name}_{scene.lower()}"
-    env = dict(os.environ)
+        name = f"{name}-{scene.lower()}"
+    return name
+
+
+def render_kit_scene(deck: Path, script: Path, scene: str, size: str = "1280x720", crop: bool = False,
+                     background: str | None = None) -> ClipRecord:
+    """Render one Manim scene on the kit, copy it into assets/clips, write the still, return the record."""
+    media = deck / "anim" / "media"
+    name = clip_name(script, scene, deck)
+    w0, h0 = (int(v) for v in size.lower().split("x"))
+    env = dict(os.environ, NM_CLIP_SIZE=f"{w0}x{h0}")
     env.setdefault("LECTUREKIT_BRAND", str(_brand_for(deck)))
-    cmd = [sys.executable, "-m", "manim", "render", f"-q{quality}", "--format", "mp4", "--disable_caching",
-           "--media_dir", str(media), str(script), scene]
+    manim = Path(sys.executable).with_name("manim")
+    cmd = [str(manim) if manim.exists() else "manim", "--disable_caching", "--progress_bar", "none", "-r", f"{w0},{h0}",
+           "--media_dir", str(media), "-o", name, str(script), scene]
     print("lecturekit: " + " ".join(cmd), file=sys.stderr)
-    subprocess.run(cmd, cwd=deck, env=env, check=True)
-    produced = sorted(media.rglob(f"{scene}.mp4"), key=lambda p: p.stat().st_mtime)
+    subprocess.run(cmd, cwd=deck / "anim", env=env, check=True)
+    produced = sorted(media.rglob(f"{name}.mp4"), key=lambda p: p.stat().st_mtime)
     if not produced:
         raise RuntimeError(f"Manim produced no video for {scene}")
     raw = produced[-1]
     out_dir = deck / CLIPS_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     w, h, duration = probe(raw)
-    # still: last frame, or the second the scene names in `still`
     still_at = _scene_attr(script, scene, "still")
     at = duration - 0.05 if still_at in (None, "last") else float(still_at)
     tmp_frame = out_dir / f"_{name}_frame.png"
     extract_frame(raw, at, tmp_frame)
-    bg = background or _slide_color(deck)
-    box = content_box(tmp_frame, bg)
     video = out_dir / f"{name}.mp4"
     still = out_dir / f"{name}.png"
+    box = content_box(tmp_frame, background or _slide_color(deck)) if crop else None
     if box:
         crop_video(raw, video, box)
         from PIL import Image
@@ -171,13 +174,18 @@ def render_kit_scene(deck: Path, script: Path, scene: str, quality: str = "h", b
 
 
 def _scene_attr(script: Path, scene: str, attr: str):
-    spec = importlib.util.spec_from_file_location(script.stem, script)
-    try:
-        mod = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
-        spec.loader.exec_module(mod)  # type: ignore[union-attr]
-        return getattr(getattr(mod, scene), attr, None)
-    except Exception:
+    """A class attribute of the scene, read from the source without importing Manim."""
+    text = script.read_text(encoding="utf-8")
+    m = re.search(rf"^class\s+{scene}\b.*?(?=^class\s|\Z)", text, re.M | re.S)
+    if not m:
         return None
+    a = re.search(rf"^\s+{attr}\s*=\s*([^\n#]+)", m.group(0), re.M)
+    if not a:
+        return None
+    try:
+        return eval(a.group(1).strip(), {}, {})  # noqa: S307  (a literal on the scene class)
+    except Exception:
+        return a.group(1).strip().strip("'\"")
 
 
 def _brand_for(deck: Path) -> Path:
@@ -245,16 +253,31 @@ def save_index(deck: Path, index: dict) -> Path:
     return p
 
 
-def render_all(deck: Path, only: list[str] | None = None, quality: str = "h") -> dict:
+def index_existing(deck: Path) -> dict:
+    """Record the clips already in assets/clips (an .mp4 with or without a .png) without rendering anything."""
+    index = load_index(deck)
+    for video in sorted((deck / CLIPS_DIR).glob("*.mp4")) if (deck / CLIPS_DIR).exists() else []:
+        name = video.stem
+        if name in index:
+            continue
+        w, h, duration = probe(video)
+        still = video.with_suffix(".png")
+        index[name] = asdict(ClipRecord(video=str(CLIPS_DIR / video.name), still=str(CLIPS_DIR / still.name) if still.exists() else None,
+                                        width=w, height=h, duration=round(duration, 3), source="assets/clips (pre-existing)",
+                                        revision=file_hash(video)))
+    return index
+
+
+def render_all(deck: Path, only: list[str] | None = None, size: str = "1280x720", crop: bool = False) -> dict:
     index = load_index(deck)
     for script, scene in kit_scenes(deck):
-        name = script.stem[len("clip_"):]
-        if only and name not in only and scene not in only:
+        name = clip_name(script, scene, deck)
+        short = script.stem[len("clip_"):]
+        if only and not ({name, short, short.replace("_", "-"), scene} & set(only)):
             continue
-        rec = render_kit_scene(deck, script, scene, quality=quality)
-        key = Path(rec.video).stem
-        index[key] = asdict(rec)
-        print(f"lecturekit: clip {key}: {rec.width}x{rec.height}, {rec.duration}s", file=sys.stderr)
+        rec = render_kit_scene(deck, script, scene, size=size, crop=crop)
+        index[Path(rec.video).stem] = asdict(rec)
+        print(f"lecturekit: clip {Path(rec.video).stem}: {rec.width}x{rec.height}, {rec.duration}s -> {rec.video}", file=sys.stderr)
     try:
         from .project import find_project
         root = find_project(deck)

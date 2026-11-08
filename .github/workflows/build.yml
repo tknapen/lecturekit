@@ -31,12 +31,11 @@ jobs:
           version: 1.11.9
           tinytex: true
 
-      - name: TeX packages and fonts
+      - name: TeX packages
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends fonts-texgyre fonts-texgyre-math fonts-roboto lmodern
           tlmgr install beamer adjustbox collectbox etoolbox ragged2e pgf xcolor standalone fontspec unicode-math \
-            lm tex-gyre tex-gyre-math varwidth || true
+            textcase lm lm-math varwidth caption booktabs || true
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends lmodern fonts-lmodern
           fc-cache -f
 
       - uses: astral-sh/setup-uv@v5
@@ -46,26 +45,29 @@ jobs:
           uv pip install -p .venv/bin/python -e ".[dev]"
           .venv/bin/playwright install --with-deps chromium
 
-      - name: Build the feature deck
+      - name: Build the example decks
         run: |
           source .venv/bin/activate
-          ln -sfn ../../_extensions examples/features/_extensions
+          for d in kickoff features; do ln -sfn ../../_extensions examples/$d/_extensions; done
           if [ "${{ matrix.preset }}" = "dark" ]; then
+            lk build examples/kickoff --profile dark
             lk build examples/features --profile dark
           else
+            lk build examples/kickoff
             lk build examples/features
           fi
 
       - name: Checks
         run: |
           source .venv/bin/activate
-          OUT=examples/features/_build; [ "${{ matrix.preset }}" = "dark" ] && OUT=examples/features/_build-dark
-          BRAND=examples/features/_brand.yml; MODE=light
-          [ "${{ matrix.preset }}" = "dark" ] && BRAND=examples/features/_brand-dark.yml && MODE=dark
-          lk review contrast $BRAND --mode $MODE
-          lk review measure $OUT/slides-live.html
-          lk review frags $OUT/slides-live.html
-          lk review shoot $OUT/slides-live.html --out review/${{ matrix.preset }} --sheet
+          OUT=_build; BRAND=_brand.yml; MODE=light
+          if [ "${{ matrix.preset }}" = "dark" ]; then OUT=_build-dark; BRAND=_brand-dark.yml; MODE=dark; fi
+          for d in kickoff features; do
+            lk review contrast examples/$d/$BRAND --mode $MODE
+            lk review shoot examples/$d/$OUT/slides-live.html --out review/${{ matrix.preset }}/$d --sheet
+            lk review measure examples/$d/$OUT/slides-live.html
+            lk review overflow examples/$d || true
+          done
 
       - name: Tests
         if: matrix.preset == 'paper'
@@ -75,24 +77,26 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: slides-${{ matrix.preset }}
+          name: decks-${{ matrix.preset }}
           path: |
-            examples/features/_build*/slides-live.html
-            examples/features/_build*/slides-study.pdf
+            examples/*/_build*/slides-live.html
+            examples/*/_build*/slides-study.pdf
             review/${{ matrix.preset }}
 
       - name: Assemble the Pages site
         if: matrix.preset == 'paper'
         run: |
-          mkdir -p site/features
+          mkdir -p site/kickoff site/features
+          cp -r examples/kickoff/_build/. site/kickoff/
           cp -r examples/features/_build/. site/features/
-          cp -r review/paper site/features/review
+          cp -r review/paper site/review
           cat > site/index.html <<'EOF'
           <!doctype html><meta charset="utf-8"><title>lecturekit</title>
           <h1>lecturekit</h1>
-          <p><a href="features/slides-live.html">feature deck, live</a> ·
-             <a href="features/slides-study.pdf">study PDF</a> ·
-             <a href="features/review/sheet.png">contact sheet</a></p>
+          <p>The worked example: <a href="kickoff/slides-live.html">live deck</a> ·
+             <a href="kickoff/slides-study.pdf">study PDF</a> · <a href="review/kickoff/sheet.png">contact sheet</a></p>
+          <p>The feature deck: <a href="features/slides-live.html">live deck</a> ·
+             <a href="features/slides-study.pdf">study PDF</a> · <a href="review/features/sheet.png">contact sheet</a></p>
           EOF
       - uses: actions/upload-pages-artifact@v3
         if: matrix.preset == 'paper'

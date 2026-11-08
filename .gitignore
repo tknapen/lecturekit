@@ -1,7 +1,4 @@
-# build outputs of decks
-_build/
-_build-*/
-_lecturekit/
+# build outputs of decks (see below)
 *.log
 *.aux
 *.toc
@@ -32,3 +29,13 @@ build/
 # clip renders
 media/
 anim/media/
+
+# decks: outputs and caches beside each deck
+**/_build/
+**/_build-*/
+**/_lecturekit/
+**/review/
+**/anim/media/
+**/slides.tex
+**/slides.log
+**/timing.txt

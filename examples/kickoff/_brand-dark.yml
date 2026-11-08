@@ -1,0 +1,62 @@
+# The dark preset of the restyle episode: black surfaces, light-purple titles and eyebrows, green body text,
+# green-tinted white for emphasis (ink), Roboto throughout. Role and model colours are lifted to tints that reach
+# WCAG AA on black; check with `lk review contrast _brand-dark.yml --mode dark`.
+meta:
+  name: lecturekit dark
+color:
+  palette:
+    paper: "#000000"
+    slide: "#000000"
+    ink: "#E6F4EA"        # emphasis: green-tinted white
+    body: "#8FD8B0"       # running text
+    muted: "#6FA98A"
+    hairline: "#2A2A2A"
+    heading: "#C9B6F2"    # titles and the default eyebrow
+    concept: "#8FB8E8"
+    caveat: "#F08C83"
+    example: "#E8B960"
+    anchor: "#5FD1C4"
+    question: "#C9B6F2"
+    input: "#6FB3E8"
+    state: "#5FD1C4"
+    update: "#F2A15F"
+    context: "#C9B6F2"
+    gauss: "#8FB8E8"
+    DoG: "#F0C060"
+    CSS: "#F28CB0"
+    DN: "#5FD1D1"
+    future: "#C9B6F2"
+  foreground: body
+  background: slide
+  primary: heading
+  secondary: muted
+  tertiary: hairline
+  success: anchor
+  info: concept
+  warning: example
+  danger: caveat
+  light: ink
+  dark: slide
+  link: concept
+typography:
+  fonts:
+    - family: Roboto
+      source: file
+      files:
+        - path: _extensions/lecturekit/fonts/roboto/Roboto-Regular.ttf
+          weight: 400
+        - path: _extensions/lecturekit/fonts/roboto/Roboto-Bold.ttf
+          weight: 700
+        - path: _extensions/lecturekit/fonts/roboto/Roboto-Italic.ttf
+          weight: 400
+          style: italic
+        - path: _extensions/lecturekit/fonts/roboto/Roboto-BoldItalic.ttf
+          weight: 700
+          style: italic
+  base:
+    family: Roboto
+    size: 30px
+    line-height: 1.4
+  headings:
+    family: Roboto
+    weight: 400

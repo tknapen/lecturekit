@@ -1,83 +1,102 @@
 ---
 title: "Every feature on one deck"
 subtitle: "The lecturekit dialect, slide by slide"
+shorttitle: "Features"
+eyebrow: "lecturekit · the feature deck"
 author: "Tomas Knapen"
-institute: "Vrije Universiteit Amsterdam"
-date: 2026-11-08
-series: "lecturekit features"
+date: ""
+budget: 15
+bibliography: references.bib
+citation-size: small
 ---
 
-## One source, two outputs {.concept time=2}
+## What this deck is for {role=goals time=1}
 
-- Write one `slides.qmd`; render a live deck and a study PDF
-- Headings carry a [teaching role]{.concept} and the planned minutes
-- Figures are TikZ, compiled once, placed at display size
+- Every construct of the dialect, one per slide, in both outputs.
+- A paper slide: [learning goals and takeaways]{.blue} sit on warm paper, with a teal label.
+- The plan is printed against the budget after every build.
 
-![](assets/figures/pipeline.tikz){height=4.2cm}
+::: notes
+Line: the deck is the engine's test; read it beside the study PDF.
+Status: engine release.
+:::
+
+## One source, two outputs {role=concept time=2}
+
+```{=latex}
+\nmfigureh{4.2cm}{assets/figures/pipeline.tex}
+```
+
+- Write one `slides.qmd`; render [a live deck and a study PDF]{.blue}.
+- A heading carries a [role]{.blue} and its minutes; the figure is TikZ at display size.
 
 ::: notes
 Line: the method in one sentence.
 Ask: who has kept two versions of the same lecture in sync by hand?
 Say: the filter is the only thing that knows about two outputs.
-Status: final.
 :::
 
-## The budget is checked {.caveat time=1.5}
+## The budget is checked {role=caveat time=1.5}
 
-::: columns
+:::: columns
 ::: {.column width="55%"}
-- Every slide heading has `time=`
-- The build prints the plan against the deck's budget
-- Over budget is a warning, not an error
+- Every slide heading has `time=`.
+- The build prints the plan against the budget.
+- Over budget is [a warning, not an error]{.red}.
 :::
 ::: {.column width="45%"}
 ```{.tikz height=3.6cm label="clock"}
 \begin{tikzpicture}
   \draw[nm/hairline] (0,0) circle (1.6cm);
   \foreach \a in {0,30,...,330} \draw[nm/hairline] (\a:1.45cm) -- (\a:1.6cm);
-  \draw[nm, nm/caveat, line width=1.6pt] (0,0) -- (60:1.1cm);
-  \draw[nm, nm/concept, line width=1.6pt] (0,0) -- (-30:1.4cm);
+  \draw[nmCaveat, line width=1.6pt] (0,0) -- (60:1.1cm);
+  \draw[nmConcept, line width=1.6pt] (0,0) -- (-30:1.4cm);
   \node[nm/muted, below=1.75cm] at (0,0) {15 of 15 minutes};
 \end{tikzpicture}
 ```
 :::
-:::
+::::
 
 ::: notes
 Line: the clock is the lecturer's, not the slide's.
 :::
 
-## A clip, autoplaying {.example time=2}
+## A clip, autoplaying {role=example time=2}
 
-::: {.movie clip="bar_bold" height=4.4cm}
-A bar sweeps the visual field; the BOLD response of one voxel follows.
+:::: {.live-only}
+::: {.movie src="assets/clips/bar_bold.mp4" label="A bar sweeps a disc from left to right"}
 :::
+::::
 
-::: {.live-only}
-Click the clip to pause, R to replay.
+::: {.study-only}
+![](assets/clips/bar_bold.png){height=42mm}
+
+The clip's last frame; the live deck plays the sweep.
 :::
 
 ::: notes
-Say: in the study PDF this is the final frame.
+Say: a click or the space bar pauses the clip, R replays it; the study PDF carries the still.
 :::
 
-## Fragments and live-only steps {.anchor time=1.5}
+## A clip through the seam {role=example time=1}
 
-::: {.fragment}
+::: {.movie clip="bar_bold" height=4cm}
+Named in `assets/clips/clips.json`: the live deck gets the video, the study PDF the still, and both the shape.
+:::
+
+## Revealed step by step {role=explanation time=1.5}
+
+::: incremental
 - First the question
-:::
-::: {.fragment}
 - Then the data
-:::
-::: {.fragment}
 - Then the model, and where it fails
 :::
 
 ::: {.study-only}
-The study PDF shows all three points at once; fragments are a live-deck device.
+The study page shows the three points at once; the reveal is a live device.
 :::
 
-## A quiz carries its answer {.question time=2}
+## A quiz carries its answer {role=question time=2}
 
 Which of the two outputs decides the pixel budget of a slide?
 
@@ -89,18 +108,28 @@ Which of the two outputs decides the pixel budget of a slide?
 **Answer.** The live deck. 1280 by 720 pixels; the study PDF reflows what the live budget drops.
 :::
 
-## Citations and claims {.concept time=1}
+## Citations and claims {role=concept time=1}
 
-- The model: population receptive fields [@Dumoulin2008]
-- The result: joint visual and somatotopic tuning [@Hedger2025]
-- Every number on a slide traces to `FACTS.md`
+- The model: population receptive fields [@Dumoulin2008].
+- The result: joint visual and somatotopic tuning [@Hedger2025].
+- Every number on a slide traces to `FACTS.md`; citations are set in italics and, here, small.
 
-## Study-only detail {.study-only .example time=0}
+## Study-only detail {.study-only role=example time=0}
 
 This slide exists only in the study PDF: a derivation, a table, or a figure
 that the live budget drops but the reader wants.
 
-## References {time=0}
+| Construct | Live | Study |
+|:--|:--|:--|
+| `.live-only` | kept | dropped |
+| `.study-only` | dropped | kept |
+| `.incremental` | revealed | complete |
+| `.movie` | `<video>` | the still |
 
-::: {#refs}
-:::
+## Takeaways {role=summary time=1}
+
+- One source, [two outputs]{.blue}, one theme file.
+- Every rule has a command that checks it.
+- The study PDF is the whole argument; the live deck is its spine.
+
+## References {.references .allowframebreaks role=explanation}
