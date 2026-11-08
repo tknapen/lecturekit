@@ -10,7 +10,7 @@ series: "lecturekit features"
 ## One source, two outputs {.concept time=2}
 
 - Write one `slides.qmd`; render a live deck and a study PDF
-- Headings carry a teaching role and the planned minutes
+- Headings carry a [teaching role]{.concept} and the planned minutes
 - Figures are TikZ, compiled once, placed at display size
 
 ![](assets/figures/pipeline.tikz){height=4.2cm}

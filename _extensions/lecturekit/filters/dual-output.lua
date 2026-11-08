@@ -14,7 +14,8 @@
 --   4. rewrites `.movie` blocks into a <video> for the live deck and a
 --      still image for the study PDF, resolving clip names through
 --      assets/clips/clips.json when present;
---   5. leaves the pacing data on each heading for the live deck.
+--   5. leaves the pacing data on each heading for the live deck;
+--   6. colours [text]{.concept} spans in the study PDF (CSS does it live).
 --
 -- Colour tokens, fonts and the live foot are emitted by tokens.lua, which
 -- runs after Quarto's filters. Everything here runs at `pre-quarto`, before
@@ -366,6 +367,31 @@ local function movie_div(div)
 end
 
 -- --------------------------------------------------------------------------
+-- Pass 5: coloured spans
+--   [text]{.concept} and [text]{.mark-input} are coloured by CSS classes in
+--   the live deck; the study PDF gets \textcolor{nm<Name>}{...} here.
+-- --------------------------------------------------------------------------
+local SPAN_ROLES = { concept = "Concept", caveat = "Caveat", example = "Example",
+                     anchor = "Anchor", question = "Question",
+                     ["mark-input"] = "Input", ["mark-state"] = "State",
+                     ["mark-update"] = "Update", ["mark-context"] = "Context",
+                     muted = "Muted" }
+
+local function colour_span(span)
+  if not is_study then return nil end
+  for _, cls in ipairs(span.classes) do
+    local name = SPAN_ROLES[cls]
+    if name then
+      local out = pandoc.List({ pandoc.RawInline("latex", "\\textcolor{nm" .. name .. "}{") })
+      out:extend(span.content)
+      out:insert(pandoc.RawInline("latex", "}"))
+      return out
+    end
+  end
+  return nil
+end
+
+-- --------------------------------------------------------------------------
 -- Filter
 -- --------------------------------------------------------------------------
 return {
@@ -382,6 +408,7 @@ return {
       if has_class(div, "movie") then return movie_div(div) end
       return nil
     end,
+    Span = colour_span,
   },
   {
     Pandoc = function(doc)

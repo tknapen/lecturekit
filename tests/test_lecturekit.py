@@ -118,6 +118,8 @@ def test_study_pdf_content(built_features):
     assert "CONCEPT" in text and "CAVEAT" in text            # eyebrows
     tokens_tex = (built_features / "_lecturekit" / "tokens.tex").read_text()
     assert "\\definecolor{nmConcept}{HTML}{175B8E}" in tokens_tex
+    beamer_src = (built_features / "slides.tex").read_text()
+    assert "\\textcolor{nmConcept}{teaching role}" in beamer_src       # coloured span
 
 
 @needs_quarto
