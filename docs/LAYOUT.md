@@ -1,111 +1,59 @@
-# Layout
+# Layout rules
 
-The geometry of a slide, stated so that it can be checked. Each rule names the command that checks it. The commands are `lk review measure`, `lk review shoot`, `lk review frags`, `lk review overflow` and `lk review figs`; they are summarised at the end.
+The geometry of a slide in both outputs, the traps that cost us build rounds, and the command that checks each rule. Measured on the live deck at its design size (1280 by 720 CSS pixels, Reveal margin 0.03) and on the Beamer study PDF (16:9, 160 by 90 mm). Figures in the source are sized in centimetres through `\nmfigureh{Hcm}{file.tex}` or `{height=Hcm}`; one centimetre of figure height is 88 live pixels (8.8 px per mm: a 720 px slide for a 90 mm frame, plus a tenth for the smaller body type).
 
-## Two frames, one ruler
-
-The live deck is a 1280 by 720 px frame. The study PDF is a 16 by 9 cm Beamer frame. The two share one ruler: 1 cm of the study frame is 80 px of the live frame. A height given in cm on a figure or a clip means the same size in both outputs, and the live deck shows what the PDF will print.
-
-Reveal scales the frame into the browser window with a 4 percent margin (`margin: 0.04` in the format). The proportions below do not change with the window.
+The type scale is the same relative to the slide in both outputs: 12 pt body on 15 pt leading and a 20 pt frame title on the 160 mm page, 30 px body and 54 px titles on the 1280 px slide (policy of 14 October 2026; the measured body is 10.6 pt, which is 30 px). Slide numbers in the review tools are 1-based, as the foot shows them: the title slide is 1.
 
 ## The live frame
 
-| Element | Where | Set in |
+| Region | Position | Notes |
 | --- | --- | --- |
-| Eyebrow | top edge at 40 px, at the left gutter, 0.6 em uppercase | `.lk-eyebrow`, `reveal/theme.scss` |
-| Title | top edge at 66 px; h2 at 1.55 em of the 26 px root, line height 1.1, so one line is about 44 px | `section > h2` |
-| Title block | 0 to 150 px; content starts at 150 px | `--lk-title-block` |
-| Gutters | 56 px left and right; content width 1168 px | `--lk-gutter` |
-| Foot | hairline at 677 px; short title left, slide number right, 15 px text; hidden on the title slide | `--lk-foot-y`, `pacing.js` |
-| Content area | 150 to 677 px: 527 px tall and 1168 px wide, which is 6.6 by 14.6 cm on the ruler | |
+| Eyebrow (role label) and rule | top, about 40 to 75 px | set by the slide's `role=`; 22 px letterspaced capitals, a 53 px rule in the role colour |
+| Title | one line ends at about 150 px; a second title line costs about 55 px of figure | keep titles under 30 characters; the title is set in 54 px serif capitals |
+| Figure or clip | from about 170 px down | `\nmfigureh` sets a maximum height; the SVG is never upscaled beyond its natural size |
+| Bullets | above the foot, bottom-aligned | one line at the live font (30 px) is about 70 characters |
+| Foot (short title, slide number) | top edge at about 677 px | 18 px capitals above a hairline, 22 px from the bottom; nothing may cross it; `shoot` reports what does |
 
-Root font 26 px with line height 1.3: a line of body text is about 34 px. A list item has a 0.25 em bottom margin, so a one-line bullet costs about 40 px, half a centimetre. Lists have no vertical margin of their own; a figure or clip gets a 0.3 em (8 px) top margin.
+The slide's content area has 45 px gutters left and right and 70 px of padding at the bottom. Budgets that work: two single-line bullets leave 4.1 to 4.4 cm for the figure; one bullet leaves about 4.8 cm; a bullet that wraps to two lines takes 0.4 cm from the figure. An r-stack (staged figure) needs about 0.2 cm less than a plain figure. Columns (`::: {.columns}`) share the width; a figure in a column is sized by the column, not the slide. The same numbers are in `lecturekit.tikz.FIGURE_HEIGHTS`: `full` 5.6 cm, `one_bullet` 4.8 cm, `two_bullets` 4.2 cm, `column` 4.4 cm.
 
-## The study frame
+Check: `lk review measure <deck>/_build/slides-live.html` prints, per slide, the bottom edge of the content, the foot limit, the free pixels between them, the number of title lines and the wrapping bullets, and flags OVERFULL, two-line titles and titles over 30 characters; `--slide N` prints one slide's boxes (title, figure with its natural size, columns, first paragraph, bullets, foot).
 
-16 by 9 cm (`aspectratio: 169`), frames top-aligned (`classoption: t`). Text margins 0.7 cm left and right, which is 14.6 cm of text width and the same 56 px as the live gutters. The frame title block is 0.45 cm of air, the eyebrow line, the title at `\Large` in the heading font, and 0.15 cm: about 1.9 cm, the 150 px of the live frame. The footline takes 0.6 cm at the bottom, its hairline at about 8.4 cm, the 677 px of the live frame. Fonts come from `_brand.yml` through `_lecturekit/tokens.tex`.
+## Figures
 
-## Figure heights
-
-The content area holds a figure and some text, and the text costs height at about half a centimetre per one-line bullet. Rules of thumb, with 80 px per cm:
-
-| Beside the figure | Figure height |
-| --- | --- |
-| Two one-line bullets | 4.1 to 4.4 cm (330 to 350 px) |
-| One one-line bullet | about 4.6 to 4.9 cm |
-| Nothing but the title | about 5 to 5.5 cm |
-| Three one-line bullets | about 3.6 to 3.9 cm |
-
-The study PDF is the tighter of the two outputs: a figure that fits there fits the live deck with room to spare. The live check is `lk review measure <deck.html>`, which prints per slide the bottom edge of the content and the free pixels above the foot line at 677 px, and flags overflow. The study check is `lk review overflow <deck.log>`, which reads the Beamer log for overfull boxes.
-
-## Never upscaled: draw at display size
-
-`\lkfigureh{height}{file}` places a figure with `max height` and `max width=\linewidth`. Both are maxima, never targets: a figure drawn 3 cm tall under `height=4.2cm` prints 3 cm tall. The live deck does the same: the `<img>` gets the figure's own height at 80 px per cm and a `max-height` at the given cap. A clip's `<video>` is capped the same way.
-
-So TikZ is drawn at display size. A figure meant for a 4.2 cm slot is drawn 4.2 cm tall, in the font sizes of the preamble (`\small` labels, `\footnotesize` muted text), and its first line says so (`% drawn at display size, 4.2 cm tall`). The same figure scaled down from a larger drawing has labels too small to read from the back of the room. `lk review figs <dir>` previews the figures at that size; `lk review shoot <deck.html>` shows them in place.
-
-## Titles
-
-Titles are under 30 characters and fit one line. A second title line at 44 px runs from 110 to 154 px and crosses the 150 px line where the content starts; the live theme does not move the content, so title and content touch. In the study PDF the frame title is in the flow, and the second line costs about 0.6 cm of the content area, more than a bullet's worth. `lk review shoot <deck.html>` writes one PNG per slide; read the titles there and in the timing report, which lists them.
-
-## Fragments and stacks
-
-Fragments are `.fragment` Divs. The live deck reveals them step by step; the study PDF shows them all, in place, because the PDF shows the slide's final state. The height budget is therefore that of the final state. `lk review frags <deck.html>` lists the fragments per slide; `lk review shoot <deck.html> --fragments` writes one PNG per step so that each state can be measured.
-
-A stack (`::: {.r-stack}`) puts several figures in one place and shows one at a time, which is how a two-stage figure (`name-stage1.tikz`, then `name.tikz`) is built up on the live deck. It is a live device: in the study PDF the stacked figures would print one under the other. Wrap the stack in `.live-only` and give the PDF the final figure in `.study-only`:
-
-```markdown
-::: {.r-stack .live-only}
-![](assets/figures/pipeline-stage1.tikz){height=4.2cm}
-![](assets/figures/pipeline.tikz){.fragment height=4.2cm}
-:::
-::: {.study-only}
-![](assets/figures/pipeline.tikz){height=4.2cm}
-:::
-```
+- `\nmfigureh{Hcm}` is a cap, not a target. A TikZ figure drawn 6 cm wide displays at its natural size even when the cap allows more, so draw figures at the size they should appear (12 to 13 cm wide for a full-width slide, about 4.2 cm high for two bullets). `lk review figs <deck>` prints each figure's natural size in cm and warns when a figure is wider than the 14 cm slide.
+- Staged figures (`name-0.tex`, `name.tex` in an r-stack) must have identical bounding boxes: draw the hidden stage inside `\begin{scope}[opacity=0] ... \end{scope}` rather than leaving it out. `lk review frags` reports an r-stack whose steps differ in size.
+- Text in TikZ nodes: `%` must be written `\%`; a wrapped node (`text width=`) hyphenates unless the font is told not to: put `\hyphenchar\font=-1 ` at the start of the node text (`\hyphenpenalty` does not work there). Font strings are raw: `font=\sffamily\scriptsize\bfseries`. `lecturekit.tikz.escape` and `nohyphen` do both.
+- A figure that embeds a PNG writes the PNG from a script (`assets/images/`) and names that script in `MANIFEST.md`, so a restyle can regenerate it.
+- Colours are named (`nmInk`, `nmConcept`, `nmGauss`, ...), never literal hex codes, so that the theme owns them (THEMING.md).
 
 ## Clips
 
-A clip's `.fragment` goes on a wrapper Div, inside `.live-only`, and the study PDF gets the still in `.study-only`:
+- A clip in a column or on a key press: the fragment wraps the live-only block, never the other way round: `::: {.fragment}` > `:::: {.live-only}` > `::: {.movie src=... aspect="W:H"}`. The reverse order covers the slide. `lk review frags` flags a clip's `.fragment` outside `.live-only`.
+- `aspect=` is the clip's pixel ratio, from `assets/clips/clips.json` (written by `lk clips`); the `clip="name"` form reads it from there. A wrong aspect letterboxes the clip and wastes height.
+- Clips play without browser controls: click or space pauses and resumes, R replays. Space does not advance a slide while a clip is shown. Browsers cache clips by file name: a re-rendered clip that looks unchanged on screen needs a new file name.
+- A clip slide (one `.movie` in `.live-only`) gives the clip everything below the title at 16:9, so a clip under a two-line title still clears the foot; a clip among other content is 440 px tall.
+- Every clip has a static equivalent in the study PDF (a `.study-only` figure, or the still that `clip=` places), as the policy requires.
 
-```markdown
-::: {.live-only}
-::: {.fragment}
-::: {.movie clip="bar_bold" height=4.4cm}
-:::
-:::
-:::
-::: {.study-only}
-![](assets/clips/bar_bold.png){height=4.4cm}
-:::
-```
+Check: `lk review frags <live.html> [--slides N ...]` writes a PNG per fragment step and prints which fragments are visible, where the images sit and whether a clip is shown and playing.
 
-Two reasons. The filter rewrites the `.movie` Div into a `<video>` and keeps none of its classes, so `.fragment` on the `.movie` Div itself does nothing. And a fragment is a live step: the study PDF gets the still where the reader needs it, with its own caption, rather than at the point of a step that does not exist on paper. `lk review frags <deck.html>` flags a clip's `.fragment` outside `.live-only`.
+## Study PDF
 
-`aspect=` fixes the clip's box before the video loads, so that the slide does not jump; its default is the `width` over `height` of the clip's entry in `assets/clips/clips.json`, which `lk clips` writes. `height=` caps the box at 80 px per cm, as for figures.
+- `lk review overflow <deck>` reads the Beamer log beside the source and maps each overfull frame to its title; a slide with two columns and a tall figure overflows first. Make the columns `::: {.columns .live-only}` and give the PDF a single figure, or shorten the bullets.
+- The bibliography appends to the last slide unless the deck ends with `## References {.references .allowframebreaks role=explanation}`.
+- Display math in the source is `$$ ... $$`; it renders in both outputs.
+- A quiz or pause slide carries its answer in a `study-only` block or in the next slide's notes; the live deck may hide it behind a fragment, the PDF never does.
+- The page holds about nine bullet lines without a figure; with a figure of 3 cm, four lines; with 4 cm, two (POLICY.md).
 
-## Display math
-
-A display equation at the body size takes about one and a half lines, 50 to 60 px, plus the block margins. One display equation per slide; a derivation of several steps is a study-only slide, or fragments. The live deck keeps MathJax at the body size (the theme pins it at 100 percent). `lk review measure` counts an equation into the content's bottom edge like any other block.
-
-## TikZ labels: two traps
-
-A `%` in a label is a TeX comment: `50%` comments out the rest of the line, and the figure compiles to something else or fails. Write `50\%`. A label with `align=` or a `text width` is a paragraph, and TeX breaks lines and hyphenates it where it likes, at hyphens included. Put the breaks in yourself with `\\`, and keep words together with `\mbox{...}`. A failed compile is reported in the build output with the path of its log in `_lecturekit/tikz/`; a wrong label shows in `lk review figs` and in `lk review shoot`.
-
-## Study PDF limits
-
-Beamer columns do not shrink and the frame does not grow. A figure in a column is limited by the column's width as well as by its height, and a text column beside a tall figure must end above the footline on its own. `lk review overflow <deck.log>` reports every overfull box with its frame.
-
-The bibliography is one frame, and neither output breaks it across pages. Four or five entries fit at the deck's size. More than that is two References slides, or a study-only second page. `lk review overflow` catches the PDF, `lk review measure` the live deck.
-
-## The review commands
+## Checks
 
 | Rule | Command |
 | --- | --- |
-| Content ends above the foot line at 677 px | `lk review measure <deck.html>` |
-| Every slide reads right: titles on one line, figures at display size, nothing clipped | `lk review shoot <deck.html> [--out dir]`, `--fragments` for one PNG per step |
-| Fragments where intended; a clip's `.fragment` inside `.live-only` | `lk review frags <deck.html>` |
-| No overfull frame in the study PDF | `lk review overflow <deck.log>` |
-| Figures readable at display size, labels as intended | `lk review figs <dir>` |
+| Nothing crosses the foot or the right edge; no console or load errors; titles on one line | `lk review shoot <deck>/_build/slides-live.html [--sheet] [--fragments] [--scale 2] [--against DIR]` (`review/shots/slide-NN.png`, `report.json`, a contact sheet; `--against` lists the slides whose pixels changed since an earlier round) |
+| A staged slide builds as intended; a clip is shown and playing at the right step; a clip's fragment is inside `.live-only` | `lk review frags <deck>/_build/slides-live.html [--slides N ...] [--out DIR]` |
+| Where the title, figure, bullets and foot sit; free pixels above the foot; a figure's natural size | `lk review measure <deck>/_build/slides-live.html [--slide N]` |
+| A figure's natural size and look before it enters a slide | `lk review figs <deck> [name ...] [--brand FILE] [--mode dark]` (`review/figs/<name>.png` at 88 px per cm) |
+| The study PDF fits; no missing characters or undefined colours | `lk review overflow <deck>` or `lk review overflow <deck>/slides.log [--min PT]` |
+| The plan fits the budget | printed after every build; per slide in `<deck>/_build/timing.txt` |
+| Text and role colours are legible on the surfaces | `lk review contrast <deck>/_brand.yml [--mode dark] [--strict]` |
 
-`<deck.html>` is `_build/slides-live.html`. `<deck.log>` is the Beamer log, `slides.log` beside the source; it survives the render when the Beamer format is given `latex-clean: false`.
+The review tools serve the built deck over loopback and switch transitions off before measuring, so a screenshot taken right after a slide change shows that slide alone. Their output goes to `review/` beside `_build/`, which git ignores.
