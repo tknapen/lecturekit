@@ -166,6 +166,8 @@ $code-block-border-color: transparent;
 .reveal .slides section:has(video) .column .live-only:has(> .r-stack){display:block}
 .reveal .slides section:has(video) .column .live-only > .r-stack{width:100%;height:auto;aspect-ratio:4/3}
 .reveal .slides section:has(video) .column .r-stack > .fragment{display:flex;align-items:center;justify-content:center}
+/* The steps of an r-stack sit on the same spot: no margins of their own, so a staged figure does not jump. */
+.reveal .r-stack > *,.reveal .r-stack p{margin:0}
 /* Slides with an r-stack keep their content above the footer (its top sits 54 px above the slide’s bottom edge). */
 .reveal .slides>section.present:has(.r-stack){padding-bottom:58px}
 /* A build in an r-stack replaces the step before it: once a later fragment of the stack is visible, every earlier child
