@@ -6,4 +6,4 @@ draw figures and clips from numbers, the theme that puts the look in one
 file, and the review tools that make rounds on screenshots fast.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"

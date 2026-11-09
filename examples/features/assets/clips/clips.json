@@ -7,8 +7,8 @@
     "fps": 30.0,
     "height": 540,
     "producer": "external",
-    "revision": "none",
-    "source": "synthetic stand-in",
+    "revision": "make_clips.py",
+    "source": "make_clips.py (synthetic stand-in)",
     "still": "assets/clips/bar_bold.png",
     "video": "assets/clips/bar_bold.mp4",
     "width": 960

@@ -54,11 +54,11 @@ jobs:
           source .venv/bin/activate
           for d in kickoff features; do ln -sfn ../../_extensions examples/$d/_extensions; done
           if [ "${{ matrix.preset }}" = "dark" ]; then
-            lk build examples/kickoff --profile dark
-            lk build examples/features --profile dark
+            lk build examples/kickoff --profile dark --strict
+            lk build examples/features --profile dark --strict
           else
-            lk build examples/kickoff
-            lk build examples/features
+            lk build examples/kickoff --strict
+            lk build examples/features --strict
           fi
 
       - name: Checks

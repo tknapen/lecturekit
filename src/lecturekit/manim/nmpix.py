@@ -10,9 +10,13 @@ ImageConvolution and the Sobel scenes), redrawn for Manim Community in the cours
 """
 from .nmstyle import *
 
-_INK_RGB = np.array([0x20, 0x2B, 0x33]) / 255.0
-_BLUE_RGB = np.array([0x17, 0x5B, 0x8E]) / 255.0
-_ORANGE_RGB = np.array([0xC4, 0x5A, 0x00]) / 255.0
+def _rgb_of(colour):
+    h = ManimColor(colour).to_hex()
+    return np.array([int(h[i:i + 2], 16) for i in (1, 3, 5)]) / 255.0
+
+
+# the brand's tokens (nmstyle reads the deck's _brand.yml, the dark side under LECTUREKIT_MODE=dark)
+_INK_RGB, _BLUE_RGB, _ORANGE_RGB, _SLIDE_RGB = _rgb_of(INK), _rgb_of(BLUE), _rgb_of(ORANGE), _rgb_of(SLIDE)
 
 
 def _hex(rgb):
@@ -20,12 +24,13 @@ def _hex(rgb):
 
 
 def colour_for(v, cmap='grey', vmin=0.0, vmax=1.0):
-    """'grey': white at vmin, ink at vmax. 'div': orange for negative, white at zero, blue for positive (|v| / vmax)."""
+    """'grey': the slide colour (white on paper) at vmin, ink at vmax. 'div': orange for negative, the slide colour at
+    zero, blue for positive (|v| / vmax)."""
     if cmap == 'grey':
         s = 0.0 if vmax == vmin else float(np.clip((v - vmin) / (vmax - vmin), 0, 1))
-        return _hex((1 - s) * np.ones(3) + s * _INK_RGB)
+        return _hex((1 - s) * _SLIDE_RGB + s * _INK_RGB)
     m = max(abs(vmin), abs(vmax), 1e-9); s = float(np.clip(abs(v) / m, 0, 1))
-    return _hex((1 - s) * np.ones(3) + s * (_BLUE_RGB if v >= 0 else _ORANGE_RGB))
+    return _hex((1 - s) * _SLIDE_RGB + s * (_BLUE_RGB if v >= 0 else _ORANGE_RGB))
 
 
 class PixelGrid(VGroup):
@@ -69,7 +74,7 @@ class PixelGrid(VGroup):
 
     def blank(self):
         for row in self.cells:
-            for sq in row: sq.set_fill(WHITE, opacity=1)
+            for sq in row: sq.set_fill(SLIDE, opacity=1)
         return self
 
 

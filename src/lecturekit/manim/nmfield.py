@@ -60,4 +60,4 @@ def trajectory(fr, f, start, T, dt=0.01, colour=BLUE, width=3.5, clip=True):
 
 def fixed_point(fr, u, w, stable=True, colour=INK, radius=0.11):
     p = fr(u, w)
-    return Dot(p, radius=radius, color=colour) if stable else Circle(radius=radius, stroke_color=colour, stroke_width=3, fill_color=WHITE, fill_opacity=1).move_to(p)
+    return Dot(p, radius=radius, color=colour) if stable else Circle(radius=radius, stroke_color=colour, stroke_width=3, fill_color=SLIDE, fill_opacity=1).move_to(p)

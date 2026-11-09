@@ -157,6 +157,78 @@ def test_dark_build_prefers_the_dark_index(tmp_path):
     assert 'src="assets/clips/sweep.mp4"' in html and "clips/dark/" not in html
 
 
+SRC_SLIDE = """## A src clip {role=example time=1}
+
+:::: {.live-only}
+::: {.movie src="assets/clips/sweep.mp4"}
+:::
+::::
+"""
+
+
+def test_dark_build_takes_the_dark_render_of_a_src_clip(tmp_path):
+    deck = make_deck(tmp_path / "deck", SRC_SLIDE, files=("assets/clips/sweep.mp4", "assets/clips/sweep.png",
+                                                           "assets/clips/dark/sweep.mp4", "assets/clips/dark/sweep.png"))
+    r = lk_build(deck, "--to", "live", "--profile", "dark", "--strict")
+    assert r.returncode == 0, (r.stdout + r.stderr)[-3000:]
+    html = (deck / "_build-dark" / "slides-live.html").read_text()
+    assert 'src="assets/clips/dark/sweep.mp4"' in html and 'poster="assets/clips/dark/sweep.png"' in html
+    r = lk_build(deck, "--to", "live", "--strict")                      # the paper build keeps the paper clip
+    assert r.returncode == 0, (r.stdout + r.stderr)[-3000:]
+    assert 'src="assets/clips/sweep.mp4"' in (deck / "_build" / "slides-live.html").read_text()
+
+
+def test_a_paper_clip_in_a_dark_build_is_a_warning_and_strict_fails(tmp_path):
+    deck = make_deck(tmp_path / "deck", SRC_SLIDE, files=("assets/clips/sweep.mp4", "assets/clips/sweep.png"))
+    r = lk_build(deck, "--to", "live", "--profile", "dark")
+    out = r.stdout + r.stderr
+    assert r.returncode == 0, out[-3000:]
+    assert "warning(s) from the lecturekit filters" in out and "drawn for the paper preset" in out
+    r = lk_build(deck, "--to", "live", "--profile", "dark", "--strict")
+    assert r.returncode != 0 and "--strict treats warnings as errors" in r.stdout + r.stderr
+
+
+def test_a_tikz_figure_that_does_not_compile_fails_the_build(tmp_path):
+    slides = """## A figure {role=example time=1}
+
+```{=latex}
+\\nmfigureh{3cm}{assets/figures/broken.tex}
+```
+"""
+    deck = make_deck(tmp_path / "deck", slides)
+    fig = deck / "assets" / "figures"
+    fig.mkdir(parents=True)
+    (fig / "broken.tex").write_text("\\begin{tikzpicture}\\draw (0,0) -- (1,\\nosuchmacro);\\end{tikzpicture}\n")
+    r = lk_build(deck, "--to", "live")
+    out = r.stdout + r.stderr
+    assert r.returncode != 0, out[-3000:]
+    assert "TikZ figure 'assets/figures/broken.tex' failed to compile" in out and "the build failed" in out
+
+
+def test_the_kit_draws_on_the_slide_colour_of_the_preset(tmp_path):
+    pytest.importorskip("manim")
+    probe = (
+        "import json, numpy as np\n"
+        "import lecturekit.manim as k\n"
+        "from lecturekit.manim.nmprf import tint, colour_ramp\n"
+        "from lecturekit.manim.nmpix import colour_for\n"
+        "print(json.dumps({'slide': k.SLIDE, 'tint': tint(k.BLUE, 45), 'grey0': colour_for(0.0),\n"
+        "                  'ramp0': colour_ramp(np.zeros((1, 1)), k.BLUE)[0, 0, :3].tolist()}))\n"
+    )
+    seen = {}
+    for mode, brand in (("light", "_brand.yml"), ("dark", "_brand-dark.yml")):
+        env = dict(os.environ, LECTUREKIT_MODE=mode, LECTUREKIT_BRAND=str(FEATURES / brand))
+        r = subprocess.run([sys.executable, "-c", probe], env=env, capture_output=True, text=True, cwd=tmp_path)
+        assert r.returncode == 0, r.stderr[-2000:]
+        seen[mode] = json.loads(r.stdout.strip().splitlines()[-1])
+    assert seen["light"]["slide"].upper() == "#FFFFFF" and seen["light"]["tint"] == "#97B5CC"   # TikZ's blue!45 on white
+    assert seen["light"]["grey0"].lower() == "#ffffff" and seen["light"]["ramp0"] == [255, 255, 255]
+    dark_slide = seen["dark"]["slide"].lower()
+    assert dark_slide != "#ffffff" and seen["dark"]["grey0"].lower() == dark_slide              # zero is the slide
+    rgb = [int(dark_slide[i:i + 2], 16) for i in (1, 3, 5)]
+    assert seen["dark"]["ramp0"] == rgb and seen["dark"]["tint"] != seen["light"]["tint"]
+
+
 # ---------------------------------------------------------------- lk build
 def test_version_compatibility():
     from lecturekit.build import compatible

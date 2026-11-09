@@ -1,0 +1,13 @@
+{
+  "bar-bold": {
+    "duration": 18.83,
+    "fps": 30.0,
+    "height": 720,
+    "producer": "kit",
+    "revision": "b41e8d63a143",
+    "source": "anim/clip_bar_bold.py:BarBold",
+    "still": "assets/clips/dark/bar-bold.png",
+    "video": "assets/clips/dark/bar-bold.mp4",
+    "width": 1280
+  }
+}

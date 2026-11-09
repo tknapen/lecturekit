@@ -40,8 +40,9 @@ def _rgb(colour):
 
 
 def tint(colour, pct):
-    """colour!pct as in TikZ: the colour mixed with white, opaque."""
-    m = pct / 100 * _rgb(colour) + (1 - pct / 100)
+    """colour!pct as the deck's figures draw it: the colour mixed with the slide colour (white on paper, so TikZ's
+    colour!pct there), opaque; a dark preset tints towards its dark slide."""
+    m = pct / 100 * _rgb(colour) + (1 - pct / 100) * _rgb(SLIDE)
     return '#' + ''.join(f'{int(round(v * 255)):02X}' for v in m)
 
 
@@ -61,12 +62,12 @@ def on_baseline(lbl, y):
     return lbl.shift(UP * (y - baseline(lbl)))
 
 
-def colour_ramp(arr, colour, vmax=None, neg=None, gamma=1.0, alpha=None, base=(1.0, 1.0, 1.0)):
-    """RGBA image (uint8) of a map: white at 0, `colour` at +vmax; negative values towards `neg` (if given; otherwise
-    clipped at white). `alpha` (array in [0, 1], same shape) makes pixels transparent, e.g. outside a circular field."""
+def colour_ramp(arr, colour, vmax=None, neg=None, gamma=1.0, alpha=None, base=None):
+    """RGBA image (uint8) of a map: the slide colour at 0 (`base`, white on paper), `colour` at +vmax; negative values
+    towards `neg` (if given; otherwise clipped at the base). `alpha` (array in [0, 1], same shape) makes pixels transparent, e.g. outside a circular field."""
     a = np.asarray(arr, float)
     vmax = float(np.max(np.abs(a))) if vmax is None else float(vmax)
-    s = np.clip(a / (vmax or 1.0), -1, 1); base = np.asarray(base, float)
+    s = np.clip(a / (vmax or 1.0), -1, 1); base = _rgb(SLIDE) if base is None else np.asarray(base, float)
     pos = np.clip(s, 0, 1) ** gamma; out = base[None, None, :] * (1 - pos[..., None]) + _rgb(colour)[None, None, :] * pos[..., None]
     if neg is not None:
         ng = np.clip(-s, 0, 1) ** gamma; out = out * (1 - ng[..., None]) + _rgb(neg)[None, None, :] * ng[..., None]
@@ -121,7 +122,7 @@ class VisualField:
         xy = np.asarray(xy, float)
         return self.c + np.column_stack([(xy[:, 0] - self.look[0]) * self.k, (xy[:, 1] - self.look[1]) * self.k, np.zeros(len(xy))])
 
-    def outline(self, colour=HAIR, width=3.0, fill=WHITE, fill_opacity=1.0):
+    def outline(self, colour=HAIR, width=3.0, fill=SLIDE, fill_opacity=1.0):
         m = Square(2 * self.r) if self.square else Circle(radius=self.r)
         return m.set_stroke(colour, width).set_fill(fill, fill_opacity).move_to(self.c)
 
@@ -223,8 +224,8 @@ class HeightSurface(VGroup):
     made of quads that are reshaped and recoloured in place: set_heights(Z) is cheap enough to animate a parameter
     frame by frame (an always_redraw Surface is rebuilt and recoloured per frame and is about ten times slower).
     colorscale: [(colour, z), ...] in data units, interpolated per face on the face's mean height."""
-    def __init__(self, Z, half_width=4.0, scale=1.0, height=1.0, center=ORIGIN, colorscale=((WHITE, 0.0), (INK, 1.0)),
-                 opacity=1.0, stroke_colour=WHITE, stroke_width=0.35, stroke_opacity=0.5, shade=True):
+    def __init__(self, Z, half_width=4.0, scale=1.0, height=1.0, center=ORIGIN, colorscale=((SLIDE, 0.0), (INK, 1.0)),
+                 opacity=1.0, stroke_colour=SLIDE, stroke_width=0.35, stroke_opacity=0.5, shade=True):
         super().__init__()
         Z = np.asarray(Z, float); n = Z.shape[0]
         ax = np.linspace(-half_width, half_width, n) * scale
@@ -253,7 +254,7 @@ class HeightSurface(VGroup):
 def prf_surface(f, half_width=4.0, scale=1.0, height=1.0, resolution=36, colorscale=None, opacity=1.0, center=ORIGIN,
                 stroke=0.0):
     """A surface z = height * f(x, y) over [-half_width, half_width]^2 (degrees, drawn `scale` units per degree),
-    coloured by z with `colorscale`, a list of (colour, z) pairs (for example [(DOG, -0.3), (WHITE, 0), (GAUSS, 1)])."""
+    coloured by z with `colorscale`, a list of (colour, z) pairs (for example [(DOG, -0.3), (SLIDE, 0), (GAUSS, 1)])."""
     s = Surface(lambda u, v: np.array([u * scale, v * scale, height * f(u, v)]) + center,
                 u_range=[-half_width, half_width], v_range=[-half_width, half_width], resolution=(resolution, resolution),
                 fill_opacity=opacity, stroke_width=stroke, checkerboard_colors=False, should_make_jagged=False)
@@ -396,7 +397,7 @@ class Bars:
         a, b = self.F(j + self.gap / 2, v0), self.F(j + 1 - self.gap / 2, v1)
         return Rectangle(width=abs(b[0] - a[0]), height=max(abs(b[1] - a[1]), 1e-4)).move_to((a + b) / 2)
 
-    def bar(self, j, v0, v1, colour, opacity=1.0, edge=WHITE, edge_width=2.0):
+    def bar(self, j, v0, v1, colour, opacity=1.0, edge=SLIDE, edge_width=2.0):
         return self.rect(j, v0, v1).set_fill(colour, opacity).set_stroke(edge, edge_width)
 
     def outline(self, j, v0, v1, colour=INK, width=4.0, dashed=True):

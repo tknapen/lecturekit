@@ -31,9 +31,11 @@ PRF = dict(px=2.5, py=1.5, s=1.0)     # the illustrative population of every fig
 
 
 def tint(colour, pct):
-    """TikZ's colour!pct: the colour mixed with white, as an opaque hex colour."""
+    """TikZ's colour!pct as the deck's figures draw it: the colour mixed with the slide colour (white on paper), as an
+    opaque hex colour; the dark preset tints towards its dark slide."""
     c = np.array([int(colour[i:i + 2], 16) for i in (1, 3, 5)]) / 255.0
-    m = pct / 100 * c + (1 - pct / 100)
+    bg = np.array([int(SLIDE[i:i + 2], 16) for i in (1, 3, 5)]) / 255.0
+    m = pct / 100 * c + (1 - pct / 100) * bg
     return '#' + ''.join(f'{int(round(v * 255)):02X}' for v in m)
 
 
@@ -59,7 +61,7 @@ class VField:
         return self.c + np.column_stack([xy[:, 0] * self.k, xy[:, 1] * self.k, np.zeros(len(xy))])
 
     def disc(self, width=2.4):
-        return Circle(radius=self.r, stroke_color=HAIR, stroke_width=width, fill_color=WHITE, fill_opacity=1).move_to(self.c)
+        return Circle(radius=self.r, stroke_color=HAIR, stroke_width=width, fill_color=SLIDE, fill_opacity=1).move_to(self.c)
 
     def cross(self, size=0.11, width=2.0):
         return VGroup(Line(self.c + LEFT * size, self.c + RIGHT * size), Line(self.c + DOWN * size, self.c + UP * size)).set_stroke(MUTED, width)

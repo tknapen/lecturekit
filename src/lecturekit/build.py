@@ -61,7 +61,8 @@ def build_env() -> dict[str, str]:
 
 
 def build(project: Path | None = None, to: str | None = None, profile: str | None = None,
-          targets: list[str] | None = None, quiet: bool = False, extra: list[str] | None = None) -> int:
+          targets: list[str] | None = None, quiet: bool = False, extra: list[str] | None = None,
+          strict: bool = False) -> int:
     proj = find_project(project)
     check_versions(proj)
     cmd = [quarto_exe(), "render"]
@@ -85,6 +86,14 @@ def build(project: Path | None = None, to: str | None = None, profile: str | Non
         for e in errors:
             print(f"  {e}", file=sys.stderr)
         return proc.returncode or 1
+    warnings = filter_warnings(proc.stdout + "\n" + proc.stderr)
+    if warnings:
+        print(f"lecturekit: {len(warnings)} warning(s) from the lecturekit filters:", file=sys.stderr)
+        for w in warnings:
+            print(f"  {w}", file=sys.stderr)
+        if strict:
+            print("lecturekit: the build failed: --strict treats warnings as errors", file=sys.stderr)
+            return proc.returncode or 1
     if report:
         print(report)
     timing = output_dir(proj, profile) / "timing.txt"
@@ -113,6 +122,19 @@ _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 # `ERROR (<path>/lecturekit/filters/<file>.lua:<line>) ...`, which a filter that calls error() produces and which
 # does not stop the render by itself.
 _FILTER_ERROR_RE = re.compile(r"ERROR \(([^)\n]*lecturekit[^)\n]*)\) ?(.*)")
+
+
+_FILTER_WARNING_RE = re.compile(r"WARNING \(lecturekit\) ?(.*)")
+
+
+def filter_warnings(output: str) -> list[str]:
+    """The distinct warnings the lecturekit filters wrote during a render, in order."""
+    seen: list[str] = []
+    for line in _ANSI_RE.sub("", output).splitlines():
+        m = _FILTER_WARNING_RE.search(line)
+        if m and m.group(1).strip() not in seen:
+            seen.append(m.group(1).strip())
+    return seen
 
 
 def filter_errors(output: str) -> list[str]:

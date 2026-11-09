@@ -1,4 +1,18 @@
 {
+  "bar_bold": {
+    "checkpoints": {
+      "midway": "assets/clips/dark/bar_bold.midway.png"
+    },
+    "duration": 1.5,
+    "fps": 30.0,
+    "height": 540,
+    "producer": "external",
+    "revision": "make_clips.py",
+    "source": "make_clips.py (synthetic stand-in)",
+    "still": "assets/clips/dark/bar_bold.png",
+    "video": "assets/clips/dark/bar_bold.mp4",
+    "width": 960
+  },
   "tuning_sweep": {
     "checkpoints": {
       "gain_high": "assets/clips/dark/tuning_sweep.gain_high.png",

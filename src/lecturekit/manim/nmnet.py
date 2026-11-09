@@ -26,7 +26,7 @@ class Net(VGroup):
         for l, n in enumerate(sizes):
             step = spacing if spacing else (min(height / max(n - 1, 1), 4 * radius) if n > 1 else 0)
             ys = (np.arange(n) - (n - 1) / 2) * step
-            layer = VGroup(*[Circle(radius=radius, stroke_color=unit_stroke, stroke_width=2.2, fill_color=WHITE, fill_opacity=1)
+            layer = VGroup(*[Circle(radius=radius, stroke_color=unit_stroke, stroke_width=2.2, fill_color=SLIDE, fill_opacity=1)
                              .move_to(np.array([xs[l], -y, 0]) + center) for y in ys])
             self.layers.add(layer)
         self.edges = VGroup()          # self.edges[l][j][i]: from unit i of layer l to unit j of layer l + 1
@@ -109,7 +109,7 @@ def unit_diagram(n_in=2, center=ORIGIN, scale=1.0, in_labels=None, w_labels=None
     """One unit drawn as inputs, weights, a summing node and a nonlinearity box: the model neuron of lecture 5."""
     g = VGroup(); c = np.array(center)
     ys = (np.arange(n_in) - (n_in - 1) / 2) * 1.3 * scale
-    body = Circle(radius=0.55 * scale, stroke_color=INK, stroke_width=2.5, fill_color=WHITE, fill_opacity=1).move_to(c)
+    body = Circle(radius=0.55 * scale, stroke_color=INK, stroke_width=2.5, fill_color=SLIDE, fill_opacity=1).move_to(c)
     sig = label('Σ', int(40 * scale), INK).move_to(c)
     box = RoundedRectangle(width=1.1 * scale, height=0.9 * scale, corner_radius=0.08, stroke_color=INK, stroke_width=2.2).move_to(c + RIGHT * 1.7 * scale)
     curve = VMobject(stroke_color=INK, stroke_width=3)
@@ -119,7 +119,7 @@ def unit_diagram(n_in=2, center=ORIGIN, scale=1.0, in_labels=None, w_labels=None
     g.inputs, g.lines = VGroup(), VGroup()
     for k, y in enumerate(ys):
         p = c + np.array([-3.0 * scale, -y, 0])
-        dot = Circle(radius=0.3 * scale, stroke_color=INK, stroke_width=2.2, fill_color=WHITE, fill_opacity=1).move_to(p)
+        dot = Circle(radius=0.3 * scale, stroke_color=INK, stroke_width=2.2, fill_color=SLIDE, fill_opacity=1).move_to(p)
         d = (c - p) / np.linalg.norm(c - p)
         ln = Line(p + d * 0.3 * scale, c - d * 0.55 * scale, stroke_color=INK, stroke_width=2.5)
         g.inputs.add(dot); g.lines.add(ln)

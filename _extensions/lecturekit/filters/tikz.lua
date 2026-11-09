@@ -82,7 +82,7 @@ local function compile(body, label)
     local ok = pcall(pandoc.pipe, "xelatex",
       { "-interaction=batchmode", "-halt-on-error", "-output-directory", cache_dir, base .. ".tex" }, "")
     if not ok or not file_exists(base .. ".pdf") then
-      io.stderr:write(string.format("lecturekit: TikZ figure '%s' failed to compile; see %s.log\n", label, base))
+      io.stderr:write(string.format("ERROR (lecturekit) TikZ figure '%s' failed to compile; see %s.log\n", label, base))
       return nil
     end
   end
@@ -92,7 +92,7 @@ local function compile(body, label)
     local python = os.getenv("QUARTO_PYTHON") or "python3"
     local ok = pcall(pandoc.pipe, python, { tikz2svg, base .. ".pdf", target }, "")
     if not ok or not file_exists(target) then
-      io.stderr:write(string.format("lecturekit: conversion to %s failed for '%s' (is pymupdf installed?)\n", figure_ext, label))
+      io.stderr:write(string.format("ERROR (lecturekit) conversion to %s failed for TikZ figure '%s' (is pymupdf installed?)\n", figure_ext, label))
       return nil
     end
   end

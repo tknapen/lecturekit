@@ -58,7 +58,7 @@ The lecturer owns the claims, the titles, the storyboard and what the lecture is
 | Command | What it answers |
 | --- | --- |
 | `lk new <dir> [--title T] [--budget MIN] [--manim8]` | A project with the files above and the vendored extension, its budget in minutes (45 by default); `--manim8` adds a manim8 workspace in `clips/`; `--vendor-only` adds the extension to an existing project, `--force` replaces it (a shared copy behind a link is never overwritten). |
-| `lk build [dir] [--to live\|study] [--profile dark]` | Does it build, and how do the minutes add up against the budget? |
+| `lk build [dir] [--to live\|study] [--profile dark] [--strict]` | Does it build, and how do the minutes add up against the budget? A figure that does not compile fails the build; `--strict` also fails on the filters' warnings, such as a dark build playing a paper clip |
 | `python make_assets.py [name ...]` | Are the figures current with the numbers in `assets/data`? |
 | `lk clips [deck] [--only name ...] [--size WxH] [--crop] [--mode dark] [--still CLIP=ID] [--revision REV]` | Are the clips, kit and manim8, rendered from their current sources, and is `clips.json` up to date? Exits 1 when a clip failed. |
 | `lk review shoot <live.html> [--sheet] [--fragments] [--against DIR]` | What does every slide look like, and what crosses the foot? |

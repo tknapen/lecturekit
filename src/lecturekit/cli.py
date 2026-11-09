@@ -46,7 +46,7 @@ def cmd_new(a: argparse.Namespace) -> int:
 def cmd_build(a: argparse.Namespace) -> int:
     from .build import build
     return build(Path(a.dir) if a.dir else None, to=a.to, profile=a.profile, targets=a.targets or None,
-                 quiet=a.quiet)
+                 quiet=a.quiet, strict=a.strict)
 
 
 def cmd_clips(a: argparse.Namespace) -> int:
@@ -141,6 +141,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--to", choices=["live", "study"], help="one output only")
     p.add_argument("--profile", help="a quarto profile, e.g. dark")
     p.add_argument("--quiet", action="store_true")
+    p.add_argument("--strict", action="store_true",
+                   help="fail on the filters' warnings too (a dark build that plays a paper clip, for one)")
     p.add_argument("targets", nargs="*", help="specific .qmd files")
     p.set_defaults(fn=cmd_build)
 

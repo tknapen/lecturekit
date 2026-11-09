@@ -74,6 +74,11 @@ local function fail(msg)
   assert(false, 'lecturekit: ' .. msg)
 end
 
+-- a problem that does not stop the build: lk build lists it, and lk build --strict fails on it
+local function warn(msg)
+  io.stderr:write('WARNING (lecturekit) ' .. msg .. '\n')
+end
+
 local function has(el, cls) return el.classes ~= nil and el.classes:includes(cls) end
 local function excluded(el)
   return (live and has(el, 'study-only')) or (study and has(el, 'live-only'))
@@ -196,10 +201,23 @@ local function resolve_clip(attrs)
         .. 'assets/clips/clips.json (run lk clips) and no src= is given'
     end
   end
+  -- a dark build plays the dark render of a src= clip when one exists: assets/clips/x.mp4 -> assets/clips/dark/x.mp4
+  if dark and not clip and info.src and info.src:match('^assets/clips/[^/]+$') then
+    local alt = info.src:gsub('^assets/clips/', 'assets/clips/dark/')
+    if file_exists(input_dir .. '/' .. alt) then
+      info.src = alt
+      if info.still and info.still:match('^assets/clips/[^/]+$') then
+        local salt = info.still:gsub('^assets/clips/', 'assets/clips/dark/')
+        if file_exists(input_dir .. '/' .. salt) then info.still = salt end
+      end
+    end
+  end
   if info.src and not info.still then
     local guess = info.src:gsub('%.%w+$', '.png')
     if file_exists(input_dir .. '/' .. guess) then info.still = guess end
   end
+  -- in a dark build, a clip that is not a dark render was drawn on the paper colours
+  info.paper_in_dark = dark and info.src ~= nil and not info.src:match('^assets/clips/dark/')
   return info
 end
 
@@ -275,6 +293,10 @@ local function movie(el)
   local info, why = resolve_clip(el.attributes)
   local where = ' (movie "' .. (str(el.attributes.clip) or str(el.attributes.src) or '?') .. '" on slide "' .. current_title .. '")'
   if not info then fail(why .. where) end
+  if live and info.paper_in_dark then
+    warn('the dark preset plays ' .. info.src .. ', a clip drawn for the paper preset' .. where
+      .. ': render a dark one with lk clips --mode dark (it goes to assets/clips/dark/)')
+  end
   local label = el.attributes.label or 'Animation'
   if study then
     local h = el.attributes.height or '4cm'

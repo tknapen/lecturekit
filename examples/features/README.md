@@ -29,9 +29,11 @@ What to look at, slide by slide (numbers as the live deck's foot shows them):
 | Study-only detail | a whole slide marked `.study-only` on its heading: absent from the live deck |
 | 15 References | the bibliography |
 
-The clip is a synthetic stand-in (a bar sweeping a disc) written by a script
-in the repository's history; `bar_back.mp4` is the same clip reversed and
-`bar_bold.midway.png` its frame at 0.75 s, both made with ffmpeg. A real
+The clip is a synthetic stand-in (a bar sweeping a disc) that `make_clips.py`
+draws from each preset's brand: `assets/clips/` from `_brand.yml` and
+`assets/clips/dark/` from `_brand-dark.yml`, so the dark build plays a dark
+clip; `bar_back.mp4` is the same clip reversed and `bar_bold.midway.png` its
+frame at 0.75 s. A real
 deck's clips come from `lk clips`. On the clip slides: a click or Space
 pauses and resumes the clip on stage, R replays it.
 

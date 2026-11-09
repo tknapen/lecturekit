@@ -11,7 +11,7 @@ slides. Read them before building or changing a slide.
 
 ```sh
 lk new <dir>                                   # a project: _quarto.yml, _brand.yml, slides.qmd, the method's files, the vendored extension
-lk build [dir] [--to live|study] [--profile dark]   # quarto render; prints the plan against the budget (_build/timing.txt)
+lk build [dir] [--to live|study] [--profile dark] [--strict]   # quarto render; the plan against the budget; --strict fails on warnings
 python <deck>/make_assets.py [figure ...]      # regenerate TikZ figures from assets/data (also the project's pre-render step)
 lk clips <deck> [--only name] [--crop] [--mode dark]   # kit scenes (anim/clip_*.py) and manim8 projects (clips/) into assets/clips, write clips.json
 lk review shoot <deck>/_build/slides-live.html [--sheet] [--fragments] [--against DIR]   # PNG per slide, report.json
