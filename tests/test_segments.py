@@ -821,6 +821,16 @@ FATAL = {
                  "A clip in parts and another reveal on one slide"),
     "incremental": ('::: {.movie clip="k30" stops="lenient"}\n:::\n\n::: {.incremental}\n- a\n- b\n:::\n',
                     "A clip in parts and another reveal on one slide"),
+    "pause": ('::: {.movie clip="k30" stops="lenient"}\n:::\n\n. . .\n\nA line.\n',
+              "A clip in parts and another reveal on one slide"),
+    "span": ('::: {.movie clip="k30" stops="lenient"}\n:::\n\nA [later]{.fragment} word.\n',
+             "A clip in parts and another reveal on one slide"),
+    "image": ('::: {.movie clip="k30" stops="lenient"}\n:::\n\n![](assets/clips/bar_bold.png){.fragment}\n',
+              "A clip in parts and another reveal on one slide"),
+    "header": ('::: {.movie clip="k30" stops="lenient"}\n:::\n\n### Later {.fragment}\n',
+               "A clip in parts and another reveal on one slide"),
+    "code": ('::: {.movie clip="k30" stops="lenient"}\n:::\n\n```{.python .fragment}\nx = 1\n```\n',
+             "A clip in parts and another reveal on one slide"),
     "in-fragment": ('::: {.fragment}\n:::: {.movie clip="k30" stops="lenient"}\n::::\n:::\n',
                     'A clip in parts inside a .fragment (movie "k30" on slide "The slide")'),
     "in-stack": (':::: {.live-only}\n::::: {.r-stack}\n::: {.movie clip="k30" stops="lenient"}\n:::\n:::::\n::::\n',
@@ -848,6 +858,21 @@ def test_the_build_fails(case, tmp_path, barcode):
     out = r.stdout + r.stderr
     assert r.returncode != 0, out[-3000:]
     assert message in out and "the build failed" in out, out[-3000:]
+
+
+@needs_quarto
+@pytest.mark.parametrize("header", ["incremental: true\n", "format:\n  lecturekit-revealjs:\n    incremental: true\n"])
+def test_an_incremental_deck_fails_on_a_list_beside_a_clip_in_parts(header, tmp_path, barcode):
+    """incremental: true reaches the filter as a writer option, not as metadata; either way a list is a reveal."""
+    body = '::: {.movie clip="k30" stops="lenient"}\n:::\n\n- a\n- b\n'
+    deck = make_deck(tmp_path / "deck", "## The slide {role=example}\n\n" + body, barcode, header=header)
+    r = lk_build(deck, "--to", "live")
+    out = r.stdout + r.stderr
+    assert r.returncode != 0 and "A clip in parts and another reveal on one slide" in out, out[-3000:]
+    ok = make_deck(tmp_path / "ok", "## The slide {role=example}\n\n" + body.split("- a")[0]
+                   + "::: {.nonincremental}\n- a\n- b\n:::\n", barcode, header=header)
+    r = lk_build(ok, "--to", "live")
+    assert r.returncode == 0, (r.stdout + r.stderr)[-3000:]
 
 
 @needs_quarto

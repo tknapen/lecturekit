@@ -519,9 +519,10 @@ local function unsegmented_checks(el, info, where)
 end
 
 -- The slide pass, before the element pass: a clip in parts stands alone as the slide's reveal. It fails on two of
--- them on one slide, one inside a .fragment or an .r-stack, and any other fragment on the slide (a .fragment, an
--- .incremental list, a fragment span, a `. . .` pause). It takes the slide's speaker notes out of the slide, for the
--- movie to compose each hold's notes from (hold_notes).
+-- them on one slide, one inside a .fragment or an .r-stack, and any other fragment on the slide (a .fragment Div,
+-- header, code block, span, image, link or code; an .incremental list, or any list in an incremental deck; a `. . .`
+-- pause). It takes the slide's speaker notes out of the slide, for the movie to compose each hold's notes from
+-- (hold_notes).
 local function scan_slide(blocks, ctx, found)
   for _, b in ipairs(blocks) do
     if b.t == 'Div' then
@@ -541,8 +542,11 @@ local function scan_slide(blocks, ctx, found)
     elseif b.t == 'BlockQuote' then
       scan_slide(b.content, ctx, found)
     else
+      -- a block with attributes (a header, a code block, a table, a figure), and any span, image, link or code inline
+      if has(b, 'fragment') then found.frags = found.frags + 1 end
       if (b.t == 'Para' or b.t == 'Plain') and stringify(b) == '. . .' then found.frags = found.frags + 1 end
-      pcall(function() b:walk({ Span = function(s) if has(s, 'fragment') then found.frags = found.frags + 1 end end }) end)
+      local function count(x) if has(x, 'fragment') then found.frags = found.frags + 1 end end
+      pcall(function() b:walk({ Span = count, Image = count, Link = count, Code = count }) end)
     end
   end
 end
@@ -617,7 +621,8 @@ local function Meta(m)
   if m['citation-size'] then cite_small = stringify(m['citation-size']) == 'small' end
   local function truthy(v) return v == true or (v ~= nil and type(v) ~= 'boolean' and stringify(v) == 'true') end
   auto_play_media = truthy(m['auto-play-media'])
-  deck_incremental = truthy(m.incremental)
+  -- incremental: true reaches a filter as a writer option (Quarto passes it to pandoc), not as metadata
+  deck_incremental = truthy(m.incremental) or (PANDOC_WRITER_OPTIONS ~= nil and PANDOC_WRITER_OPTIONS.incremental == true)
   local eb = m.eyebrow or m.series
   if live then
     local attrs = m['title-slide-attributes'] or pandoc.MetaMap({})
@@ -722,13 +727,17 @@ local function movie(el)
     if aspect == '4:3' or aspect == '1:1' then classes[#classes + 1] = 'aspect-' .. aspect:gsub(':', '-') end
   end
   local cls = #classes > 0 and ' class="' .. table.concat(classes, ' ') .. '"' or ''
-  local poster = info.still and (' poster="' .. html_escape(info.still) .. '"') or ''
+  -- a clip= movie whose entry has a sha256 is versioned by it (?v= and its first eight hex digits), like a clip in
+  -- parts, so that a browser never shows a cached older render; a src= movie has no entry to version it by
+  local sha = str(el.attributes.clip) and info.entry and str(info.entry.sha256) or nil
+  local v = sha and ('?v=' .. sha:gsub('^sha256:', ''):sub(1, 8)) or ''
+  local poster = info.still and (' poster="' .. html_escape(info.still .. v) .. '"') or ''
   -- data-lk-autoplay: the runtime (live-head.html) starts the clip when its slide or step is shown and stops it
   -- when it is not; Reveal's own data-autoplay is not used, since it plays every step of a sequence at once.
   -- muted keeps the browser's autoplay policy out of the way (the clips are silent). No browser controls: a click
   -- or the space bar pauses and resumes, R replays.
   local video = '<video' .. cls .. ' data-lk-autoplay muted preload="auto" playsinline aria-label="'
-    .. html_escape(label) .. '"' .. poster .. ' src="' .. src .. '"></video>'
+    .. html_escape(label) .. '"' .. poster .. ' src="' .. src .. v .. '"></video>'
   if not el.attributes['lk-boxed'] then
     -- no .live-only wrapper in the source (the clip= form): supply the box that sizes the clip, with its shape
     local w, h = (aspect or ''):match('^(%d+):(%d+)$')

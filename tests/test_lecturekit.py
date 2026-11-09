@@ -134,8 +134,11 @@ def test_features_live_deck(built_features):
     assert '<div class="nm-foot"' in html                                # the per-slide foot
     assert "<video" in html and "data-lk-autoplay" in html               # movie blocks, played by the runtime
     assert 'poster="assets/clips/bar_bold.png"' in html                 # the seam supplies the still
-    assert 'src="assets/clips/tuning_sweep.mp4"' in html                # the manim8 clip, through the same seam
-    assert 'poster="assets/clips/tuning_sweep.widened.png"' in html     # its latest checkpoint as the poster
+    # the manim8 clip, through the same seam, its latest checkpoint as the poster, both versioned by its sha256
+    sha8 = json.loads((built_features / "assets/clips/clips.json").read_text())["tuning_sweep"]["sha256"][:8]
+    assert f'src="assets/clips/tuning_sweep.mp4?v={sha8}"' in html
+    assert f'poster="assets/clips/tuning_sweep.widened.png?v={sha8}"' in html
+    assert 'src="assets/clips/bar_bold.mp4"' in html                    # an entry without a sha256: no version
     assert 'class="tikz"' in html and "_lecturekit/tikz/" in html        # TikZ as SVG
     # three clips in parts: one cue per key, the video loaded by the runtime only, versioned by its sha256
     cues = re.findall(r'<div class="fragment lk-cue"[^>]*data-lk-for="([^"]+)"', html)
