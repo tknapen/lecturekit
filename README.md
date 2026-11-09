@@ -79,7 +79,7 @@ Ask: if the criterion moves right, which rate falls faster?
 ```
 
 The producer marks where a clip may hold, and `lk clips` lists those stops in `clips.json` with a still of each
-frame: `checkpoint()` in a kit scene, `stop: true` on a manim8 snapshot, `lk clips adopt clip.mp4 --stops 4.0 8.0`
+frame: `checkpoint()` in a kit scene, `stop: true` on a manim8 snapshot, `lk clips adopt clip.mp4 --name clip --stops 4.0 8.0`
 for an MP4 made elsewhere. The slide chooses the stops. A key pressed while a part plays lets it play on to the
 next stop; Left holds the previous one at once; coming back to the slide holds its last frame without playing. The
 speaker notes of each hold put its "Ask:" first, the study PDF prints a strip of the holds, and `lk review frags`
@@ -113,7 +113,7 @@ lk review contrast _brand.yml                         # WCAG AA on every surface
 The engine builds both example decks in both formats and both presets, and a project scaffolded by `lk new` builds
 from a fresh directory; the figures of the worked example regenerate byte for byte from `make_assets.py` on the
 kit. manim8, the deeper animation layer, is an optional extra on Python 3.12 (`lecturekit[manim8]`, pinned to
-manim8's commit `fa99e8f`, its release 0.1.0a0 with stops (ADR-045); docs/INSTALL.md): `lk new --manim8` makes a project's `clips/` a manim8 workspace, `lk theme --manim8`
+manim8's commit `fa99e8f`, after its release 0.1.0a0, with stops (ADR-045), which no release has yet; docs/INSTALL.md): `lk new --manim8` makes a project's `clips/` a manim8 workspace, `lk theme --manim8`
 bridges the brand into manim8 styles for both presets, and `lk clips` renders kit scenes and manim8 projects alike
 into `assets/clips/clips.json`, the seam that `clip=` on a movie block reads (docs/CLIPS.md).
 

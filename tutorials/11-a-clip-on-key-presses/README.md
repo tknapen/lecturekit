@@ -127,7 +127,10 @@ Say: the peak doubled in place; next the width grows.
 - The clip stays one movie. A hold is a frame number, not a time, and while the clip holds the room sees the still
   of exactly that frame.
 - The rest before a stop is what lets the player pause a frame or two early and then seek, unseen. manim8 refuses a
-  stop without it, and the deck refuses one with fewer than three frames of unchanged picture.
+  stop without it, and the deck refuses one with fewer than three frames of unchanged picture. An action that
+  starts on the stop's frame draws its first frame there (the sweep's readout appears), so the deck finds no rest
+  and refuses the stop, though manim8 accepts it with a warning: `raise_gain` starts at
+  1.3 s, 0.1 s after `gain_low`.
 - A prompt costs about a minute: the timing report counts one per "Ask:", and warns CLIP>TIME when the slide's
   `time=` does not cover them. On the feature deck only the first hold carries one, to keep the deck in its
   budget, and `lk review frags` points out the hold that has none.
