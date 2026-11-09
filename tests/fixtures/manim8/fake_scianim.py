@@ -11,6 +11,7 @@ Environment:
     FAKE_SCIANIM_OLD=1    behave like a manim8 without `render --json` and `--style` (human output on stdout)
     FAKE_SCIANIM_FAIL     comma-separated project names whose render fails
     FAKE_SCIANIM_SCHEMA   write this manifest schema_version
+    FAKE_SCIANIM_WARN     the result's warnings, separated by '|' (empty: none), in place of the recorded ones
 """
 
 from __future__ import annotations
@@ -70,23 +71,27 @@ def ffmpeg() -> str | None:
         return None
 
 
-def video(path: Path, colour: str, seconds: float) -> None:
+def video(path: Path, colour: str, seconds: float, job: str = "") -> None:
+    """A small movie; the job's id in its metadata makes every job's files differ, as two renders' do."""
     path.parent.mkdir(parents=True, exist_ok=True)
     exe = ffmpeg()
     if exe:
         subprocess.run([exe, "-y", "-loglevel", "error", "-f", "lavfi", "-i",
                         f"color=c={colour}:s={W}x{H}:r={FPS}:d={seconds},"
                         f"drawbox=x=100:y=50:w=120:h=80:color=0x175B8E:t=fill",
-                        "-pix_fmt", "yuv420p", str(path)], check=True)
+                        "-metadata", f"comment={job}", "-pix_fmt", "yuv420p", str(path)], check=True)
     else:
-        path.write_bytes(f"fake movie {colour} {seconds}".encode())
+        path.write_bytes(f"fake movie {colour} {seconds} {job}".encode())
 
 
-def still(path: Path, box: tuple[int, int, int, int]) -> None:
+def still(path: Path, box: tuple[int, int, int, int], job: str = "") -> None:
     from PIL import Image, ImageDraw
+    from PIL.PngImagePlugin import PngInfo
     im = Image.new("RGB", (W, H), "#FFFFFF")
     ImageDraw.Draw(im).rectangle(box, fill="#175B8E")
-    im.save(path)
+    info = PngInfo()
+    info.add_text("job", job)
+    im.save(path, pnginfo=info)
 
 
 def sha(path: Path) -> str:
@@ -128,11 +133,11 @@ def render(args: list[str]) -> None:
     out = project / "renders" / rev / job
     out.mkdir(parents=True)
     movie = out / f"{job}.mp4"
-    video(movie, "white", SECONDS)                       # the full movie first ...
+    video(movie, "white", SECONDS, job)                  # the full movie first ...
     for i, s in enumerate(record["result"]["sections"]):  # ... the sections after it, as Manim writes them
-        video(project / s["video"], ["red", "green"][i % 2], SECONDS / 2)
+        video(project / s["video"], ["red", "green"][i % 2], SECONDS / 2, job)
     for i, c in enumerate(record["result"]["checkpoints"]):
-        still(project / c["png"], (60 + 20 * i, 40, 140 + 20 * i, 120))
+        still(project / c["png"], (60 + 20 * i, 40, 140 + 20 * i, 120), job)
         c["width_px"], c["height_px"] = W, H
     v = record["result"]["videos"][0]
     v.update(width_px=W, height_px=H, fps=float(FPS), duration_seconds=float(SECONDS), frame_count=FPS * SECONDS,
@@ -141,6 +146,8 @@ def render(args: list[str]) -> None:
     if style:
         name, _, version = style.partition("@")
         record["job"]["resolved_style"].update(theme=name, theme_version=version)
+    if os.environ.get("FAKE_SCIANIM_WARN") is not None:
+        record["result"]["warnings"] = [w for w in os.environ["FAKE_SCIANIM_WARN"].split("|") if w]
     if os.environ.get("FAKE_SCIANIM_SCHEMA"):
         record["schema_version"] = os.environ["FAKE_SCIANIM_SCHEMA"]
     record["created_at"] = dt.datetime.now(dt.UTC).isoformat(timespec="seconds")

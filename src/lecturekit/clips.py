@@ -24,7 +24,10 @@ Two producers fill it:
   scene module of the working copy (`scianim codegen`) first. The manifest printed on stdout names the full
   movie (`result.videos[0]`), its size, frame rate and duration, the job and its cache key, the revision and
   every checkpoint PNG; all of them are copied into `assets/clips/`, and the still is the latest checkpoint
-  unless `--still <clip>=<snapshot_id>` names another. The record adds `job` and `checkpoints`.
+  unless `--still <clip>=<snapshot_id>` names another. The record adds `job` and `checkpoints`. A clip renders
+  at its project's `output`; `lk clips` warns when that is not the deck's size (`--size`, else 1280 by 720) or
+  30 fps. manim8's warnings are printed; a cache hit on a job that lost the deck's fonts (rendered outside
+  `lk clips`, on a machine without them) is rendered once more with them.
 
 `--crop` trims the video and the stills of either producer to the content's bounding box against the slide
 colour, and the record carries the resulting shape, which the deck uses as the clip's aspect. `--mode dark`
@@ -35,8 +38,9 @@ Names: `-` and `_` are equivalent wherever a clip is looked up, so `--only bar_b
 the same clip; two clips whose names differ only in that way are an error.
 
 A failing clip is reported with its producer and a one-line reason, the index is saved after every clip, and
-the run goes on; `lk clips` exits non-zero at the end when a clip failed. A re-rendered clip that looks
-unchanged on screen is a browser cache at work: browsers cache clips by file name.
+the run goes on; a clip's files are made in a staging folder and moved in together, so a failure leaves
+`assets/clips/` as the index describes it; `lk clips` exits non-zero at the end when a clip failed. A
+re-rendered clip that looks unchanged on screen is a browser cache at work: browsers cache clips by file name.
 """
 
 from __future__ import annotations
@@ -48,8 +52,10 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 from collections import deque
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -449,20 +455,22 @@ def render_kit_scene(deck: Path, script: Path, scene: str, size: str = KIT_SIZE,
     duration = info["duration"]
     still_at = still if still is not None else _scene_attr(script, scene, "still")
     at = duration - 0.05 if still_at in (None, "last") else float(still_at)
-    tmp_frame = out / f"_{name}_frame.png"
-    extract_frame(raw, at, tmp_frame)
     video = out / f"{name}.mp4"
     still_png = out / f"{name}.png"
     w, h = info["width"], info["height"]
-    box = content_box(tmp_frame, background or _slide_color(deck, m)) if crop else None
-    if box:
-        crop_video(raw, video, box)
-        crop_image(tmp_frame, still_png, box)
-        w, h = box[2], box[3]
-    else:
-        shutil.copy2(raw, video)
-        shutil.copy2(tmp_frame, still_png)
-    tmp_frame.unlink(missing_ok=True)
+    with _staging(out, name) as stage:   # the video and the still move in together, or neither does
+        tmp_frame = stage / f"_{name}_frame.png"
+        extract_frame(raw, at, tmp_frame)
+        box = content_box(tmp_frame, background or _slide_color(deck, m)) if crop else None
+        if box:
+            crop_video(raw, stage / video.name, box)
+            crop_image(tmp_frame, stage / still_png.name, box)
+            w, h = box[2], box[3]
+        else:
+            shutil.copy2(raw, stage / video.name)
+            shutil.copy2(tmp_frame, stage / still_png.name)
+        (stage / video.name).replace(video)
+        (stage / still_png.name).replace(still_png)
     return ClipRecord(video=(rel_dir / video.name).as_posix(), still=(rel_dir / still_png.name).as_posix(),
                       width=w, height=h, fps=info["fps"], duration=round(duration, 3),
                       source=f"{_rel(script, deck)}:{scene}", revision=file_hash(script), producer="kit")
@@ -600,6 +608,25 @@ def render_manim8(deck: Path, clip_dir: Path, profile: str = "final", still: str
     as_json = "--json" in caps
     if as_json:
         cmd.append("--json")
+    manifest, hit = _run_render(cmd, clip_dir, env, as_json)
+    name = clip_dir.name
+    misses = font_misses(manifest)
+    if hit and misses and "--no-cache" in caps and "FONTCONFIG_FILE" not in os.environ \
+            and not _recorded(deck, m, name, (manifest.get("job") or {}).get("job_id")):
+        # a job rendered outside lk clips (a `scianim render` in the workspace, on a machine without the deck's
+        # fonts) is in manim8's cache, whose key does not depend on the fonts: render it once more with them
+        print(f"lecturekit: clip {name}: the cached job {(manifest.get('job') or {}).get('job_id')} was rendered "
+              f"without the deck's fonts ({misses[0]}); rendering it again with them", file=sys.stderr)
+        manifest, hit = _run_render([*cmd, "--no-cache"], clip_dir, env, as_json)
+    for warning in (manifest.get("result") or {}).get("warnings") or []:
+        print(f"lecturekit: clip {name}: manim8 warns: {warning}", file=sys.stderr)
+    return manim8_record(deck, clip_dir, manifest, still=still, crop=crop, size=size, mode=m,
+                         background=background, out_dir=out_dir)
+
+
+def _run_render(cmd: list[str], clip_dir: Path, env: dict[str, str], as_json: bool) -> tuple[dict, bool]:
+    """Run `scianim render` and return the manifest of the job it ran or found in its cache, and whether it was a
+    cache hit."""
     rc, printed, reason = run_tool(cmd, env=env, capture=True)
     if not as_json and printed:
         sys.stderr.write(printed)
@@ -610,16 +637,60 @@ def render_manim8(deck: Path, clip_dir: Path, profile: str = "final", still: str
             manifest = json.loads(printed)
         except ValueError as exc:
             raise ClipError("scianim render --json did not print one JSON manifest") from exc
-    else:
-        manifest = _manifest_by_prefix(clip_dir, printed)
-    return manim8_record(deck, clip_dir, manifest, still=still, crop=crop, size=size, mode=m,
-                         background=background, out_dir=out_dir)
+        return manifest, bool(manifest.get("cache_hit"))
+    return _manifest_by_prefix(clip_dir, printed), "cache hit" in printed
+
+
+def font_misses(manifest: dict) -> list[str]:
+    """The manifest's font warnings that say a face was replaced by one lecturekit does not bundle: a generic
+    family or Pango's substitute (`font 'TeX Gyre Heros' is not installed; using the generic 'sans-serif'
+    family`). A fallback to a bundled face (`using fallback 'TeX Gyre Pagella'`) is not a miss."""
+    from .theme import BUNDLED_FONTS
+    out = []
+    for warning in (manifest.get("result") or {}).get("warnings") or []:
+        text = str(warning)
+        if not re.match(r"font '", text):
+            continue
+        used = re.search(r"using fallback '([^']+)'", text)
+        if used and used.group(1) in BUNDLED_FONTS:
+            continue
+        out.append(text)
+    return out
+
+
+def _recorded(deck: Path, mode: str, name: str, job_id: str | None) -> bool:
+    """Whether the preset's index already records this job for the clip (lk clips brought it in before)."""
+    try:
+        index = load_index(deck, mode)
+    except (OSError, ValueError):
+        return False
+    return any(norm_name(k) == norm_name(name) and isinstance(v, dict) and (v.get("job") or {}).get("id") == job_id
+               for k, v in index.items())
+
+
+#: the frame rate of the kit's clips; a manim8 project's output is compared with it and with the kit's size
+KIT_FPS = 30.0
+
+
+def _check_output(name: str, width: int, height: int, fps: float | None, size: str | None) -> None:
+    """Warn when a manim8 clip's size or frame rate is not the deck's: `--size` when given, else the kit's 1280
+    by 720, and 30 fps. A manim8 clip renders at its project's output, which `--size` does not reach."""
+    want = tuple(int(v) for v in (size or KIT_SIZE).lower().split("x"))
+    if (width, height) == want and (fps is None or abs(float(fps) - KIT_FPS) < 0.01):
+        return
+    at = f" at {float(fps):g} fps" if fps is not None else ""
+    where = (f"--size {size} applies to kit clips only" if size else
+             f"the deck's clips are {KIT_SIZE} at {KIT_FPS:g} fps")
+    print(f"lecturekit: warning: clip {name} is {width}x{height}{at}, as its manim8 project's output says; {where} "
+          "(set output in animation.yaml)", file=sys.stderr)
 
 
 def manim8_record(deck: Path, clip_dir: Path, manifest: dict, still: str | float | None = None, crop: bool = False,
                   size: str | None = None, mode: str | None = None, background: str | None = None,
                   out_dir: Path | None = None) -> ClipRecord:
-    """Copy what a manim8 render manifest names into the preset's clips folder and return the record."""
+    """Copy what a manim8 render manifest names into the preset's clips folder and return the record. Nothing in
+    the folder changes unless every file of the clip was made: they are made in a staging folder beside it and
+    moved in at the end, so a failure leaves the folder as the index describes it."""
     m = clip_mode(mode)
     name = clip_dir.name
     version = str(manifest.get("schema_version"))
@@ -638,9 +709,6 @@ def manim8_record(deck: Path, clip_dir: Path, manifest: dict, still: str | float
     movie = clip_dir / v0["path"]
     if not movie.exists():
         raise ClipError(f"the manifest's video {v0['path']} is not in {clip_dir}")
-    rel_dir = clips_dir(m)
-    out = out_dir or (deck / rel_dir)
-    out.mkdir(parents=True, exist_ok=True)
     checkpoints = []
     for c in result.get("checkpoints") or []:
         png = clip_dir / c.get("png", "")
@@ -649,47 +717,59 @@ def manim8_record(deck: Path, clip_dir: Path, manifest: dict, still: str | float
             continue
         t = c.get("renderer_time_seconds", c.get("expected_time_seconds"))
         checkpoints.append((str(c["snapshot_id"]), png, float(t) if t is not None else -1.0))
+    if still is not None and str(still) not in {sid for sid, _, _ in checkpoints}:
+        try:
+            float(still)
+        except (TypeError, ValueError):
+            raise ClipError(f"--still {name}={still}: the job has no checkpoint {str(still)!r} "
+                            f"(it has {', '.join(sid for sid, _, _ in checkpoints) or 'none'})") from None
     width, height = int(v0["width_px"]), int(v0["height_px"])
-    if size and tuple(int(v) for v in size.lower().split("x")) != (width, height):
-        fps = f" at {float(v0['fps']):g} fps" if v0.get("fps") is not None else ""
-        print(f"lecturekit: warning: clip {name} is {width}x{height}{fps}, as its manim8 project's output says; "
-              f"--size {size} applies to kit clips only (set output in animation.yaml)", file=sys.stderr)
-    box = None
-    if crop:
-        bg = background or _slide_color(deck, m)
-        frames = [p for _, p, _ in checkpoints]
-        if not frames:
-            frames = [out / f"_{name}_frame.png"]
-            extract_frame(movie, max(float(v0.get("duration_seconds", 0)) - 0.05, 0), frames[0])
-        box = union_box([b for b in (content_box(f, bg) for f in frames) if b])
-        if frames and frames[0].name.startswith("_"):
-            frames[0].unlink(missing_ok=True)
-    video = out / f"{name}.mp4"
-    if box:
-        crop_video(movie, video, box)
-        width, height = box[2], box[3]
-    else:
-        shutil.copy2(movie, video)
-    copied: dict[str, str] = {}
-    for sid, png, _ in checkpoints:
-        dst = out / f"{name}.{sid}.png"
+    _check_output(name, width, height, v0.get("fps"), size)
+    rel_dir = clips_dir(m)
+    out = out_dir or (deck / rel_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    with _staging(out, name) as stage:
+        box = None
+        if crop:
+            bg = background or _slide_color(deck, m)
+            frames = [p for _, p, _ in checkpoints]
+            if not frames:
+                frames = [stage / f"_{name}_frame.png"]
+                extract_frame(movie, max(float(v0.get("duration_seconds", 0)) - 0.05, 0), frames[0])
+            box = union_box([b for b in (content_box(f, bg) for f in frames) if b])
+            if frames[0].parent == stage:
+                frames[0].unlink(missing_ok=True)
         if box:
-            crop_image(png, dst, box)
+            crop_video(movie, stage / f"{name}.mp4", box)
+            width, height = box[2], box[3]
         else:
-            shutil.copy2(png, dst)
-        copied[sid] = (rel_dir / dst.name).as_posix()
+            shutil.copy2(movie, stage / f"{name}.mp4")
+        copied: dict[str, str] = {}
+        for sid, png, _ in checkpoints:
+            dst = stage / f"{name}.{sid}.png"
+            if box:
+                crop_image(png, dst, box)
+            else:
+                shutil.copy2(png, dst)
+            copied[sid] = (rel_dir / dst.name).as_posix()
+        still_path = _manim8_still(name, still, checkpoints, copied, movie, stage, rel_dir, box, v0)
+        # every file is made: move them in, then drop the checkpoints (and a still) of an earlier job
+        made = {p.name for p in stage.iterdir()}
+        for f in sorted(stage.iterdir()):
+            f.replace(out / f.name)
     stale = re.compile(rf"^{re.escape(name)}\.([a-z][a-z0-9_]*)\.png$")
     for old in out.glob(f"{name}.*.png"):
         hit = stale.match(old.name)
-        if hit and hit.group(1) not in copied:
+        if hit and old.name not in made:
             old.unlink()
-    still_path = _manim8_still(name, still, checkpoints, copied, movie, out, rel_dir, box, v0)
+    if f"{name}.png" not in made:
+        (out / f"{name}.png").unlink(missing_ok=True)
     resolved = job.get("resolved_style") or {}
     job_rec = {"id": job.get("job_id"), "cache_key": job.get("cache_key"),
                "registry_version": job.get("registry_version"),
                "style": f"{resolved['theme']}@{resolved['theme_version']}"
                if resolved.get("theme") and resolved.get("theme_version") else None}
-    return ClipRecord(video=(rel_dir / video.name).as_posix(), still=still_path, width=width, height=height,
+    return ClipRecord(video=(rel_dir / f"{name}.mp4").as_posix(), still=still_path, width=width, height=height,
                       fps=float(v0["fps"]) if v0.get("fps") is not None else None,
                       duration=round(float(v0["duration_seconds"]), 3) if v0.get("duration_seconds") is not None
                       else None,
@@ -698,8 +778,19 @@ def manim8_record(deck: Path, clip_dir: Path, manifest: dict, still: str | float
                       checkpoints=copied or None)
 
 
+@contextmanager
+def _staging(out: Path, name: str):
+    """A fresh folder beside `out` for one clip's files, removed afterwards whatever happened."""
+    stage = Path(tempfile.mkdtemp(prefix=f".{name}.", dir=out))
+    try:
+        yield stage
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
+
+
 def _manim8_still(name, still, checkpoints, copied, movie, out, rel_dir, box, v0) -> str:
-    """The still of a manim8 clip: the named checkpoint, a second of the movie, or the latest checkpoint."""
+    """The still of a manim8 clip: the named checkpoint, a second of the movie, or the latest checkpoint. A
+    frame of the movie is written into `out` as `<name>.png`."""
     seconds = None
     if still is not None:
         sid = str(still)

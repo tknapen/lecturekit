@@ -30,7 +30,8 @@ FIXTURES = Path(__file__).resolve().parent / "fixtures" / "manim8"
 FAKE = FIXTURES / "fake_scianim.py"
 TEMPLATES = ROOT / "src" / "lecturekit" / "scaffold" / "templates"
 KICKOFF = ROOT / "examples" / "kickoff"
-FAKE_ENV = ("FAKE_SCIANIM_OLD", "FAKE_SCIANIM_FAIL", "FAKE_SCIANIM_SCHEMA", "FAKE_SCIANIM_PROPOSALS")
+FAKE_ENV = ("FAKE_SCIANIM_OLD", "FAKE_SCIANIM_FAIL", "FAKE_SCIANIM_SCHEMA", "FAKE_SCIANIM_PROPOSALS",
+            "FAKE_SCIANIM_WARN")
 SLUG = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 
 needs_ffmpeg = pytest.mark.skipif(clips._ffmpeg() is None, reason="ffmpeg not installed")
@@ -206,6 +207,112 @@ def test_named_still_and_an_unknown_one(scianim, tmp_path):
     _, failures = clips.run_clips(deck, stills=["divisive_normalization=nowhere"])
     assert len(failures) == 1 and "no checkpoint 'nowhere'" in failures[0].reason
     assert "rebalanced" in failures[0].reason
+
+
+def clip_files(deck: Path, name: str = "divisive_normalization") -> dict[str, str]:
+    folder = deck / "assets" / "clips"
+    return {p.name: sha(p) for p in sorted(folder.iterdir()) if p.is_file() and p.name.startswith(name)}
+
+
+def assert_index_matches_files(deck: Path, name: str = "divisive_normalization") -> None:
+    """Every file the entry names is the one its job wrote: the movie and each checkpoint, byte for byte."""
+    rec = json.loads((deck / "assets" / "clips" / "clips.json").read_text())[name]
+    project = deck / rec["source"]
+    (job,) = [j for j in jobs(project) if j.name == rec["job"]["id"]]
+    assert sha(deck / rec["video"]) == sha(job / f"{job.name}.mp4")
+    for sid, png in rec["checkpoints"].items():
+        assert sha(deck / png) == sha(job / f"{sid}.png")
+    assert not [p for p in (deck / "assets" / "clips").iterdir() if p.name.startswith(".")]   # no staging left
+
+
+@needs_ffmpeg
+def test_an_unknown_still_after_a_new_job_changes_nothing(scianim, tmp_path):
+    """A failure after the render (here an unknown --still on a job that differs from the indexed one) leaves the
+    clips folder as the index describes it: the old job's movie and checkpoints, not the new job's."""
+    deck = make_deck(tmp_path)
+    clips.run_clips(deck)
+    before = clip_files(deck)
+    index_before = (deck / "assets" / "clips" / "clips.json").read_text()
+    _, failures = clips.run_clips(deck, stills=["divisive_normalization=nope"], no_cache=True)
+    assert len(failures) == 1 and "no checkpoint 'nope'" in failures[0].reason
+    assert clip_files(deck) == before
+    assert (deck / "assets" / "clips" / "clips.json").read_text() == index_before
+    assert_index_matches_files(deck)
+
+
+@needs_ffmpeg
+def test_a_failure_while_copying_changes_nothing(scianim, tmp_path, monkeypatch):
+    deck = make_deck(tmp_path)
+    clips.run_clips(deck)
+    before = clip_files(deck)
+
+    def broken(src, dst, box):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(clips, "crop_image", broken)
+    _, failures = clips.run_clips(deck, crop=True, no_cache=True)
+    assert len(failures) == 1 and "disk full" in failures[0].reason
+    assert clip_files(deck) == before
+    assert_index_matches_files(deck)
+
+
+@needs_ffmpeg
+def test_a_still_from_a_second_then_a_checkpoint(scianim, tmp_path):
+    deck = make_deck(tmp_path)
+    index, _ = clips.run_clips(deck, stills=["divisive_normalization=1.0"])
+    assert index["divisive_normalization"]["still"] == "assets/clips/divisive_normalization.png"
+    assert (deck / "assets" / "clips" / "divisive_normalization.png").exists()
+    index, _ = clips.run_clips(deck)
+    assert index["divisive_normalization"]["still"].endswith(".rebalanced.png")
+    assert not (deck / "assets" / "clips" / "divisive_normalization.png").exists()       # the old still is gone
+
+
+@needs_ffmpeg
+def test_manim8_warnings_are_printed(scianim, tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("FAKE_SCIANIM_WARN", "storyboard asks for 9 s, the movie is 8 s")
+    deck = make_deck(tmp_path)
+    _, failures = clips.run_clips(deck)
+    assert failures == []
+    assert "clip divisive_normalization: manim8 warns: storyboard asks for 9 s" in capsys.readouterr().err
+
+
+def test_font_misses_are_faces_lecturekit_does_not_bundle():
+    def manifest(*warnings):
+        return {"result": {"warnings": list(warnings)}}
+    assert clips.font_misses(manifest("font 'Palatino' is not installed; using fallback 'TeX Gyre Pagella'")) == []
+    generic = "font 'TeX Gyre Heros' is not installed; using the generic 'sans-serif' family"
+    pango = "font 'TeX Gyre Pagella' and its fallbacks ['serif'] are not installed; Pango will substitute"
+    other = "font 'TeX Gyre Pagella' is not installed; using fallback 'P052'"
+    assert clips.font_misses(manifest(generic, pango, other, "the movie is 8 s")) == [generic, pango, other]
+
+
+@needs_ffmpeg
+def test_a_cache_hit_that_lost_the_fonts_renders_again(scianim, tmp_path, monkeypatch, capsys):
+    """A job rendered outside lk clips (scianim render in the workspace, on a machine without the deck's fonts) is
+    in manim8's cache, whose key ignores fonts. lk clips renders it once more, with the fonts, and only once."""
+    monkeypatch.delenv("FONTCONFIG_FILE", raising=False)
+    deck = make_deck(tmp_path)
+    project = deck / "clips" / "families" / "neuro" / "divisive_normalization"
+    clips.run_clips(deck)                                                 # environment and code in place
+    first = set(jobs(project))
+    sans = "font 'TeX Gyre Heros' is not installed; using the generic 'sans-serif' family"
+    outside = subprocess.run([str(scianim.exe), "render", str(project), "--profile", "final", "--no-cache"],
+                             env={**os.environ, "FAKE_SCIANIM_WARN": sans}, capture_output=True, text=True,
+                             check=False)
+    assert outside.returncode == 0, outside.stderr
+    (foreign,) = set(jobs(project)) - first
+    capsys.readouterr()
+    index, failures = clips.run_clips(deck)
+    err = capsys.readouterr().err
+    assert failures == []
+    assert f"the cached job {foreign.name} was rendered without the deck's fonts" in err
+    assert "--no-cache" in scianim.calls("render")[-1]
+    rec = index["divisive_normalization"]
+    assert rec["job"]["id"] != foreign.name and len(jobs(project)) == 3
+    assert_index_matches_files(deck)
+    calls = len(scianim.calls("render"))
+    clips.run_clips(deck)                                                 # now a plain cache hit
+    assert len(scianim.calls("render")) == calls + 1 and "--no-cache" not in scianim.calls("render")[-1]
 
 
 @needs_ffmpeg
@@ -496,6 +603,20 @@ def test_size_that_differs_from_the_project_output_warns(scianim, tmp_path, caps
     deck = make_deck(tmp_path)
     clips.run_clips(deck, size="1280x720")
     assert "applies to kit clips only" in capsys.readouterr().err
+    clips.run_clips(deck)                                  # no --size: the deck's size is the kit's
+    err = capsys.readouterr().err
+    assert "clip divisive_normalization is 320x180 at 30 fps" in err
+    assert "the deck's clips are 1280x720 at 30 fps" in err
+
+
+def test_output_check_compares_size_and_frame_rate(capsys):
+    clips._check_output("a", 1280, 720, 30.0, None)
+    clips._check_output("b", 1920, 1080, 30.0, "1920x1080")
+    assert capsys.readouterr().err == ""
+    clips._check_output("c", 1280, 720, 60.0, None)
+    clips._check_output("d", 1920, 1080, 30.0, None)
+    err = capsys.readouterr().err
+    assert "clip c is 1280x720 at 60 fps" in err and "clip d is 1920x1080 at 30 fps" in err
 
 
 def test_fonts_reach_fontconfig(tmp_path, monkeypatch):
