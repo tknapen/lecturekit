@@ -100,7 +100,7 @@ manim8 projects. For each project with a `storyboard.yaml` (a project still with
 4. reads the manifest that `--json` prints, for a fresh job and a cache hit alike, and refuses a manifest `schema_version` it does not know;
 5. copies the job's full movie (`result.videos[0]`) to `assets/clips/<name>.mp4` and every checkpoint PNG to `assets/clips/<name>.<snapshot_id>.png`, and writes the entry from the manifest: size, frame rate and duration from the movie, the revision, the job, the checkpoints, and the still.
 
-The still is the checkpoint with the latest time, or the one `--still divisive_normalization=pool_raised` names (a number there is a second of the movie). A second run with nothing changed is a cache hit in manim8: nothing is rendered, and the entry is written again from the same job.
+The still is the checkpoint with the latest time, or the one `--still divisive_normalization=pool_raised` names for that run (a number there is a second of the movie); a choice that should last belongs on the movie block, `still="pool_raised"`. A second run with nothing changed is a cache hit in manim8: nothing is rendered, and the entry is written again from the same job.
 
 Both producers. `--crop` trims the video and the stills to the content's bounding box against the slide colour (plus a margin, to even sizes), for a clip in a column; for a manim8 clip the box holds the content of every checkpoint. `clips.json` records the resulting shape, which the deck uses as the clip's aspect. Manim and manim8 run with a fontconfig that adds the extension's bundled fonts (TeX Gyre Heros and Pagella, Roboto) to the system's, written to `_lecturekit/fonts.conf`, so a clip finds the deck's faces by name on any machine; a `FONTCONFIG_FILE` already set is left alone.
 
