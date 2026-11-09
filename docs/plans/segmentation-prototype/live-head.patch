@@ -1,0 +1,18 @@
+--- _extensions/lecturekit/reveal/live-head.html
++++ _extensions/lecturekit/reveal/live-head.html
+@@ -21,6 +21,7 @@
+   }
+   // Is an element shown? Not inside a hidden fragment, nor inside an r-stack step that a later fragment replaced.
+   function shown(el) {
++    if (el.closest && el.closest('.lk-seg')) return false;  // prototype: segmented clips belong to lk-seg.js
+     for (var n = el; n && !(n.tagName === 'SECTION'); n = n.parentElement) {
+       var cs = window.getComputedStyle(n);
+       if (cs.visibility === 'hidden' || cs.display === 'none' || parseFloat(cs.opacity) === 0) return false;
+@@ -47,6 +48,7 @@
+   function toggle(v) { if (v.paused) { var p = v.play(); if (p && p.catch) p.catch(function () {}); } else v.pause(); }
+   document.addEventListener('click', function (e) {
+     var v = e.target && e.target.closest ? e.target.closest('video') : null;
++    if (v && v.closest('.lk-seg')) return;  // prototype: lk-seg.js owns clicks on segmented clips
+     if (v) { e.preventDefault(); toggle(v); }
+   });
+   document.addEventListener('keydown', function (e) {

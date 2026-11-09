@@ -1,0 +1,20 @@
+.reveal .lk-seg{position:relative}
+.reveal .slides section .lk-seg > img.lk-still{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;object-fit:contain;opacity:0;pointer-events:none}
+.reveal .lk-cue{display:none}
+.reveal .slides section .lk-seg[data-lk-show="0"] > img[data-lk-b="0"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="1"] > img[data-lk-b="1"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="2"] > img[data-lk-b="2"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="3"] > img[data-lk-b="3"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="4"] > img[data-lk-b="4"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="5"] > img[data-lk-b="5"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="6"] > img[data-lk-b="6"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="7"] > img[data-lk-b="7"]{opacity:1}
+.reveal .slides section:not(:has(.lk-cue.visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="0"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="1"].visible):not(:has(.lk-cue[data-lk-k="2"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="1"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="2"].visible):not(:has(.lk-cue[data-lk-k="3"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="2"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="3"].visible):not(:has(.lk-cue[data-lk-k="4"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="3"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="4"].visible):not(:has(.lk-cue[data-lk-k="5"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="4"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="5"].visible):not(:has(.lk-cue[data-lk-k="6"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="5"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="6"].visible):not(:has(.lk-cue[data-lk-k="7"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="6"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="7"].visible):not(:has(.lk-cue[data-lk-k="8"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="7"]{opacity:1}
+.reveal .slides section .lk-seg > video{max-width:none;max-height:none}
