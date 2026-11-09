@@ -59,50 +59,44 @@ jobs:
           fi
 
       - name: Checks
+        shell: bash
         run: |
           source .venv/bin/activate
           OUT=_build; BRAND=_brand.yml; MODE=light
           if [ "${{ matrix.preset }}" = "dark" ]; then OUT=_build-dark; BRAND=_brand-dark.yml; MODE=dark; fi
+          mkdir -p report/${{ matrix.preset }}
           for d in kickoff features; do
             lk review contrast examples/$d/$BRAND --mode $MODE
             lk review shoot examples/$d/$OUT/slides-live.html --out review/${{ matrix.preset }}/$d --sheet
             lk review measure examples/$d/$OUT/slides-live.html
-            lk review overflow examples/$d || true
-          done
+            lk review overflow examples/$d || true   # informational: the study PDF's overfull frames, by title
+          done 2>&1 | tee report/${{ matrix.preset }}/checks.log
 
       - name: Tests
         if: matrix.preset == 'paper'
         run: |
           source .venv/bin/activate
-          pytest -q
+          mkdir -p report/paper
+          pytest -q --junitxml=report/paper/pytest.xml
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: decks-${{ matrix.preset }}
-          path: |
-            examples/*/_build*/slides-live.html
-            examples/*/_build*/slides-study.pdf
-            review/${{ matrix.preset }}
-
-      - name: Assemble the Pages site
-        if: matrix.preset == 'paper'
+      # this preset's part of the CI results page (.github/scripts/ci_site.py), uploaded whether or not a step failed
+      - name: Collect the site part
+        if: always()
+        shell: bash
         run: |
-          mkdir -p site/kickoff site/features
-          cp -r examples/kickoff/_build/. site/kickoff/
-          cp -r examples/features/_build/. site/features/
-          cp -r review/paper site/review
-          cat > site/index.html <<'EOF'
-          <!doctype html><meta charset="utf-8"><title>lecturekit</title>
-          <h1>lecturekit</h1>
-          <p>The worked example: <a href="kickoff/slides-live.html">live deck</a> ·
-             <a href="kickoff/slides-study.pdf">study PDF</a> · <a href="review/kickoff/sheet.png">contact sheet</a></p>
-          <p>The feature deck: <a href="features/slides-live.html">live deck</a> ·
-             <a href="features/slides-study.pdf">study PDF</a> · <a href="review/features/sheet.png">contact sheet</a></p>
-          EOF
-      - uses: actions/upload-pages-artifact@v3
-        if: matrix.preset == 'paper'
+          P=${{ matrix.preset }}; OUT=_build; [ "$P" = dark ] && OUT=_build-dark
+          mkdir -p part/$P
+          for d in kickoff features; do
+            [ -d examples/$d/$OUT ] && cp -r examples/$d/$OUT part/$P/$d
+          done
+          [ -d review/$P ] && cp -r review/$P part/$P/review
+          [ -d report/$P ] && cp -r report/$P part/$P/report
+          true
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          path: site
+          name: site-${{ matrix.preset }}
+          path: part
 
   # The seam with manim8, run for real: lecturekit installed from this repository with the manim8 extra (so manim8
   # comes from the tag the extra names, with pip alone: manim8 brings uv), the feature deck's manim8 clip rendered
@@ -147,10 +141,13 @@ jobs:
           lk clips examples/features --only tuning_sweep --no-cache --mode dark
 
       - name: The index against the manifest
+        shell: bash
         run: |
           source .venv/bin/activate
-          python .github/scripts/check_clip_index.py examples/features tuning_sweep
-          python .github/scripts/check_clip_index.py examples/features tuning_sweep --mode dark
+          mkdir -p report/seam
+          python .github/scripts/check_clip_index.py examples/features tuning_sweep 2>&1 | tee report/seam/index-check.log
+          python .github/scripts/check_clip_index.py examples/features tuning_sweep --mode dark 2>&1 \
+            | tee report/seam/index-check-dark.log
 
       - name: Build the feature deck with the fresh clip, both presets
         run: |
@@ -163,21 +160,64 @@ jobs:
       - name: Seam tests
         run: |
           source .venv/bin/activate
-          pytest -q tests/test_seam.py
+          mkdir -p report/seam
+          pytest -q tests/test_seam.py --junitxml=report/seam/pytest.xml
 
+      - name: Collect the site part
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p part/seam/report/manifests
+          [ -d examples/features/_build ] && cp -r examples/features/_build part/seam/features
+          [ -d examples/features/_build-dark ] && cp -r examples/features/_build-dark part/seam/features-dark
+          [ -d examples/features/assets/clips ] && cp -r examples/features/assets/clips part/seam/clips
+          [ -d review/seam/frags ] && cp -r review/seam/frags part/seam/frags
+          [ -d review/seam/frags-dark ] && cp -r review/seam/frags-dark part/seam/frags-dark
+          [ -d report/seam ] && cp -r report/seam/. part/seam/report/
+          for m in examples/features/clips/families/*/*/renders/*/*/manifest.json; do
+            [ -f "$m" ] && cp "$m" "part/seam/report/manifests/$(basename "$(dirname "$m")").json"
+          done
+          true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: seam
-          path: |
-            examples/features/assets/clips
-            examples/features/clips/families/*/*/renders/*/*/manifest.json
-            examples/features/_build*/slides-study.pdf
-            review/seam
+          name: site-seam
+          path: part
+
+  # The CI results page: every job's part side by side, with an index (.github/scripts/ci_site.py). It is built for
+  # every run (the artifact 'site') and published to GitHub Pages from main, also when a job failed, so the page
+  # shows the failure.
+  site:
+    if: always()
+    needs: [build, seam]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: site-*
+          merge-multiple: true
+          path: site
+      - name: Assemble the page
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          SHA: ${{ github.sha }}
+          REF: ${{ github.ref_name }}
+        run: python3 .github/scripts/ci_site.py site
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site
+      - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: site
 
   deploy:
-    if: github.ref == 'refs/heads/main'
-    needs: build
+    if: always() && github.ref == 'refs/heads/main' && needs.site.result == 'success'
+    needs: site
     runs-on: ubuntu-latest
     concurrency:
       group: pages
