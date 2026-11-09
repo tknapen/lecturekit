@@ -283,6 +283,25 @@ def test_one_failing_clip_does_not_stop_the_run(scianim, tmp_path, monkeypatch, 
     assert "alpha (manim8):" in err and "broken (kit):" in err
 
 
+def test_a_bare_exit_gets_the_hint_or_the_tool_error_above_it():
+    sync = ["note: uv lock failed\n", "Using CPython 3.12.3 interpreter at: /usr/bin/python3.12\n",
+            "  × No solution found when resolving dependencies:\n",
+            "  ╰─▶ Because manim8-bridge was not found in the package registry and your\n",
+            "      project depends on manim8-bridge==0.1.0a0, we can conclude that your\n",
+            "      project's requirements are unsatisfiable.\n",
+            "hint: manim8-bridge is not on the package index this environment uses. Install manim8 from git\n",
+            "(its families then take the bridge from the same commit)\n",
+            "error: `/usr/bin/uv lock` exited 1 after 0s\n"]
+    reason = clips._reason(sync, limit=1000)
+    assert reason.startswith("error: `/usr/bin/uv lock` exited 1 after 0s: manim8-bridge is not on the package index")
+    assert reason.endswith("(its families then take the bridge from the same commit)")
+    reason = clips._reason([line for line in sync if not line.startswith(("hint", "(its"))], limit=1000)
+    assert reason.endswith("exited 1 after 0s: No solution found when resolving dependencies: Because manim8-bridge "
+                           "was not found in the package registry and your project depends on manim8-bridge==0.1.0a0, "
+                           "we can conclude that your project's requirements are unsatisfiable.")
+    assert clips._reason(["manim exited 1\n"]) == "manim exited 1"
+
+
 def test_a_failure_reason_is_the_error_not_a_pointer_to_it():
     printed = ["  error   /x/storyboard.yaml: invalid storyboard specification:\n",
                "  - scenes.1.objects.0.kind: Input should be 'text_caption' or 'custom'\n",
@@ -332,6 +351,15 @@ def test_only_matches_either_spelling_and_reports_a_miss(scianim, tmp_path):
     assert "bar-bold" in miss.reason
     # the kit clip was attempted under its hyphenated name (it fails here only if Manim cannot render it)
     assert "bar-bold" in index or "bar-bold" in names
+
+
+@needs_ffmpeg
+def test_only_is_repeatable(scianim, tmp_path, capsys):
+    deck = make_deck(tmp_path, projects=("alpha", "beta", "gamma"))
+    assert lk(["clips", str(deck), "--only", "alpha", "--only", "beta"]) == 0
+    assert set(json.loads((deck / "assets" / "clips" / "clips.json").read_text())) == {"alpha", "beta"}
+    assert lk(["clips", str(deck), "--only", "gamma", "--only", "nothing"]) == 1
+    assert "--only nothing names no clip" in capsys.readouterr().err
 
 
 def test_colliding_names_are_an_error(scianim, tmp_path):

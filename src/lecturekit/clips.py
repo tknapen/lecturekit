@@ -223,7 +223,8 @@ def _last_line(lines: list[str] | deque) -> str:
 
 def _reason(lines: list[str] | deque, limit: int = 300) -> str:
     """The one-line reason of a tool's failure: its last line, or, when that only points at the errors above
-    it (manim8's "fix the errors above"), the first error with its first detail."""
+    it (manim8's "fix the errors above"), the first error with its first detail. When the last line only says
+    that a command exited (manim8's "`uv lock` exited 1"), the hint or the tool's own error above it follows."""
     clean = [s for s in (_ANSI.sub("", line).strip() for line in lines) if s]
     if not clean:
         return ""
@@ -235,8 +236,33 @@ def _reason(lines: list[str] | deque, limit: int = 300) -> str:
                 if i + 1 < len(clean) - 1 and clean[i + 1].startswith("- "):
                     reason += " " + clean[i + 1][2:]
                 break
+    elif re.search(r"\bexited -?\d+", reason):
+        detail = _detail(clean[:-1])
+        if detail:
+            reason = f"{reason}: {detail}"
     reason = reason.replace(f"{Path.cwd()}{os.sep}", "")
     return reason if len(reason) <= limit else reason[:limit - 3] + "..."
+
+
+_BLOCK_START = re.compile(r"^(error|warning|note|hint|help)\b:?|^× |^Using ", re.IGNORECASE)
+
+
+def _detail(lines: list[str]) -> str:
+    """What explains a bare "exited N": the last `hint:` block, else the last error block of uv (`× ...` with
+    its `╰─▶` lines), joined into one line."""
+    def block(start: int) -> str:
+        parts = [lines[start]]
+        for line in lines[start + 1:]:
+            if _BLOCK_START.match(line):
+                break
+            parts.append(line)
+        return re.sub(r"\s+", " ", " ".join(parts).replace("╰─▶", "")).strip()
+
+    for pattern in (r"^hint:\s*", r"^× "):
+        starts = [i for i, line in enumerate(lines) if re.match(pattern, line)]
+        if starts:
+            return re.sub(pattern, "", block(starts[-1]))
+    return ""
 
 
 def run_tool(cmd: list[str], *, env: dict[str, str] | None = None, cwd: Path | None = None,

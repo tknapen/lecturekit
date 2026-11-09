@@ -146,9 +146,10 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("clips", help="render clips and write clips.json")
     p.add_argument("dir", nargs="?")
-    p.add_argument("--only", nargs="*", help="clip names (- and _ are the same)")
+    p.add_argument("--only", nargs="+", action="extend", metavar="NAME",
+                   help="clip names (- and _ are the same); repeatable, and one --only takes several")
     p.add_argument("--size", default=None, help="kit render size, WxH (1280x720; the kit reads NM_CLIP_SIZE); "
-                   "a manim8 clip renders at its project's output")
+                   "a manim8 clip renders at its project's output, and lk clips warns when that differs")
     p.add_argument("--crop", action="store_true", help="crop videos and stills to the content's bounding box")
     p.add_argument("--mode", choices=["light", "dark"], help="the preset (default LECTUREKIT_MODE, else light); "
                    "dark writes assets/clips/dark/")
