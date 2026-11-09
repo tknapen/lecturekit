@@ -49,7 +49,7 @@ Check: `lk review frags <live.html> [--slides N ...]` writes a PNG per fragment 
 | Rule | Command |
 | --- | --- |
 | Nothing crosses the foot or the right edge; no console or load errors; titles on one line | `lk review shoot <deck>/_build/slides-live.html [--sheet] [--fragments] [--scale 2] [--against DIR]` (`review/shots/slide-NN.png`, `report.json`, a contact sheet; `--against` lists the slides whose pixels changed since an earlier round) |
-| A staged slide builds as intended; a clip is shown and playing at the right step; a clip's fragment is inside `.live-only` | `lk review frags <deck>/_build/slides-live.html [--slides N ...] [--out DIR]` |
+| A staged slide builds as intended; a clip is shown and playing at the right step; a clip's `.fragment` wraps its `.live-only` block | `lk review frags <deck>/_build/slides-live.html [--slides N ...] [--out DIR]` |
 | Where the title, figure, bullets and foot sit; free pixels above the foot; a figure's natural size | `lk review measure <deck>/_build/slides-live.html [--slide N]` |
 | A figure's natural size and look before it enters a slide | `lk review figs <deck> [name ...] [--brand FILE] [--mode dark]` (`review/figs/<name>.png` at 88 px per cm) |
 | The study PDF fits; no missing characters or undefined colours | `lk review overflow <deck>` or `lk review overflow <deck>/slides.log [--min PT]` |

@@ -13,7 +13,7 @@ lk build .                       # both outputs into _build/, the plan against t
 lk build . --profile dark        # the dark preset (_brand-dark.yml) into _build-dark/
 lk review shoot _build/slides-live.html --sheet
 lk review overflow .
-lk clips . --only bar            # re-render the clip on the Manim kit (pip install lecturekit[clips])
+lk clips . --only bar-bold       # re-render the clip on the Manim kit (pip install lecturekit[clips])
 ```
 
 ## Slides

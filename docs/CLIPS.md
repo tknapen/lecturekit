@@ -10,7 +10,7 @@ A clip is a short animation that plays in the live deck and prints as a still in
 - Clips play without browser controls. A click or the space bar pauses and resumes the clip; R replays it from the start; space does not advance the slide while a clip is shown. A clip starts when its slide appears and stops when the slide is left.
 - Browsers cache clips by file name: a re-rendered clip that looks unchanged on screen needs a new file name.
 - `aspect` is the clip's pixel ratio. The `clip=` form reads it from `clips.json`; the `src=` form takes `aspect="4:3"` or `"1:1"` for a clip in a column, or any `W:H` for a clip cropped to its content. A wrong aspect letterboxes the clip and wastes height.
-- A clip on a key press: `::: {.fragment}` around `:::: {.live-only}` around the `.movie`, never the other way round. A sequence of clips is an `.r-stack` inside `.live-only`, each later clip in a `.fragment`; the step's clip starts when its fragment appears and the earlier one stops. Check: `lk review frags <live.html>` prints, per step, whether each clip is shown and playing, and flags a clip's fragment outside `.live-only`.
+- A clip on a key press: `::: {.fragment}` around `:::: {.live-only}` around the `.movie`, never the other way round. A sequence of clips is an `.r-stack` inside `.live-only`, each later clip in a `.fragment`; the step's clip starts when its fragment appears and the earlier one stops. Check: `lk review frags <live.html>` prints, per step, whether each clip is shown and playing, and flags the reverse order (a `.fragment` inside the clip's `.live-only` box) and a hidden clip that plays.
 - Colours in a clip are tokens from the brand (`INK`, `BLUE`, `GAUSS`, `token('dn')`), never values, and the background is the brand's slide colour, so a restyle can re-render the clip in the new palette. It must: a rendered video is pixels and does not follow a restyle until `lk clips --mode dark` renders the dark preset's clips into `assets/clips/dark/` (below). This is the known limit of the one-instruction restyle (THEMING.md).
 
 ## The seam: clips.json and clip=
@@ -85,7 +85,7 @@ The MP4s, the PNGs and both `clips.json` files are committed with the deck, so t
 
 ```sh
 lk clips [deck] [--only name ...] [--size 1280x720] [--crop] [--mode light|dark]
-         [--still CLIP=ID ...] [--revision [CLIP=]REV ...] [--profile final] [--no-sync]
+         [--still CLIP=ID ...] [--revision [CLIP=]REV ...] [--profile final] [--no-sync] [--no-cache]
 ```
 
 renders every scene under the deck's `anim/clip_*.py` and every manim8 project under `clips/families/` (found in the deck, else at the project root), and writes the index.
@@ -100,7 +100,7 @@ manim8 projects. For each project with a `storyboard.yaml` (a project still with
 4. reads the manifest that `--json` prints, for a fresh job and a cache hit alike, and refuses a manifest `schema_version` it does not know;
 5. copies the job's full movie (`result.videos[0]`) to `assets/clips/<name>.mp4` and every checkpoint PNG to `assets/clips/<name>.<snapshot_id>.png`, and writes the entry from the manifest: size, frame rate and duration from the movie, the revision, the job, the checkpoints, and the still.
 
-The still is the checkpoint with the latest time, or the one `--still divisive_normalization=pool_raised` names for that run (a number there is a second of the movie); a choice that should last belongs on the movie block, `still="pool_raised"`. A second run with nothing changed is a cache hit in manim8: nothing is rendered, and the entry is written again from the same job.
+The still is the checkpoint with the latest time, or the one `--still divisive_normalization=pool_raised` names for that run (a number there is a second of the movie); a choice that should last belongs on the movie block, `still="pool_raised"`. A second run with nothing changed is a cache hit in manim8: nothing is rendered, and the entry is written again from the same job; `--no-cache` makes manim8 render the job anyway (the continuous integration does, so that a render is tested), and the entry then names the new job.
 
 Both producers. `--crop` trims the video and the stills to the content's bounding box against the slide colour (plus a margin, to even sizes), for a clip in a column; for a manim8 clip the box holds the content of every checkpoint. `clips.json` records the resulting shape, which the deck uses as the clip's aspect. Manim and manim8 run with a fontconfig that adds the extension's bundled fonts (TeX Gyre Heros and Pagella, Roboto) to the system's, written to `_lecturekit/fonts.conf`, so a clip finds the deck's faces by name on any machine; a `FONTCONFIG_FILE` already set is left alone.
 

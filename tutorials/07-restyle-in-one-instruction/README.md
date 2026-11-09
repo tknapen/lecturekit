@@ -25,7 +25,7 @@ show me every slide when you are done.
 ```sh
 lk build examples/kickoff --profile dark
 lk review contrast examples/kickoff/_brand-dark.yml --mode dark
-LECTUREKIT_MODE=dark LECTUREKIT_BRAND=examples/kickoff/_brand-dark.yml lk clips examples/kickoff --only bar
+lk clips examples/kickoff --only bar-bold --mode dark
 lk review shoot examples/kickoff/_build-dark/slides-live.html --out examples/kickoff/review/dark --sheet
 lk review shoot examples/kickoff/_build/slides-live.html --out examples/kickoff/review/paper --sheet
 ```
@@ -36,7 +36,7 @@ lk review shoot examples/kickoff/_build/slides-live.html --out examples/kickoff/
 - The TikZ figures recompile by themselves: their source names tokens, the tokens are part of the cache key, and no figure uses `white` or a `col!pct` tint, which would stay a light card on black.
 - `heading` and `body` are optional tokens; with them, `ink` becomes the emphasis colour: light-purple titles, green text, green-tinted white emphasis.
 - Roboto has no math companion: mathematics stays in TeX Gyre Pagella Math.
-- The clip is the known limit of the one-instruction restyle: a rendered video is pixels, and it follows the palette only once `lk clips` has re-rendered it with `LECTUREKIT_MODE=dark` (and the preset's brand file named), a minute or two of rendering.
+- The clip is the known limit of the one-instruction restyle: a rendered video is pixels. `lk clips --mode dark` renders it again on the dark brand into `assets/clips/dark/`, a minute or two of rendering, and a dark build plays that copy for a movie named with `clip=` (`docs/CLIPS.md`). The kickoff's slide 1 still names its file with `src=`, so its dark build plays the paper clip until the slide moves to `clip=`.
 - The last ten percent is taste, checked by a tool and decided by a person.
 
 ## Artefacts

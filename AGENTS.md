@@ -13,7 +13,7 @@ slides. Read them before building or changing a slide.
 lk new <dir>                                   # a project: _quarto.yml, _brand.yml, slides.qmd, the method's files, the vendored extension
 lk build [dir] [--to live|study] [--profile dark]   # quarto render; prints the plan against the budget (_build/timing.txt)
 python <deck>/make_assets.py [figure ...]      # regenerate TikZ figures from assets/data (also the project's pre-render step)
-lk clips <deck> [--only name] [--crop]         # render anim/clip_*.py on the kit into assets/clips, write clips.json
+lk clips <deck> [--only name] [--crop] [--mode dark]   # kit scenes (anim/clip_*.py) and manim8 projects (clips/) into assets/clips, write clips.json
 lk review shoot <deck>/_build/slides-live.html [--sheet] [--fragments] [--against DIR]   # PNG per slide, report.json
 lk review measure <deck>/_build/slides-live.html [--slide N]   # free pixels above the foot; one slide's boxes
 lk review frags <deck>/_build/slides-live.html [--slides N ...] # fragment steps, clips shown and playing
@@ -52,7 +52,7 @@ what a slide claims, propose it and wait; when a number cannot be sourced, say s
 ## Engine conventions
 
 - The Quarto extension (`_extensions/lecturekit`) and the Python package share one version; a project pins the
-  extension by vendoring it; `lk build` refuses a major-version mismatch.
+  extension by vendoring it; `lk build` refuses a major-version mismatch, and a minor-version one while the major is 0.
 - Filters: `dual-output.lua` (the dialect, pre-quarto), `tikz.lua` (figures, pre-quarto), `tokens.lua` (the brand
   into each output, post-quarto); `lkbrand.lua` reads the brand. Quarto 1.11 rewrites `header-includes` set by
   filters and drops `include_text` for Reveal, so tokens go in as a body `<style>` block and `_lecturekit/*.tex`
