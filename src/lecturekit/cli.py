@@ -27,8 +27,11 @@ def cmd_new(a: argparse.Namespace) -> int:
         vendor_extension(dest, force=a.force)
         print(f"extension {extension_version()} vendored into {dest / '_extensions' / 'lecturekit'}")
         return 0
-    create_project(dest, title=a.title, force=a.force, budget=a.budget)
-    print(f"project created in {dest}")
+    if a.manim8 and (dest / "_quarto.yml").exists() and not a.force:
+        print(f"adding a manim8 workspace to the project in {dest}")
+    else:
+        create_project(dest, title=a.title, force=a.force, budget=a.budget)
+        print(f"project created in {dest}")
     if a.manim8:
         try:
             for line in create_manim8_workspace(dest):

@@ -569,6 +569,16 @@ def test_new_manim8_makes_a_workspace(scianim, tmp_path):
     assert failures == [] and index == {}
 
 
+def test_new_manim8_on_an_existing_project_adds_only_the_workspace(scianim, tmp_path):
+    p = tmp_path / "existing"
+    assert lk(["new", str(p)]) == 0
+    (p / "slides.qmd").write_text("the lecturer's own\n")
+    (p / "STORYBOARD.md").unlink()
+    assert lk(["new", str(p), "--manim8"]) == 0
+    assert (p / "clips" / "workspace.yaml").exists()
+    assert (p / "slides.qmd").read_text() == "the lecturer's own\n" and not (p / "STORYBOARD.md").exists()
+
+
 @needs_quarto
 def test_new_project_reports_its_budget(tmp_path):
     p = tmp_path / "trial"
