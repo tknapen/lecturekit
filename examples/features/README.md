@@ -38,7 +38,7 @@ pauses and resumes the clip on stage, R replays it.
 Slide 10's clip is real: `clips/` is a manim8 workspace (`lk new --manim8 .`) with one family, `features`, and
 one project, `tuning_sweep`: two scenes, 6 s at 1280 by 720 and 30 fps, in the bridged style that `lk theme .
 --manim8 0.1.0` wrote from this deck's brands. Its content is a toy analytic curve, labelled so in the clip and in
-the project's README. To render it again, with manim8 installed (`pip install "lecturekit[manim8]"`, Python 3.12):
+the project's README. To render it again, with manim8 installed (lecturekit's `manim8` extra on Python 3.12, docs/INSTALL.md):
 
 ```bash
 lk clips . --only tuning_sweep               # assets/clips/tuning_sweep.mp4, its checkpoints, clips.json

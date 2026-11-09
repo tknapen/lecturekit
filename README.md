@@ -7,7 +7,7 @@ workshop; this repository is the engine extracted from them, as a Quarto extensi
 project (a course, a workshop) depends on it instead of carrying it.
 
 ```sh
-uv pip install -e ".[dev]"          # or: pip install lecturekit[review,figures]   (docs/INSTALL.md)
+uv pip install -e ".[dev]"          # in a clone; docs/INSTALL.md installs from the v0.3.0 tag without one
 lk build examples/kickoff           # _build/slides-live.html, _build/slides-study.pdf, the plan against the budget
 lk new my-lecture && cd my-lecture && lk build
 ```
@@ -93,8 +93,8 @@ lk review contrast _brand.yml                         # WCAG AA on every surface
 
 The engine builds both example decks in both formats and both presets, and a project scaffolded by `lk new` builds
 from a fresh directory; the figures of the worked example regenerate byte for byte from `make_assets.py` on the
-kit. manim8, the deeper animation layer, is an optional extra on Python 3.12 (`pip install "lecturekit[manim8]"`,
-pinned to manim8's `v0.1.0a0` tag): `lk new --manim8` makes a project's `clips/` a manim8 workspace, `lk theme --manim8`
+kit. manim8, the deeper animation layer, is an optional extra on Python 3.12 (`lecturekit[manim8]`, pinned to
+manim8's `v0.1.0a0` tag; docs/INSTALL.md): `lk new --manim8` makes a project's `clips/` a manim8 workspace, `lk theme --manim8`
 bridges the brand into manim8 styles for both presets, and `lk clips` renders kit scenes and manim8 projects alike
 into `assets/clips/clips.json`, the seam that `clip=` on a movie block reads (docs/CLIPS.md).
 

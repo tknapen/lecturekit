@@ -23,7 +23,7 @@ The colleague:
 gh repo fork <owner>/<project> --clone
 cd <project>
 uv venv && source .venv/bin/activate
-uv pip install "lecturekit==<the version the project pins>"
+uv pip install "lecturekit[review,figures] @ git+https://github.com/tknapen/lecturekit@v<the version the project pins>"
 lk build 00-kickoff
 ```
 

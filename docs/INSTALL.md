@@ -31,7 +31,13 @@ The formats set `latex-auto-install: false`, so a missing package is reported du
 
 ## Python
 
-Python 3.11 or later. From a clone of this repository, with `uv` (astral.sh/uv):
+Python 3.11 or later. lecturekit is not on PyPI: it installs from GitHub at a release tag, or from a clone. At the tag, with pip (or `uv pip install`), in a virtual environment:
+
+```sh
+pip install "lecturekit[review,figures] @ git+https://github.com/tknapen/lecturekit@v0.3.0"
+```
+
+From a clone of this repository, with `uv` (astral.sh/uv):
 
 ```sh
 uv venv
@@ -39,11 +45,7 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
-or from PyPI:
-
-```sh
-pip install "lecturekit[review,figures]"
-```
+The extras below go in the brackets of either form (`"lecturekit[review,figures,clips] @ git+https://github.com/tknapen/lecturekit@v0.3.0"`, or `-e ".[dev,clips]"` in a clone). Once lecturekit is installed, `pip install "lecturekit[clips]"` adds an extra's packages to it: pip finds the installed lecturekit and fetches only what the extra names. A project pins the tag of the engine it was built with (the expo's `requirements.txt` does).
 
 The command is `lk`, with `lecturekit` as an alias; `lk version` prints the package and extension versions and where Quarto was found. The `review` extra brings Playwright and the image tools for `lk review`; `figures` brings numpy, matplotlib, Pillow and PyMuPDF for `make_assets.py` and the figure conversion; `dev` brings both and pytest.
 
@@ -57,25 +59,26 @@ A preinstalled browser set is honoured through `PLAYWRIGHT_BROWSERS_PATH` (a set
 
 SVG conversion. The TikZ filter turns each compiled figure into an SVG for the live deck with PyMuPDF (AGPL, used at build time only; nothing of it is distributed), falling back to poppler's `pdftocairo`. One of them must be present: `pip install pymupdf`, or `apt-get install poppler-utils`, or `brew install poppler`.
 
-Clips. `lk clips` renders Manim scenes on the kit:
+Clips. `lk clips` renders Manim scenes on the kit, with the `clips` extra:
 
 ```sh
-pip install "lecturekit[clips]"
+pip install "lecturekit[clips]"      # added to an installed lecturekit, as above
 ```
 
 brings Manim Community 0.22 with Pillow below 11.3 and `imageio-ffmpeg`. Manim needs the Cairo and Pango development headers on the machine (`libcairo2-dev libpango1.0-dev pkg-config` on Debian and Ubuntu, `cairo pango pkg-config` through Homebrew).
 
 ## manim8
 
-manim8 is the second clip producer (CLIPS.md). It needs Python 3.12 or later; the extra installs nothing on an older Python. With pip:
+manim8 is the second clip producer (CLIPS.md). It needs Python 3.12 or later; the extra installs nothing on an older Python. With pip, the engine and both clip producers at once:
+
+```sh
+pip install "lecturekit[review,figures,clips,manim8] @ git+https://github.com/tknapen/lecturekit@v0.3.0"
+```
+
+or the extra added to an installed lecturekit, with pip or with uv:
 
 ```sh
 pip install "lecturekit[manim8]"
-```
-
-or with uv, in a project's environment:
-
-```sh
 uv pip install "lecturekit[manim8]"
 ```
 
@@ -96,7 +99,7 @@ Another manim8 (a branch, a commit or a local checkout) replaces the tag in two 
 quarto add tknapen/lecturekit
 ```
 
-vendors the extension alone into the project's `_extensions/lecturekit/`, which is enough for `quarto render` with the two formats; `pip install lecturekit` adds `lk`, the kits and the review tools. `lk new --vendor-only <dir>` does the same from the installed package.
+vendors the extension alone into the project's `_extensions/lecturekit/`, which is enough for `quarto render` with the two formats; the package (Python, above) adds `lk`, the kits and the review tools. `lk new --vendor-only <dir>` does the same from the installed package.
 
 ## Verify
 
