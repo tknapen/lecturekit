@@ -39,18 +39,33 @@ def cmd_build(a: argparse.Namespace) -> int:
 
 
 def cmd_clips(a: argparse.Namespace) -> int:
-    from .clips import render_all
+    from .clips import ClipError, clip_mode, index_path, run_clips
     deck = Path(a.dir) if a.dir else Path.cwd()
-    index = render_all(deck, only=a.only or None, size=a.size, crop=a.crop)
-    print(f"{len(index)} clip(s) in {deck / 'assets' / 'clips' / 'clips.json'}")
+    try:
+        mode = clip_mode(a.mode)
+    except ClipError as exc:
+        print(f"lk clips: {exc}", file=sys.stderr)
+        return 2
+    index, failures = run_clips(deck, only=a.only or None, size=a.size, crop=a.crop, mode=mode,
+                                stills=a.still, revisions=a.revision, profile=a.profile, sync=not a.no_sync)
+    print(f"{len(index)} clip(s) in {index_path(deck, mode)}")
+    if failures:
+        print(f"{len(failures)} failed:", file=sys.stderr)
+        for f in failures:
+            print(f"  {f.name} ({f.producer}): {f.reason}", file=sys.stderr)
+        return 1
     return 0
 
 
 def cmd_theme(a: argparse.Namespace) -> int:
     from .theme import write_tokens
     project = Path(a.dir) if a.dir else find_project()
-    written = write_tokens(project, brand=Path(a.brand) if a.brand else None, mode=a.mode,
-                           manim8_version=a.manim8)
+    try:
+        written = write_tokens(project, brand=Path(a.brand) if a.brand else None, mode=a.mode,
+                               manim8_version=a.manim8)
+    except ValueError as exc:
+        print(f"lk theme: {exc}", file=sys.stderr)
+        return 1
     for p in written:
         print(f"  {p}")
     return 0
@@ -116,9 +131,19 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser("clips", help="render clips and write clips.json")
     p.add_argument("dir", nargs="?")
-    p.add_argument("--only", nargs="*", help="clip names")
-    p.add_argument("--size", default="1280x720", help="render size, WxH (the kit reads NM_CLIP_SIZE)")
-    p.add_argument("--crop", action="store_true", help="crop video and still to the content's bounding box")
+    p.add_argument("--only", nargs="*", help="clip names (- and _ are the same)")
+    p.add_argument("--size", default=None, help="kit render size, WxH (1280x720; the kit reads NM_CLIP_SIZE); "
+                   "a manim8 clip renders at its project's output")
+    p.add_argument("--crop", action="store_true", help="crop videos and stills to the content's bounding box")
+    p.add_argument("--mode", choices=["light", "dark"], help="the preset (default LECTUREKIT_MODE, else light); "
+                   "dark writes assets/clips/dark/")
+    p.add_argument("--still", action="append", metavar="CLIP=ID",
+                   help="the still of a clip: a manim8 checkpoint id, or a second of the clip (repeatable)")
+    p.add_argument("--revision", action="append", metavar="[CLIP=]REV",
+                   help="render a manim8 revision (rev_0002) instead of the working copy (repeatable)")
+    p.add_argument("--profile", default="final", help="manim8 quality profile (final)")
+    p.add_argument("--no-sync", action="store_true",
+                   help="do not build a missing manim8 family environment (scianim family env sync)")
     p.set_defaults(fn=cmd_clips)
 
     p = sub.add_parser("theme", help="write token files from _brand.yml")
