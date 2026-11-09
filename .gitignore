@@ -13,8 +13,9 @@
 /examples/*/pacing.js
 /examples/*/movie.js
 
-# review output
+# review output (the review tools' package in src/ is source, not output)
 review/
+!/src/lecturekit/review/
 shots/
 
 # python
@@ -35,6 +36,7 @@ anim/media/
 **/_build-*/
 **/_lecturekit/
 **/review/
+!/src/lecturekit/review/
 **/anim/media/
 **/slides.tex
 **/slides.log
