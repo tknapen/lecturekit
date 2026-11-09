@@ -39,7 +39,8 @@ jobs:
           [ -n "$TT" ] && [ "$TT" != . ] && { export PATH="$TT:$PATH"; echo "$TT" >> "$GITHUB_PATH"; }
           tlmgr install beamer adjustbox collectbox etoolbox ragged2e pgf xcolor standalone fontspec unicode-math \
             textcase lm lm-math varwidth caption booktabs || true
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends lmodern fonts-lmodern
+          # ffmpeg and ffprobe encode and read the barcode clips of the clip-in-parts tests (tests/test_segments.py)
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends lmodern fonts-lmodern ffmpeg
           fc-cache -f
 
       - uses: astral-sh/setup-uv@v5
@@ -72,6 +73,8 @@ jobs:
             lk review contrast examples/$d/$BRAND --mode $MODE
             lk review shoot examples/$d/$OUT/slides-live.html --out review/${{ matrix.preset }}/$d --sheet
             lk review measure examples/$d/$OUT/slides-live.html
+            # fragment steps; a clip in parts walked with real keys: every hold on its frame, no play on entry
+            lk review frags examples/$d/$OUT/slides-live.html --out review/${{ matrix.preset }}/$d-frags
             lk review overflow examples/$d || true   # informational: the study PDF's overfull frames, by title
           done 2>&1 | tee report/${{ matrix.preset }}/checks.log
 
@@ -80,7 +83,16 @@ jobs:
         run: |
           source .venv/bin/activate
           mkdir -p report/paper
-          pytest -q --junitxml=report/paper/pytest.xml
+          pytest -q -rs --junitxml=report/paper/pytest.xml
+          # the clip-in-parts runtime tests (Playwright, barcode clips) must have run, not been skipped
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          cases = [c for c in ET.parse("report/paper/pytest.xml").getroot().iter("testcase")
+                   if c.get("classname", "").endswith("test_segments")]
+          skipped = [c.get("name") for c in cases if c.find("skipped") is not None]
+          print(f"test_segments: {len(cases)} cases, {len(skipped)} skipped")
+          sys.exit(1 if not cases or skipped else 0)
+          PY
 
       # this preset's part of the CI results page (.github/scripts/ci_site.py), uploaded whether or not a step failed
       - name: Collect the site part
@@ -167,7 +179,8 @@ jobs:
         run: |
           source .venv/bin/activate
           mkdir -p report/seam
-          pytest -q tests/test_seam.py --junitxml=report/seam/pytest.xml
+          # the seam, and the format 2 index with a real Manim render of a kit scene with checkpoints
+          pytest -q -rs tests/test_seam.py tests/test_stops_index.py --junitxml=report/seam/pytest.xml
 
       - name: Collect the site part
         if: always()

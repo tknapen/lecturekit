@@ -4,12 +4,13 @@
 
 `site/` holds the parts, downloaded side by side:
 
-    paper/ dark/            each: kickoff/ features/ (the built decks), review/<deck>/ (shoot), report/ (logs, junit)
+    paper/ dark/            each: kickoff/ features/ (the built decks), review/<deck>/ (shoot), review/<deck>-frags/
+                            (fragment steps; the clips in parts walked with real keys), report/ (logs, junit)
     seam/                   features/ features-dark/ (built with the fresh manim8 clip), clips/ (assets/clips),
                             frags/ frags-dark/, report/ (logs, junit, manifests)
 
 The script writes `site/index.html` (job results, the decks in both presets with their study PDFs and contact
-sheets, the test results, the seam's evidence) and an `index.html` listing in every report and review directory,
+sheets, the feature deck's clips in parts, the test results, the seam's evidence) and an `index.html` listing in every report and review directory,
 since Pages lists no directories. The job results come from the environment: RESULTS is a JSON object of job name
 to result (success, failure, cancelled, skipped), with RUN_URL, SHA and REF beside it.
 """
@@ -19,6 +20,7 @@ from __future__ import annotations
 import html
 import json
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -96,6 +98,24 @@ def log_block(site: Path, rel: str, title: str) -> str:
     return f"<details><summary><b>{esc(title)}</b> ({link(site, rel, 'full log')})</summary><pre>{esc(tail)}</pre></details>"
 
 
+def parts_slides(deck_html: Path) -> list[tuple[int, str, str, str]]:
+    """The clips in parts of a built live deck: (slide number, section id, title, clip name), from its markup."""
+    if not deck_html.exists():
+        return []
+    text = deck_html.read_text(encoding="utf-8", errors="replace")
+    starts = [m for m in re.finditer(r'<section id="([^"]+)"', text)]
+    out = []
+    for n, m in enumerate(starts):
+        end = starts[n + 1].start() if n + 1 < len(starts) else len(text)
+        body = text[m.start():end]
+        clip = re.search(r'data-lk-seg="([^"]+)"', body)
+        if clip:
+            title = re.search(r"<h2[^>]*>(.*?)</h2>", body, re.S)
+            name = re.sub(r"<[^>]+>", "", title.group(1)).strip() if title else m.group(1)
+            out.append((n + 1, m.group(1), name, clip.group(1)))     # the title slide is the first section
+    return out
+
+
 def listings(site: Path) -> None:
     """An index.html in every report, review and frags directory, so links to them open on Pages."""
     for top in [site / p for p in ("paper", "dark", "seam")]:
@@ -145,10 +165,33 @@ def main(site: Path) -> int:
         rows.append(f"<tr><td>{deck}</td>{''.join(cells)}</tr>")
     parts.append("<h2>Decks</h2><table><tr><th>deck</th><th>paper</th><th>dark</th></tr>" + "".join(rows) + "</table>")
 
+    seg = parts_slides(site / "paper/features/slides-live.html") or parts_slides(site / "dark/features/slides-live.html")
+    parts.append("<h2>Clips in parts</h2>")
+    if seg:
+        parts.append(
+            "<p>The feature deck's clips held at their stops by key presses (<code>stops=</code>): open a slide and "
+            "press Right; the frags reports walk each one with real keys and read the frame of every hold.</p>"
+        )
+        rows = []
+        for number, sid, title, clip in seg:
+            cells = []
+            for preset in PRESETS:
+                cells.append("<td>" + " · ".join([
+                    link(site, f"{preset}/features/slides-live.html", "live").replace(
+                        'href="' + f"{preset}/features/slides-live.html" + '"',
+                        'href="' + f"{preset}/features/slides-live.html#/{esc(sid)}" + '"'),
+                    link(site, f"{preset}/review/features-frags/s{number:02d}-f0.png", "first hold"),
+                    link(site, f"{preset}/review/features-frags/index.html", "frags"),
+                ]) + "</td>")
+            rows.append(f"<tr><td>{number} {esc(title)}<br><span class='meta'>{esc(clip)}</span></td>{''.join(cells)}</tr>")
+        parts.append("<table><tr><th>slide</th><th>paper</th><th>dark</th></tr>" + "".join(rows) + "</table>")
+    else:
+        parts.append("<p class='missing'>no built feature deck with a clip in parts</p>")
+
     parts.append("<h2>Tests and checks</h2>")
     parts.append(junit_block("Engine tests (pytest)", junit(site / "paper/report/pytest.xml")))
     for preset in PRESETS:
-        parts.append(log_block(site, f"{preset}/report/checks.log", f"Review checks, {preset} (contrast, shoot, measure, overflow)"))
+        parts.append(log_block(site, f"{preset}/report/checks.log", f"Review checks, {preset} (contrast, shoot, measure, frags, overflow)"))
 
     seam = site / "seam"
     parts.append("<h2>The seam with manim8</h2>")
