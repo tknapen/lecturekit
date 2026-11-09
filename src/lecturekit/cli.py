@@ -58,7 +58,8 @@ def cmd_clips(a: argparse.Namespace) -> int:
         print(f"lk clips: {exc}", file=sys.stderr)
         return 2
     index, failures = run_clips(deck, only=a.only or None, size=a.size, crop=a.crop, mode=mode,
-                                stills=a.still, revisions=a.revision, profile=a.profile, sync=not a.no_sync)
+                                stills=a.still, revisions=a.revision, profile=a.profile, sync=not a.no_sync,
+                                no_cache=a.no_cache)
     print(f"{len(index)} clip(s) in {index_path(deck, mode)}")
     if failures:
         print(f"{len(failures)} failed:", file=sys.stderr)
@@ -158,6 +159,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--profile", default="final", help="manim8 quality profile (final)")
     p.add_argument("--no-sync", action="store_true",
                    help="do not build a missing manim8 family environment (scianim family env sync)")
+    p.add_argument("--no-cache", action="store_true",
+                   help="render manim8 projects even when manim8's cache holds the job (kit scenes always render)")
     p.set_defaults(fn=cmd_clips)
 
     p = sub.add_parser("theme", help="write token files from _brand.yml")

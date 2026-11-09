@@ -173,6 +173,20 @@ def test_a_second_render_is_a_cache_hit(scianim, tmp_path):
 
 
 @needs_ffmpeg
+def test_no_cache_renders_again(scianim, tmp_path):
+    deck = make_deck(tmp_path)
+    project = deck / "clips" / "families" / "neuro" / "divisive_normalization"
+    first, _ = clips.run_clips(deck)
+    first = json.loads(json.dumps(first))
+    second, failures = clips.run_clips(deck, no_cache=True)
+    assert failures == []
+    assert "--no-cache" in scianim.calls("render")[-1]
+    assert len(jobs(project)) == 2                                       # a second job, not the cached one
+    assert second["divisive_normalization"]["job"]["id"] != first["divisive_normalization"]["job"]["id"]
+    assert second["divisive_normalization"]["job"]["cache_key"] == first["divisive_normalization"]["job"]["cache_key"]
+
+
+@needs_ffmpeg
 def test_named_still_and_an_unknown_one(scianim, tmp_path):
     deck = make_deck(tmp_path)
     index, failures = clips.run_clips(deck, stills=["divisive-normalization=pool_raised"])

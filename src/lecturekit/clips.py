@@ -505,7 +505,7 @@ def scianim_caps(exe: str, env: dict[str, str] | None = None) -> set[str]:
     if exe not in _CAPS:
         r = subprocess.run([exe, "render", "--help"], capture_output=True, text=True, env=env)
         text = _ANSI.sub("", r.stdout + r.stderr)
-        _CAPS[exe] = {opt for opt in ("--json", "--style", "--revision", "--profile") if opt in text}
+        _CAPS[exe] = {opt for opt in ("--json", "--style", "--revision", "--profile", "--no-cache") if opt in text}
     return _CAPS[exe]
 
 
@@ -534,8 +534,9 @@ def _manifest_by_prefix(clip_dir: Path, printed: str) -> dict:
 def render_manim8(deck: Path, clip_dir: Path, profile: str = "final", still: str | float | None = None,
                   revision: str | None = None, style: str | None = None, mode: str | None = None,
                   sync: bool = True, crop: bool = False, size: str | None = None, background: str | None = None,
-                  out_dir: Path | None = None) -> ClipRecord:
-    """Render a manim8 project and bring its full movie, its checkpoints and its still into the deck."""
+                  out_dir: Path | None = None, no_cache: bool = False) -> ClipRecord:
+    """Render a manim8 project and bring its full movie, its checkpoints and its still into the deck. With
+    `no_cache`, manim8 renders the job even when its cache holds the result."""
     m = clip_mode(mode)
     exe = scianim_exe()
     env = tool_env(deck)
@@ -565,6 +566,10 @@ def render_manim8(deck: Path, clip_dir: Path, profile: str = "final", still: str
         else:
             print(f"lecturekit: this manim8 has no `render --style`; {clip_dir.name} renders in the style its "
                   "animation.yaml names", file=sys.stderr)
+    if no_cache:
+        if "--no-cache" not in caps:
+            raise ClipError("this manim8 has no `render --no-cache`; upgrade manim8")
+        cmd.append("--no-cache")
     as_json = "--json" in caps
     if as_json:
         cmd.append("--json")
@@ -798,8 +803,9 @@ def _style_for(root: Path, clip_dir: Path, mode: str, cache: dict) -> str | None
 
 def run_clips(deck: Path, only: list[str] | None = None, size: str | None = None, crop: bool = False,
               mode: str | None = None, stills: list[str] | None = None, revisions: list[str] | None = None,
-              profile: str = "final", sync: bool = True) -> tuple[dict, list[Failure]]:
-    """Render the deck's clips into the preset's folder. Returns the index and the clips that failed."""
+              profile: str = "final", sync: bool = True, no_cache: bool = False) -> tuple[dict, list[Failure]]:
+    """Render the deck's clips into the preset's folder. Returns the index and the clips that failed.
+    `no_cache` makes manim8 render its projects even when its cache holds them (kit scenes always render)."""
     deck = Path(deck)
     m = clip_mode(mode)
     index = load_index(deck, m)
@@ -843,7 +849,7 @@ def run_clips(deck: Path, only: list[str] | None = None, size: str | None = None
                 style = _style_for(manim8_root(deck), clip.path, m, styles)
                 rec = render_manim8(deck, clip.path, profile=profile, still=still_for.get(key),
                                     revision=rev_for.get(key, rev_all), style=style, mode=m, sync=sync,
-                                    crop=crop, size=size)
+                                    crop=crop, size=size, no_cache=no_cache)
         except Exception as exc:  # one clip's failure is reported, and the run goes on
             reason = _last_line(str(exc).splitlines()) or exc.__class__.__name__
             failures.append(Failure(clip.name, clip.producer, reason))
