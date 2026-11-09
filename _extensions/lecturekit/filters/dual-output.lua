@@ -15,8 +15,8 @@
 --     data attributes live, the nmrole frame option in Beamer), the minutes
 --     go to the timing report and the speaker view's pacing clock;
 --   * inserts the per-slide foot of the live deck (short title, n / total);
---   * rewrites .movie Divs into autoplaying clips without browser controls
---     (live), and into the clip's still
+--   * rewrites .movie Divs into clips without browser controls that the
+--     live runtime (reveal/live-head.html) plays, and into the clip's still
 --     (study) when assets/clips/clips.json or still= names one; otherwise it
 --     insists on a .live-only wrapper and a study alternative, as the policy
 --     requires; a dark build reads assets/clips/dark/clips.json first;
@@ -305,10 +305,11 @@ local function movie(el)
   end
   local cls = #classes > 0 and ' class="' .. table.concat(classes, ' ') .. '"' or ''
   local poster = info.still and (' poster="' .. html_escape(info.still) .. '"') or ''
-  -- data-autoplay: Reveal starts the clip when its slide is shown and pauses it on leaving; muted keeps the
-  -- browser's autoplay policy out of the way (the clips are silent). No browser controls: a click or the space
-  -- bar pauses and resumes, R replays (live-head.html).
-  local video = '<video' .. cls .. ' data-autoplay muted preload="auto" playsinline aria-label="'
+  -- data-lk-autoplay: the runtime (live-head.html) starts the clip when its slide or step is shown and stops it
+  -- when it is not; Reveal's own data-autoplay is not used, since it plays every step of a sequence at once.
+  -- muted keeps the browser's autoplay policy out of the way (the clips are silent). No browser controls: a click
+  -- or the space bar pauses and resumes, R replays.
+  local video = '<video' .. cls .. ' data-lk-autoplay muted preload="auto" playsinline aria-label="'
     .. html_escape(label) .. '"' .. poster .. ' src="' .. src .. '"></video>'
   if not el.attributes['lk-boxed'] then
     -- no .live-only wrapper in the source (the clip= form): supply the box that sizes the clip, with its shape

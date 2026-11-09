@@ -132,7 +132,7 @@ def test_features_live_deck(built_features):
     assert 'data-timing="120"' in html                                  # pacing data in seconds
     assert 'data-background-color="#F3F2EE"' in html                    # paper roles
     assert '<div class="nm-foot"' in html                                # the per-slide foot
-    assert "<video" in html and "data-autoplay" in html                  # movie blocks
+    assert "<video" in html and "data-lk-autoplay" in html               # movie blocks, played by the runtime
     assert 'poster="assets/clips/bar_bold.png"' in html                 # the seam supplies the still
     assert 'class="tikz"' in html and "_lecturekit/tikz/" in html        # TikZ as SVG
     assert "Study-only detail" not in html                              # study-only slide dropped

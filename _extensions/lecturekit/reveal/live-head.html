@@ -1,9 +1,36 @@
 <meta name="lecturekit" content="live">
 <script>
-// Presenting: R replays the clip on the current slide from the start (clips also autoplay when their slide appears),
-// or re-runs a flashed image. A slide with data-flash="500" shows its image for 500 ms after a short fixation cross, then
-// blanks it; the title stays. Used for the brief-exposure trials of lecture 2.
+// The live deck's runtime: clips, the presenter's keys, flash slides and the pacing clock.
+//
+// Clips. The filter marks each .movie video data-lk-autoplay rather than Reveal's data-autoplay, which would start
+// every step of a sequence at once. A clip plays only while it is on stage: on the present slide, outside a hidden
+// fragment, and not covered by a later visible step of its .r-stack. A clip that comes on stage starts from its first
+// frame: on entering its slide (forwards, backwards or by a jump), when its fragment is shown, and when the step that
+// covered it is hidden again. A clip that leaves the stage stops. A guard pauses any video that starts playing off
+// stage, and the previews of the speaker view never play one.
+//
+// Keys go through Reveal's keyboard configuration, which Reveal consults before Quarto's bindings and its own
+// defaults; keys pressed in the speaker window reach the same bindings through Reveal's triggerKey, in the preview,
+// which hands clip actions to the main window:
+//   Space    pauses or resumes the clip on stage; with no clip on stage, the next step (Shift+Space: the previous)
+//   R        replays the clip on stage from its start, or re-runs a flash slide (Quarto's Scroll View key is not bound)
+//   P        resets the pacing clock, and does not go to the previous slide
+// A click on a clip pauses or resumes it.
+//
+// Flash slides: a slide with data-flash="500" shows its image for 500 ms after a short fixation cross, then blanks it;
+// the title stays. Used for the brief-exposure trials of lecture 2.
+//
+// Pacing clock, in the speaker view: every slide heading carries data-timing (its planned seconds, from time=); the
+// clock compares the elapsed time with the plan up to the current slide, turns red when more than a minute behind,
+// and resets on P. The deck's budget comes from the title slide's data-budget.
 (function () {
+  var NS = 'lecturekit';
+  function speaker() { return !!(window.Reveal && Reveal.isSpeakerNotes && Reveal.isSpeakerNotes()); }
+  function play(v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+  function restart(v) { try { v.currentTime = 0; } catch (e) { /* not seekable yet */ } play(v); }
+  function toggle(v) { if (v.paused || v.ended) play(v); else v.pause(); }
+
+  // ---------------------------------------------------------------- flash slides
   var timer = null;
   function flash(slide) {
     if (!slide || !slide.hasAttribute('data-flash')) return;
@@ -19,56 +46,128 @@
       timer = setTimeout(function () { img.style.visibility = 'hidden'; timer = null; }, ms);
     }, 600);
   }
-  // Is an element shown? Not inside a hidden fragment, nor inside an r-stack step that a later fragment replaced.
-  function shown(el) {
-    for (var n = el; n && !(n.tagName === 'SECTION'); n = n.parentElement) {
-      var cs = window.getComputedStyle(n);
-      if (cs.visibility === 'hidden' || cs.display === 'none' || parseFloat(cs.opacity) === 0) return false;
-      if (n.classList && n.classList.contains('fragment') && !n.classList.contains('visible')) return false;
-    }
-    return true;
+
+  // ---------------------------------------------------------------- what is on stage
+  function inHiddenFragment(el) {
+    for (var n = el; n && n.tagName !== 'SECTION'; n = n.parentElement)
+      if (n.classList.contains('fragment') && !n.classList.contains('visible')) return true;
+    return false;
   }
-  window.addEventListener('load', function () {
-    if (!window.Reveal) return;
-    Reveal.on('ready', function (e) { flash(e.currentSlide); });
-    Reveal.on('slidechanged', function (e) { flash(e.currentSlide); });
-    // A step of an r-stack that a later fragment replaces stops its clip, so only the visible clip plays.
-    Reveal.on('fragmentshown', function (e) {
-      (e.fragments || [e.fragment]).forEach(function (f) {
-        var stack = f.parentElement; if (!stack || !stack.classList.contains('r-stack')) return;
-        for (var k = stack.firstElementChild; k && k !== f; k = k.nextElementSibling)
-          k.querySelectorAll('video').forEach(function (v) { v.pause(); });
-        f.querySelectorAll('video').forEach(function (v) { v.currentTime = 0; var p = v.play(); if (p && p.catch) p.catch(function () {}); });
-      });
+  // a step of an .r-stack (the stack's child that is el or holds it) is covered once a later step is a visible fragment
+  function covered(el) {
+    for (var n = el; n && n.tagName !== 'SECTION'; n = n.parentElement) {
+      var stack = n.parentElement;
+      if (!stack || !stack.classList.contains('r-stack')) continue;
+      for (var s = n.nextElementSibling; s; s = s.nextElementSibling)
+        if (s.classList.contains('fragment') && s.classList.contains('visible')) return true;
+    }
+    return false;
+  }
+  // shown on the current slide, whichever window this is
+  function visible(v) {
+    var slide = window.Reveal && Reveal.getCurrentSlide();
+    return !!slide && slide.contains(v) && !inHiddenFragment(v) && !covered(v);
+  }
+  // allowed to play: shown, and in the main window (never in a speaker-view preview)
+  function onStage(v) { return !speaker() && visible(v); }
+  function shownClips() {
+    var slide = window.Reveal && Reveal.getCurrentSlide();
+    return slide ? Array.prototype.filter.call(slide.querySelectorAll('video'), visible) : [];
+  }
+  // the clip the keys act on: the last one shown, the topmost step of a sequence
+  function currentClip() { var cs = shownClips(); return cs.length ? cs[cs.length - 1] : null; }
+
+  // Make every clip of the deck agree with the stage: one that has just come on stage starts from its first frame,
+  // one still on stage is left as it is (playing, or paused by the presenter), one off stage stops.
+  function stage() {
+    document.querySelectorAll('.reveal .slides video').forEach(function (v) {
+      var on = onStage(v);
+      if (!on) { if (!v.paused) v.pause(); v.lkOnStage = false; return; }
+      if (!v.lkOnStage && v.hasAttribute('data-lk-autoplay')) restart(v);
+      v.lkOnStage = true;
     });
-  });
-  // Clips carry no browser controls: a click on a clip pauses or resumes it; the space bar does the same for the
-  // visible clip of the current slide (Reveal's own space-to-advance is suppressed while a clip is on the slide).
-  function toggle(v) { if (v.paused) { var p = v.play(); if (p && p.catch) p.catch(function () {}); } else v.pause(); }
+  }
+  // the guard: a video that starts playing off stage is paused at once
+  function guard(e) {
+    var v = e.target;
+    if (v && v.tagName === 'VIDEO' && !onStage(v)) v.pause();
+  }
+  document.addEventListener('play', guard, true);
+  document.addEventListener('playing', guard, true);
+
+  // ---------------------------------------------------------------- between windows
+  // A key pressed in the speaker window reaches the preview's Reveal; clip actions are handed to the main window
+  // (the speaker window's opener), the pacing clock is reset in every window that shows it.
+  function tellMain(action) {
+    var main = null;
+    try { main = window.parent && window.parent !== window ? window.parent.opener : null; } catch (e) { main = null; }
+    if (!main) return false;
+    try { main.postMessage(JSON.stringify({ namespace: NS, action: action }), '*'); return true; } catch (e) { return false; }
+  }
+  var channel = null;
+  try { channel = new BroadcastChannel(NS); } catch (e) { channel = null; }
+  function tellClocks() {
+    var msg = JSON.stringify({ namespace: NS, action: 'clock' });
+    try { if (channel) channel.postMessage(msg); } catch (e) { /* no channel */ }
+    try {   // the speaker window's other preview, also where the channel does not reach (file://)
+      var frames = window.parent && window.parent !== window ? window.parent.frames : null;
+      if (frames) for (var i = 0; i < frames.length; i++) if (frames[i] !== window) frames[i].postMessage(msg, '*');
+    } catch (e) { /* not in a speaker view */ }
+  }
+  function receive(data) {
+    if (typeof data === 'string') { if (data.indexOf(NS) < 0) return; try { data = JSON.parse(data); } catch (e) { return; } }
+    if (!data || data.namespace !== NS) return;
+    if (data.action === 'clock') resetClock();
+    else if (speaker()) return;
+    else if (data.action === 'toggle') { var v = currentClip(); if (v) toggle(v); }
+    else if (data.action === 'replay') replay();
+  }
+  window.addEventListener('message', function (e) { receive(e.data); });
+  if (channel) channel.onmessage = function (e) { receive(e.data); };
+
+  // ---------------------------------------------------------------- the keys
+  function replay() {
+    var v = currentClip();
+    if (v) { restart(v); return true; }
+    var slide = Reveal.getCurrentSlide();
+    if (slide && slide.hasAttribute('data-flash')) { flash(slide); return true; }
+    return false;
+  }
+  function spaceKey(e) {
+    if (!(e && e.shiftKey)) {
+      var v = currentClip();
+      if (v) { if (speaker()) tellMain('toggle'); else toggle(v); return; }
+    }
+    if (Reveal.isOverview()) Reveal.toggleOverview(false);
+    var opts = { skipFragments: !!(e && e.altKey) };
+    if (e && e.shiftKey) Reveal.prev(opts); else Reveal.next(opts);
+  }
+  function replayKey() {
+    if (!speaker()) { replay(); return; }
+    var slide = Reveal.getCurrentSlide();
+    if (currentClip() || (slide && slide.hasAttribute('data-flash'))) tellMain('replay');
+  }
+  function clockKey() { resetClock(); tellClocks(); }
+
+  function bindKeys() {
+    var config = Reveal.getConfig();
+    if (config.keyboard === false) return;
+    var own = config.keyboard && typeof config.keyboard === 'object' ? config.keyboard : {};
+    var keys = {}, ours = { 32: spaceKey, 80: clockKey, 82: replayKey };
+    for (var k in own) keys[k] = own[k];
+    for (var c in ours) if (!(c in keys)) keys[c] = ours[c];
+    // Quarto binds R to Scroll View; the keyboard configuration wins over it, and the help overlay no longer lists it
+    if (keys[82] === replayKey && Reveal.removeKeyBinding) Reveal.removeKeyBinding(82);
+    Reveal.configure({ keyboard: keys });
+  }
+
+  // Clips carry no browser controls: a click on a clip on stage pauses or resumes it.
   document.addEventListener('click', function (e) {
     var v = e.target && e.target.closest ? e.target.closest('video') : null;
-    if (v) { e.preventDefault(); toggle(v); }
+    if (v && visible(v)) { e.preventDefault(); if (speaker()) tellMain('toggle'); else toggle(v); }
   });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === ' ' && !(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName))) {
-      var sl = document.querySelector('.reveal .slides section.present');
-      var cs = sl ? Array.prototype.filter.call(sl.querySelectorAll('video'), shown) : [];
-      if (cs.length) { e.preventDefault(); e.stopImmediatePropagation(); toggle(cs[cs.length - 1]); return; }
-    }
-    if (e.key !== 'r' && e.key !== 'R') return;
-    if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
-    var slide = document.querySelector('.reveal .slides section.present');
-    var vs = slide ? Array.prototype.filter.call(slide.querySelectorAll('video'), shown) : [];
-    var v = vs.length ? vs[vs.length - 1] : null;
-    if (v) { e.preventDefault(); v.currentTime = 0; v.play(); return; }
-    if (slide && slide.hasAttribute('data-flash')) { e.preventDefault(); flash(slide); }
-  }, true);
-})();
 
-// Pacing clock in the speaker view: every slide heading carries data-timing (its planned seconds, from time=);
-// the clock compares the elapsed time with the plan up to the current slide, turns red when more than a minute
-// behind, and resets on P. The deck's budget comes from the title slide's data-budget.
-(function () {
+  // ---------------------------------------------------------------- pacing clock
   var start = null;
   function fmt(min) {
     var sign = min < 0 ? '-' : ''; min = Math.abs(min);
@@ -86,7 +185,7 @@
     return null;
   }
   function tick() {
-    if (!(window.Reveal && Reveal.isSpeakerNotes && Reveal.isSpeakerNotes())) return;
+    if (!speaker()) return;
     var box = document.querySelector('.lk-pacing');
     if (!box) { box = document.createElement('div'); box.className = 'lk-pacing'; document.body.appendChild(box); }
     if (start === null) start = Date.now();
@@ -103,10 +202,24 @@
     if (budget) text += ' | budget ' + fmt(parseFloat(budget));
     box.textContent = text;
   }
+  function resetClock() {
+    start = Date.now();
+    document.documentElement.setAttribute('data-lk-clock-reset', String(start));
+    if (window.Reveal && Reveal.isReady && Reveal.isReady()) tick();
+  }
+
+  // ---------------------------------------------------------------- wiring
+  function ready() {
+    bindKeys();
+    stage(); flash(Reveal.getCurrentSlide()); tick();
+    Reveal.on('slidechanged', function (e) { stage(); flash(e.currentSlide); tick(); });
+    Reveal.on('fragmentshown', stage);
+    Reveal.on('fragmenthidden', stage);
+    setInterval(tick, 1000);
+  }
   window.addEventListener('load', function () {
     if (!window.Reveal) return;
-    Reveal.on('ready', tick); Reveal.on('slidechanged', tick); setInterval(tick, 1000);
-    document.addEventListener('keydown', function (e) { if (e.key === 'p' || e.key === 'P') { start = Date.now(); tick(); } });
+    if (Reveal.isReady && Reveal.isReady()) ready(); else Reveal.on('ready', ready);
   });
 })();
 </script>
