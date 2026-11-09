@@ -60,6 +60,17 @@ def scianim(tmp_path, monkeypatch):
     return SimpleNamespace(bin=bindir, exe=exe, log=log, calls=calls)
 
 
+@pytest.fixture
+def no_manim8(tmp_path, monkeypatch):
+    """No `scianim` anywhere lecturekit looks: not on PATH, and not beside this Python, where a venv that has the
+    manim8 extra keeps it."""
+    empty = tmp_path / "nothing"
+    empty.mkdir(exist_ok=True)
+    monkeypatch.setenv("PATH", str(empty))
+    monkeypatch.setattr(sys, "executable", str(empty / "python"))
+    return empty
+
+
 def make_deck(root: Path, projects=("divisive_normalization",), style=("tomas_scientific", "0.5.1"),
               storyboard: bool = True) -> Path:
     """A deck with the scaffold's presets and a manim8 workspace in clips/ with one family."""
@@ -291,8 +302,7 @@ def test_missing_manim_names_the_clips_extra(monkeypatch, tmp_path):
         clips.render_kit_scene(tmp_path, script, "X")
 
 
-def test_missing_scianim_names_the_manim8_extra(monkeypatch, tmp_path):
-    monkeypatch.setenv("PATH", str(tmp_path))
+def test_missing_scianim_names_the_manim8_extra(no_manim8):
     with pytest.raises(clips.ClipError) as err:
         clips.scianim_exe()
     message = str(err.value)
@@ -525,9 +535,8 @@ def test_bridged_styles_are_valid_manim8_styles(tmp_path, brands):
     assert yaml.safe_load(dark.read_text())["palette"]["background"] == "#000000"
 
 
-def test_styles_go_into_the_workspace_and_are_written_once(tmp_path, monkeypatch):
-    from lecturekit.theme import write_tokens
-    monkeypatch.setenv("PATH", str(tmp_path / "nothing"))                       # no scianim: direct edits
+def test_styles_go_into_the_workspace_and_are_written_once(tmp_path, no_manim8):
+    from lecturekit.theme import write_tokens                                   # no scianim: direct edits
     deck = make_deck(tmp_path)
     write_tokens(deck, manim8_version="0.1.0")
     assert (deck / "clips" / "styles" / "lecturekit_paper" / "0.1.0" / "style.yaml").exists()
@@ -634,8 +643,7 @@ def test_new_with_a_budget(tmp_path):
         assert pattern in ignore, pattern
 
 
-def test_new_manim8_without_manim8_says_how_to_install(tmp_path, monkeypatch, capsys):
-    monkeypatch.setenv("PATH", str(tmp_path / "nothing"))
+def test_new_manim8_without_manim8_says_how_to_install(tmp_path, no_manim8, capsys):
     assert lk(["new", str(tmp_path / "p"), "--manim8"]) == 1
     assert "lecturekit[manim8]" in capsys.readouterr().err
     assert (tmp_path / "p" / "slides.qmd").exists() and not (tmp_path / "p" / "clips").exists()
