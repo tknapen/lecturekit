@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lecturekit"
-version = "0.2.0"
+version = "0.3.0"
 description = "One Markdown source, a live Reveal.js deck and a Beamer study PDF: a Quarto extension, figure and clip kits, and review tools for computed lectures."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -24,7 +24,12 @@ dependencies = [
 figures = ["numpy", "matplotlib", "pillow", "pymupdf>=1.24"]
 review = ["playwright>=1.45", "pymupdf>=1.24", "pillow"]
 clips = ["manim>=0.19,<0.23", "pillow<11.3", "imageio-ffmpeg"]
-manim8 = ["manim8 @ git+https://github.com/tknapen/manim8@main"]
+# manim8 needs Python 3.12; its contracts package is named explicitly so that pip, which ignores uv's workspace
+# sources, resolves it from the same tag. manim8 builds each family's render environment with uv.
+manim8 = [
+  "manim8 @ git+https://github.com/tknapen/manim8@v0.1.0a0 ; python_version >= '3.12'",
+  "manim8-core @ git+https://github.com/tknapen/manim8@v0.1.0a0#subdirectory=packages/scianim_core ; python_version >= '3.12'",
+]
 dev = ["pytest", "pymupdf>=1.24", "playwright>=1.45", "pillow", "imageio-ffmpeg"]
 
 [project.scripts]
@@ -36,7 +41,7 @@ Homepage = "https://github.com/tknapen/lecturekit"
 Issues = "https://github.com/tknapen/lecturekit/issues"
 
 [tool.hatch.metadata]
-allow-direct-references = true   # the manim8 extra points at a git tag until its first PyPI release
+allow-direct-references = true   # the manim8 extra points at manim8's git tag until its first PyPI release
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lecturekit"]

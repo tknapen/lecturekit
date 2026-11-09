@@ -85,7 +85,8 @@ def cmd_docs(a: argparse.Namespace) -> int:
             for p in sorted(c.glob("*.md")):
                 print(f"  {p.name}")
             return 0
-    print("https://github.com/tknapen/lecturekit/tree/main/docs")
+    # a wheel carries no docs: point at the ones of this version's tag
+    print(f"https://github.com/tknapen/lecturekit/tree/v{__version__}/docs")
     return 0
 
 
