@@ -20,6 +20,11 @@
 --     (study) when assets/clips/clips.json or still= names one; otherwise it
 --     insists on a .live-only wrapper and a study alternative, as the policy
 --     requires; a dark build reads assets/clips/dark/clips.json first;
+--   * rewrites a clip in parts (stops= on a clip= movie of a format 2 entry)
+--     into one video, a still per boundary and an empty fragment per key,
+--     which reveal/segments.html follows, each fragment with the notes of
+--     its hold; and into a strip of the holds (study, \lkstrip); checks that
+--     the clip stands alone as its slide's reveal;
 --   * carries print heights (height=42mm, \nmfigureh{4cm}) over to the live
 --     deck as max-height at 8.8 px per mm; composites images on warm-paper
 --     slides with multiply; lays out .row image rows; .small, .incremental;
@@ -172,8 +177,27 @@ local function lookup_clip(name)
   return nil
 end
 
+-- The stop candidates of a format 2 entry (CLIPS.md): the entries of `stops` with an id and a frame, in frame order.
+local function stop_candidates(e)
+  local out = {}
+  for _, c in ipairs(type(e.stops) == 'table' and e.stops or {}) do
+    if type(c) == 'table' and str(c.id) and num(c.frame) then out[#out + 1] = c end
+  end
+  table.sort(out, function(a, b) return a.frame < b.frame end)
+  return out
+end
+
+-- The still of a hold of a format 2 entry, by id: a stop candidate, `start` (the poster, frame 0) or `end`.
+local function hold_still(e, id)
+  if id == 'start' then return str(e.poster) end
+  if id == 'end' then return type(e['end']) == 'table' and str(e['end'].still) or str(e.still) end
+  for _, c in ipairs(stop_candidates(e)) do if c.id == id then return str(c.still) end end
+  return nil
+end
+
 -- src, still and aspect ("W:H") of a .movie Div, from its attributes and clips.json; nil and the reason when the
--- block cannot be resolved. still= is a path, or the id of one of the entry's checkpoints.
+-- block cannot be resolved. still= is a path, or the id of one of the entry's checkpoints (a format 2 entry: of a
+-- stop candidate, or start or end).
 local function resolve_clip(attrs)
   local info = { src = str(attrs.src), still = str(attrs.still), aspect = str(attrs.aspect),
                  name = str(attrs.clip) or str(attrs.src) or '(unnamed)' }
@@ -181,14 +205,21 @@ local function resolve_clip(attrs)
   if clip then
     local e, where = lookup_clip(clip)
     if e then
-      info.index = where
+      info.index, info.entry = where, e
       info.src = info.src or str(e.video) or str(e.mp4)
       local checkpoints = type(e.checkpoints) == 'table' and e.checkpoints or {}
-      if info.still and str(checkpoints[info.still]) then
+      local bare = info.still and info.still:match('^[%a][%w_]*$')
+      if bare and num(e.format) == 2 and hold_still(e, info.still) then
+        info.still = hold_still(e, info.still)
+      elseif info.still and str(checkpoints[info.still]) then
         info.still = str(checkpoints[info.still])
-      elseif info.still and info.still:match('^[%a][%w_]*$') then
+      elseif bare then
         local ids = {}
         for k, v in pairs(checkpoints) do if str(v) then ids[#ids + 1] = k end end
+        if num(e.format) == 2 then
+          for _, c in ipairs(stop_candidates(e)) do ids[#ids + 1] = c.id end
+          ids[#ids + 1] = 'start'; ids[#ids + 1] = 'end'
+        end
         table.sort(ids)
         return nil, 'still="' .. info.still .. '" names no checkpoint of clip "' .. clip .. '" in ' .. where
           .. ' (it has ' .. (#ids > 0 and table.concat(ids, ', ') or 'none') .. ')'
@@ -222,6 +253,360 @@ local function resolve_clip(attrs)
 end
 
 -- --------------------------------------------------------------------------
+-- A clip in parts: stops=, start=, study= and .stop on a clip= movie
+-- --------------------------------------------------------------------------
+-- A format 2 entry lists stop candidates, each a frame of the one video with its still and its measured rest; the
+-- deck chooses among them with stops="id ...". The boundaries of a clip are frame 0, the chosen stops and its last
+-- frame. Live, the clip plays one part per key press and holds exactly on the boundary that ends it: the filter
+-- emits the video without Reveal's autoplay, one still per boundary and one empty fragment (a cue) per key, and the
+-- runtime (reveal/segments.html) makes the video agree with the number of visible cues. With start=auto part 1
+-- plays when the slide appears; with start=key the slide opens on frame 0 and the first key starts part 1. The study
+-- PDF prints the holds as a strip (\lkstrip), the end alone (study=final) or the holds named in study=.
+local MAX_STOPS, MIN_REST, MAX_PANELS = 5, 3, 6
+
+local function words(s)
+  local out = {}
+  for w in tostring(s or ''):gmatch('%S+') do out[#out + 1] = w end
+  return out
+end
+local function segmented(el) return el.t == 'Div' and has(el, 'movie') and el.attributes.stops ~= nil end
+local function json_num(x) return (string.format('%.6f', x):gsub('0+$', ''):gsub('%.$', '')) end
+local function secs(x) return string.format('%.1f', x) end
+local function latex_text(s) return to_latex(pandoc.Inlines(tostring(s))) end
+
+-- Speaker notes of the slides that hold a clip in parts, taken out of the slide by the slide pass: the runtime shows
+-- each cue's notes, which replace the slide's, so every cue carries a copy.
+local seg_slide_notes = {}
+local auto_play_media = false
+local deck_incremental = false
+
+-- The plan of a clip in parts: its boundaries, the notes of each hold and the panels of its study page. Every check
+-- that concerns the movie alone fails here; the slide-level ones are in the slide pass below.
+local function seg_plan(el, info, where)
+  local attrs, name = el.attributes, str(el.attributes.clip) or '?'
+  if str(attrs.src) then fail('stops= needs the clip= form, not src=' .. where) end
+  if auto_play_media then
+    fail('stops= needs Reveal to leave the clip alone, and auto-play-media: true starts every clip on entry' .. where)
+  end
+  local e = info.entry
+  if not e or num(e.format) ~= 2 then
+    fail('stops= needs a clips.json entry of format 2, with frames and stop candidates (run lk clips again, or lk '
+      .. 'clips adopt for an external file)' .. where)
+  end
+  local fps = num(e.fps)
+  if not fps or fps <= 0 then fail('The clips.json entry has no fps' .. where) end
+  local start = attrs.start or 'auto'
+  if start ~= 'auto' and start ~= 'key' then fail('start= is auto or key, not ' .. start .. where) end
+  local cands, by_id = stop_candidates(e), {}
+  for _, c in ipairs(cands) do by_id[c.id] = c end
+  local function known()
+    local ids = {}
+    for _, c in ipairs(cands) do ids[#ids + 1] = c.id end
+    return #ids > 0 and table.concat(ids, ', ') or 'none'
+  end
+  local ids = words(attrs.stops)
+  if attrs.stops == 'all' then ids = {}; for _, c in ipairs(cands) do ids[#ids + 1] = c.id end end
+  if #ids == 0 then fail('stops= names no stop (the clip has ' .. known() .. ')' .. where) end
+  if #ids > MAX_STOPS then
+    fail('stops= names ' .. #ids .. ' stops; a clip holds at ' .. MAX_STOPS .. ' at most (split the clip, or choose)' .. where)
+  end
+  local en = type(e['end']) == 'table' and e['end'] or {}
+  local end_frame = num(en.frame) or (num(e.frames) and num(e.frames) - 1)
+  if not end_frame then fail('The clips.json entry has no end frame' .. where) end
+  local poster = str(e.poster)
+  if not poster then fail('The clips.json entry has no poster (frame 0)' .. where) end
+  local bounds = { { f = 0, t = 0, still = poster, ref = 'start', label = 'start' } }
+  local last = 0
+  for _, id in ipairs(ids) do
+    local c = by_id[id]
+    if not c then fail('stops= names "' .. id .. '", which is not a stop of clip "' .. name .. '" (it has ' .. known() .. ')' .. where) end
+    if c.frame <= last then fail('stops= names "' .. id .. '" out of order: name the stops in time order' .. where) end
+    if c.frame >= end_frame then fail('The stop "' .. id .. '" is on the last frame' .. where) end
+    local rest = num(c.rest_before)
+    if not rest or rest < MIN_REST then
+      fail('The stop "' .. id .. '" has ' .. (rest and (string.format('%d', math.floor(rest)) .. ' frame(s)') or 'no measured rest') .. ' of unchanged picture before it; '
+        .. 'a stop needs ' .. MIN_REST .. ', because the player pauses up to two frames early' .. where)
+    end
+    if not str(c.still) then fail('The stop "' .. id .. '" has no still' .. where) end
+    last = c.frame
+    bounds[#bounds + 1] = { f = c.frame, t = num(c.pts) or c.frame / fps, still = str(c.still), ref = id,
+                            label = str(c.label) or (id:gsub('_', ' ')), notes = str(c.notes) }
+  end
+  local end_still = str(en.still) or str(e.still)
+  if not end_still then fail('The clips.json entry has no still of its last frame' .. where) end
+  bounds[#bounds + 1] = { f = end_frame, t = num(en.pts) or end_frame / fps, still = end_still, ref = 'end',
+                          label = str(en.label) or 'end', notes = str(en.notes) }
+  for _, b in ipairs(bounds) do
+    if not file_exists(input_dir .. '/' .. b.still) then fail('The still ' .. b.still .. ' does not exist' .. where .. ': run lk clips') end
+  end
+  -- the .stop blocks: the speaker notes of a hold; the rest of the body is the caption
+  local holds = { ['end'] = true }
+  for i = 2, #bounds - 1 do holds[bounds[i].ref] = true end
+  if start == 'key' then holds.start = true end
+  local stop_notes, caption, prompts = {}, pandoc.List(), 0
+  for _, b in ipairs(el.content) do
+    if b.t == 'Div' and has(b, 'stop') then
+      local ref = str(b.attributes.ref)
+      if not ref or not holds[ref] then
+        local names = {}
+        for i = 2, #bounds - 1 do names[#names + 1] = bounds[i].ref end
+        names[#names + 1] = 'end'
+        if start == 'key' then table.insert(names, 1, 'start') end
+        fail('.stop ref="' .. tostring(ref) .. '" names no hold of this clip (its holds: ' .. table.concat(names, ', ')
+          .. (ref == 'start' and '; with start=auto part 1 plays on entry, so frame 0 is not a hold' or '') .. ')' .. where)
+      end
+      if stop_notes[ref] then fail('Two .stop blocks for the hold "' .. ref .. '"' .. where) end
+      stop_notes[ref] = b.content
+      if stringify(b.content):find('Ask:', 1, true) then prompts = prompts + 1 end
+    else
+      caption:insert(b)
+    end
+  end
+  -- the study page: the holds after each part, the end alone, or the holds study= names
+  local study = attrs.study or 'strip'
+  local panels = {}
+  if study == 'strip' then
+    for i = 2, #bounds do panels[#panels + 1] = bounds[i] end
+  elseif study == 'final' then
+    panels[1] = bounds[#bounds]
+  else
+    local at = {}
+    for _, id in ipairs(words(study)) do
+      local p
+      if id == 'start' then p = bounds[1] elseif id == 'end' then p = bounds[#bounds]
+      elseif by_id[id] then
+        local c = by_id[id]
+        p = { f = c.frame, still = str(c.still), label = str(c.label) or (id:gsub('_', ' ')) }
+        if not p.still or not file_exists(input_dir .. '/' .. p.still) then fail('The stop "' .. id .. '" has no still' .. where) end
+      else
+        fail('study= is strip, final or a list of holds (start, end, ' .. known() .. '), and "' .. id .. '" is none of them' .. where)
+      end
+      if not at[p.f] then at[p.f] = true; panels[#panels + 1] = p end
+    end
+    table.sort(panels, function(a, b) return a.f < b.f end)
+  end
+  if #panels > MAX_PANELS then
+    fail('study= prints ' .. #panels .. ' panels; a strip holds ' .. MAX_PANELS .. ' at most: name fewer holds in study=' .. where)
+  end
+  local parts = {}
+  for i = 2, #bounds do parts[#parts + 1] = (bounds[i].f - bounds[i - 1].f) / fps end
+  local sha = str(e.sha256) or ''
+  return { name = name, fps = fps, key = start == 'key', start = start, bounds = bounds, stop_notes = stop_notes,
+           caption = caption, panels = panels, parts = parts, prompts = prompts,
+           seconds = num(e.duration) or (end_frame + 1) / fps, ver = sha:gsub('^sha256:', ''):sub(1, 8) }
+end
+
+-- The notes of state k (k cues visible): the .stop text of the hold it ends on ("Ask:" first, POLICY.md), the part
+-- that plays, what the producer says is on screen, then the slide's own notes.
+local function hold_notes(plan, k, slide_notes)
+  local b = plan.key and k or k + 1
+  local bound, nparts = plan.bounds[b + 1], #plan.bounds - 1
+  local out = pandoc.List()
+  if plan.stop_notes[bound.ref] then
+    out:insert(pandoc.Div(plan.stop_notes[bound.ref]:clone(),
+      pandoc.Attr('', { 'lk-stop-notes' }, { ['data-lk-ref'] = bound.ref })))
+  end
+  local head
+  if b == 0 then
+    head = string.format('Frame 0: part 1 of %d (%s seconds) plays on the next key.', nparts, secs(plan.parts[1]))
+  else
+    head = string.format('Part %d of %d, %s seconds: holds on %s.', b, nparts, secs(plan.parts[b]),
+      bound.ref == 'end' and (bound.label == 'end' and 'the last frame' or bound.label) or bound.label)
+  end
+  out:insert(pandoc.Para(pandoc.Inlines(head)))
+  if bound.notes then out:insert(pandoc.Para(pandoc.Inlines('On screen: ' .. bound.notes))) end
+  for _, n in ipairs(slide_notes or {}) do out:insert(n:clone()) end
+  return pandoc.Div(out, pandoc.Attr('', { 'notes' }))
+end
+
+local function seg_live(el, info, plan, where)
+  local name = html_escape(plan.name)
+  local paper = (paper_roles[current_role] or has(el, 'paper')) and not has(el, 'keepwhite')
+  local v = plan.ver ~= '' and ('?v=' .. plan.ver) or ''
+  local js, imgs = {}, {}
+  for i, b in ipairs(plan.bounds) do
+    local bi = i - 1
+    js[#js + 1] = string.format('{"f":%d,"t":%s,"r":"%s"}', b.f, json_num(b.t), b.ref)
+    local s = plan.key and bi or bi - 1                 -- the state that holds on this boundary
+    imgs[#imgs + 1] = '<img class="lk-still' .. (paper and ' paper' or '') .. '" data-lk-b="' .. bi .. '"'
+      .. (s >= 0 and (' data-lk-s="' .. s .. '"') or '') .. ' data-src="' .. html_escape(b.still .. v) .. '" alt="">'
+  end
+  local w, h = (info.aspect or ''):match('^(%d+):(%d+)$')
+  local style = ''
+  if w and math.abs(tonumber(w) / tonumber(h) - 16 / 9) > 0.01 then style = ' style="aspect-ratio:' .. w .. '/' .. h .. '"' end
+  local src = info.src
+  if not src or not src:match('^[%w%._/%-]+$') then fail('Use a relative movie path without spaces: ' .. tostring(src) .. where) end
+  -- data-lk-src, not src: only the main window loads the clip (the speaker view's previews show the stills)
+  local html = '<div class="live-only lk-seg" data-lk-seg="' .. name .. '" data-lk-fps="' .. json_num(plan.fps)
+    .. '" data-lk-start="' .. plan.start .. '" data-lk-v="' .. html_escape(plan.ver) .. "\" data-lk-bounds='"
+    .. '[' .. table.concat(js, ',') .. "]'" .. style .. '>'
+    .. '<video' .. (paper and ' class="paper"' or '') .. ' muted playsinline preload="none" disablepictureinpicture aria-label="'
+    .. html_escape(el.attributes.label or 'Animation') .. '" data-lk-src="' .. src .. '" poster="'
+    .. html_escape(plan.bounds[1].still .. v) .. '"></video>' .. table.concat(imgs) .. '</div>'
+  local out = pandoc.List({ pandoc.RawBlock('html', html) })
+  if #plan.caption > 0 then out:insert(pandoc.Div(plan.caption, pandoc.Attr('', { 'movie-caption' }))) end
+  local slide_notes = seg_slide_notes[el.attributes['lk-seg-slide'] or ''] or {}
+  out:insert(hold_notes(plan, 0, slide_notes))
+  local ncues = #plan.bounds - (plan.key and 1 or 2)
+  for k = 1, ncues do
+    out:insert(pandoc.Div({ hold_notes(plan, k, slide_notes) }, pandoc.Attr('', { 'fragment', 'lk-cue' },
+      { ['data-lk-for'] = plan.name, ['data-lk-k'] = tostring(k) })))
+  end
+  return out
+end
+
+-- \lkstrip{height}{columns}{rows}{panels}: 2 or 3 panels in one row, 4 in two rows of 2, 5 and 6 in two rows of 3;
+-- the whole strip within the height (lecturekit.tex)
+local function strip_latex(panels, height)
+  if #panels == 1 then return string.format('\\lkimageh{%s}{%s}', height or '4cm', panels[1].still) end
+  local n = #panels
+  local cols = n <= 3 and n or (n == 4 and 2 or 3)
+  local cells = {}
+  for i, p in ipairs(panels) do
+    cells[#cells + 1] = string.format('\\lkpanel{%s}{%d}{%s}', p.still, i, latex_text(p.label))
+    if i < n then cells[#cells + 1] = (i % cols == 0) and '\\lkstriprow' or '\\lkstripgap' end
+  end
+  return string.format('\\lkstrip{%s}{%d}{%d}{%%\n%s}', height or '4.8cm', cols, math.ceil(n / cols), table.concat(cells, '%\n'))
+end
+
+local function seg_movie(el, info, where)
+  local plan = seg_plan(el, info, where)
+  local t = timing[#timing]
+  if t then
+    t.clips = t.clips or {}
+    t.clips[#t.clips + 1] = plan
+  end
+  if study then
+    local out = pandoc.List({ pandoc.RawBlock('latex', strip_latex(plan.panels, el.attributes.height)) })
+    out:extend(plan.caption)
+    return out, false
+  end
+  return seg_live(el, info, plan, where), false
+end
+
+-- A movie without stops=: no .stop block, no start=; study= is final, or names holds of a format 2 entry.
+local function unsegmented_checks(el, info, where)
+  for _, b in ipairs(el.content) do
+    if b.t == 'Div' and has(b, 'stop') then fail('A .stop block needs stops= on its movie' .. where) end
+  end
+  if el.attributes.start then fail('start= needs stops= (a clip in parts)' .. where) end
+  local study_attr = el.attributes.study
+  if not study_attr or study_attr == 'final' then return nil end
+  if study_attr == 'strip' then fail('study=strip needs stops=; name the holds instead, study="id ..."' .. where) end
+  local e = info.entry
+  if not e or num(e.format) ~= 2 then fail('study="' .. study_attr .. '" needs a clips.json entry of format 2' .. where) end
+  local panels, at = {}, {}
+  for _, id in ipairs(words(study_attr)) do
+    local still = hold_still(e, id)
+    if not still or not file_exists(input_dir .. '/' .. still) then
+      fail('study= names "' .. id .. '", which is no hold of the clip with a still (start, end or a stop candidate)' .. where)
+    end
+    local f = 0
+    if id == 'end' then f = math.huge
+    elseif id ~= 'start' then for _, c in ipairs(stop_candidates(e)) do if c.id == id then f = c.frame end end end
+    local label = id == 'start' and 'start' or id == 'end' and (type(e['end']) == 'table' and str(e['end'].label) or 'end')
+    if not label then
+      for _, c in ipairs(stop_candidates(e)) do if c.id == id then label = str(c.label) or (id:gsub('_', ' ')) end end
+    end
+    if not at[f] then at[f] = true; panels[#panels + 1] = { f = f, still = still, label = label } end
+  end
+  table.sort(panels, function(a, b) return a.f < b.f end)
+  if #panels > MAX_PANELS then
+    fail('study= prints ' .. #panels .. ' panels; a strip holds ' .. MAX_PANELS .. ' at most: name fewer holds in study=' .. where)
+  end
+  return panels
+end
+
+-- The slide pass, before the element pass: a clip in parts stands alone as the slide's reveal. It fails on two of
+-- them on one slide, one inside a .fragment or an .r-stack, and any other fragment on the slide (a .fragment, an
+-- .incremental list, a fragment span, a `. . .` pause). It takes the slide's speaker notes out of the slide, for the
+-- movie to compose each hold's notes from (hold_notes).
+local function scan_slide(blocks, ctx, found)
+  for _, b in ipairs(blocks) do
+    if b.t == 'Div' then
+      if not has(b, 'study-only') then
+        if segmented(b) then
+          found.movies[#found.movies + 1] = { el = b, fragment = ctx.fragment, stack = ctx.stack }
+        elseif not has(b, 'notes') then
+          if has(b, 'fragment') then found.frags = found.frags + 1 end
+          if has(b, 'incremental') then found.frags = found.frags + 1 end
+          scan_slide(b.content, { fragment = ctx.fragment or has(b, 'fragment'), stack = ctx.stack or has(b, 'r-stack'),
+                                  nonincremental = ctx.nonincremental or has(b, 'nonincremental') }, found)
+        end
+      end
+    elseif b.t == 'BulletList' or b.t == 'OrderedList' then
+      if deck_incremental and not ctx.nonincremental then found.frags = found.frags + 1 end
+      for _, item in ipairs(b.content) do scan_slide(item, ctx, found) end
+    elseif b.t == 'BlockQuote' then
+      scan_slide(b.content, ctx, found)
+    else
+      if (b.t == 'Para' or b.t == 'Plain') and stringify(b) == '. . .' then found.frags = found.frags + 1 end
+      pcall(function() b:walk({ Span = function(s) if has(s, 'fragment') then found.frags = found.frags + 1 end end }) end)
+    end
+  end
+end
+
+-- the slide's notes Divs, outside study-only blocks and the movie, taken out of the block list into `into`; the
+-- movie is tagged with the key of its slide's notes
+local function take_notes(blocks, into, tag)
+  local kept = pandoc.List()
+  for _, b in ipairs(blocks) do
+    if b.t == 'Div' and has(b, 'notes') then
+      into:extend(b.content)
+    else
+      if segmented(b) then
+        b.attributes['lk-seg-slide'] = tag
+      elseif b.t == 'Div' and not has(b, 'study-only') then
+        b.content = take_notes(b.content, into, tag)
+      end
+      kept:insert(b)
+    end
+  end
+  return kept
+end
+
+local function segment_slides(doc)
+  local slides, cur = {}, { blocks = pandoc.List(), title = '(title slide)' }
+  slides[1] = cur
+  for _, b in ipairs(doc.blocks) do
+    if (b.t == 'Header' and b.level <= 2) or b.t == 'HorizontalRule' then
+      cur = { blocks = pandoc.List(), head = b, title = b.t == 'Header' and stringify(b.content) or cur.title }
+      slides[#slides + 1] = cur
+    else
+      cur.blocks:insert(b)
+    end
+  end
+  local any = false
+  for i, s in ipairs(slides) do
+    local found = { movies = {}, frags = 0 }
+    scan_slide(s.blocks, {}, found)
+    if #found.movies > 0 then
+      any = true
+      local m = found.movies[1]
+      local where = ' (movie "' .. (str(m.el.attributes.clip) or str(m.el.attributes.src) or '?') .. '" on slide "' .. s.title .. '")'
+      if #found.movies > 1 then fail('Two clips in parts on one slide ("' .. s.title .. '"): a clip in parts stands alone on its slide') end
+      if m.fragment then fail('A clip in parts inside a .fragment' .. where .. ': its parts are the steps; take the .fragment away') end
+      if m.stack then fail('A clip in parts inside an .r-stack' .. where .. ': a clip in parts is one clip, not a step of a sequence') end
+      if found.frags > 0 then
+        fail('A clip in parts and another reveal on one slide' .. where .. ': its parts are the slide\'s only steps '
+          .. '(take the .fragment, .incremental list or pause away, or move it to its own slide)')
+      end
+      local notes = pandoc.List()
+      s.blocks = take_notes(s.blocks, notes, tostring(i))
+      seg_slide_notes[tostring(i)] = notes
+    end
+  end
+  if not any then return nil end
+  local out = pandoc.List()
+  for _, s in ipairs(slides) do
+    if s.head then out:insert(s.head) end
+    out:extend(s.blocks)
+  end
+  doc.blocks = out
+  return doc
+end
+
+-- --------------------------------------------------------------------------
 -- Pass 1: metadata, then the slide-level exclusion of whole slides
 -- --------------------------------------------------------------------------
 local function Meta(m)
@@ -229,6 +614,9 @@ local function Meta(m)
   if short then short_title = stringify(short) end
   if m.budget then budget_min = tonumber(stringify(m.budget)) end
   if m['citation-size'] then cite_small = stringify(m['citation-size']) == 'small' end
+  local function truthy(v) return v == true or (v ~= nil and type(v) ~= 'boolean' and stringify(v) == 'true') end
+  auto_play_media = truthy(m['auto-play-media'])
+  deck_incremental = truthy(m.incremental)
   local eb = m.eyebrow or m.series
   if live then
     local attrs = m['title-slide-attributes'] or pandoc.MetaMap({})
@@ -297,7 +685,14 @@ local function movie(el)
     warn('the dark preset plays ' .. info.src .. ', a clip drawn for the paper preset' .. where
       .. ': render a dark one with lk clips --mode dark (it goes to assets/clips/dark/)')
   end
+  if segmented(el) then return seg_movie(el, info, where) end
+  local panels = unsegmented_checks(el, info, where)
   local label = el.attributes.label or 'Animation'
+  if study and panels then
+    local out = pandoc.List({ pandoc.RawBlock('latex', strip_latex(panels, el.attributes.height)) })
+    out:extend(el.content)
+    return out, false
+  end
   if study then
     local h = el.attributes.height or '4cm'
     if info.still then
@@ -476,6 +871,20 @@ local function timing_report(doc)
   for _, t in ipairs(timing) do
     if t[2] then planned = planned + t[2] else untimed = untimed + 1 end
     lines[#lines + 1] = string.format('%5s %6g  %-12s %s', t[2] and string.format('%g', t[2]) or '-', planned, t[3], t[1])
+    -- a clip in parts: its parts and prompts; the clip's seconds plus a minute per prompt (POLICY.md) against time=
+    for _, c in ipairs(t.clips or {}) do
+      local durations = {}
+      for _, d in ipairs(c.parts) do durations[#durations + 1] = secs(d) end
+      local need = c.seconds + 60 * c.prompts
+      local over = t[2] and need > t[2] * 60
+      lines[#lines + 1] = string.format('%5s %6s  %-12s clip %s: %s s, %d parts (%s s), %d prompt%s%s', '', '', '', c.name,
+        secs(c.seconds), #c.parts, table.concat(durations, ' '), c.prompts, c.prompts == 1 and '' or 's', over and '  CLIP>TIME' or '')
+      if over then
+        warn(string.format('CLIP>TIME slide "%s": clip %s runs %s s and its %d prompt%s take a minute each, %s s in all, '
+          .. 'over time=%g (%s s): give the slide more time or the clip fewer stops', t[1], c.name, secs(c.seconds), c.prompts,
+          c.prompts == 1 and '' or 's', secs(need), t[2], secs(t[2] * 60)))
+      end
+    end
   end
   lines[#lines + 1] = string.format('slides %d  planned %g min  untimed %d%s', #timing, planned, untimed,
     budget_min and string.format('  budget %g min  %s', budget_min, planned > budget_min and 'OVER' or 'ok') or '')
@@ -497,6 +906,7 @@ end
 return {
   { Meta = Meta },
   { Pandoc = prune },
+  { Pandoc = segment_slides },
   { traverse = 'topdown', Image = Image, Div = Div, Span = Span, Cite = Cite, Header = Header },
   { Pandoc = timing_report },
 }

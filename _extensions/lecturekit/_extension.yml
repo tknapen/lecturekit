@@ -44,7 +44,9 @@ contributes:
       html-math-method: mathml
       template-partials:
         - reveal/title-slide.html
-      include-in-header: reveal/live-head.html
+      include-in-header:
+        - reveal/live-head.html     # clips, keys, flash slides, the pacing clock
+        - reveal/segments.html      # a clip in parts, held at its stops (stops= on a .movie)
     beamer:
       pdf-engine: xelatex
       aspectratio: 169

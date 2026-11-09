@@ -183,6 +183,41 @@
   \nmFitBox{#1}%
   \begin{center}\usebox{\nmFigBox}\end{center}%
   \endgroup}
+% \lkstrip{4.8cm}{3}{1}{\lkpanel{a.png}{1}{label}\lkstripgap\lkpanel{...}...}: the holds of a clip in parts, side by
+% side, each numbered and labelled in small muted type; the filter writes it for study=strip. Arguments: the height
+% of the whole strip, labels included; the columns; the rows (\lkstriprow between them). Each still is fitted into
+% its cell, a column of the text width less 3 mm gaps, by the rule of \lkimageh: never upscaled. A row is its stills
+% and their labels, exactly: the image, 0.8 mm, a label line (a strut of the label type), then 1 mm to the next row.
+\newlength{\lkStripCellW}\newlength{\lkStripCellH}\newlength{\lkStripLabelH}
+\newlength{\lkStripGap}\setlength{\lkStripGap}{3mm}
+\newlength{\lkStripRowGap}\setlength{\lkStripRowGap}{1mm}
+\newlength{\lkStripLabelGap}\setlength{\lkStripLabelGap}{0.8mm}
+\newsavebox{\lkStripLabelBox}
+\newcommand{\lkStripLabelFont}{\sffamily\scriptsize\color{nmMuted}}
+\newcommand{\lkstrip}[4]{%
+  \begingroup\setlength{\parskip}{0pt}%
+  \sbox{\lkStripLabelBox}{\lkStripLabelFont\strut}%
+  \setlength{\lkStripLabelH}{\dimexpr\ht\lkStripLabelBox+\dp\lkStripLabelBox+\lkStripLabelGap\relax}%
+  % a point less than the line, so that rounding never pushes the last cell of a row onto the next line
+  \setlength{\lkStripCellW}{\dimexpr(\linewidth-1pt-\lkStripGap*(#2-1))/#2\relax}%
+  \setlength{\lkStripCellH}{\dimexpr(#1-\lkStripLabelH*#3-\lkStripRowGap*(#3-1))/#3\relax}%
+  \begin{center}#4\end{center}%
+  \endgroup}
+\newcommand{\lkpanel}[3]{%
+  \begingroup
+  \begin{lrbox}{\nmFigBox}\includegraphics{#1}\end{lrbox}%
+  \ifdim\wd\nmFigBox>\lkStripCellW\setbox\nmFigBox=\hbox{\resizebox{\lkStripCellW}{!}{\usebox{\nmFigBox}}}\fi
+  \@tempdimc=\ht\nmFigBox \advance\@tempdimc by \dp\nmFigBox
+  \ifdim\@tempdimc>\lkStripCellH\setbox\nmFigBox=\hbox{\resizebox{!}{\lkStripCellH}{\usebox{\nmFigBox}}}\fi
+  \sbox{\lkStripLabelBox}{\lkStripLabelFont #2\enspace #3}%
+  \ifdim\wd\lkStripLabelBox>\wd\nmFigBox
+    \sbox{\lkStripLabelBox}{\resizebox{\wd\nmFigBox}{!}{\usebox{\lkStripLabelBox}}}\fi
+  \leavevmode\vtop{\offinterlineskip
+    \hbox{\usebox{\nmFigBox}}\vskip\lkStripLabelGap
+    \hbox to \wd\nmFigBox{\hss{\lkStripLabelFont\strut}\usebox{\lkStripLabelBox}\hss}}%
+  \endgroup}
+\newcommand{\lkstripgap}{\hspace{\lkStripGap}}
+\newcommand{\lkstriprow}{\par\nointerlineskip\vspace{\lkStripRowGap}}
 \makeatother
 % a labelled placeholder, so that a deck with a missing figure still builds
 \newcommand{\lkplaceholder}[2]{%

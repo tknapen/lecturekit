@@ -113,6 +113,16 @@ Teaching-role tokens apply to slide headings, labels and coloured spans. Mark to
 
 Project tokens, the model colours of the worked example among them (`gauss`, `DoG`, `CSS`, `DN`, `future`), are the project's own and keep one meaning across a project's decks; they travel through the same brand file as the engine's tokens and are checked by the same tool. Check: `lk review contrast <_brand.yml> [--mode dark]` for legibility on every surface; the meaning is reviewed by eye.
 
+## Clips in stages
+
+Added 9 November 2026, with the clip in parts (AUTHORING.md).
+
+- A clip in stages is a reveal. One clip plays in parts, each on the presenter's key, and holds on the frame where the part ends; that earns its place only where the order is the explanation, as for any reveal above. Stops are chosen on the slide (`stops=`), never applied because a clip has them, and five is the most a clip takes.
+- It is the slide's only reveal: no other fragment on its slide, and it is never itself a step of a `.fragment` or an `.r-stack`. The build stops otherwise.
+- A key pressed while a part plays lets it play on to the next stop rather than cut to it: the room sees every frame of the mechanism. Part 1 plays when the slide appears; `start=key` holds frame 0 first, for a prediction before anything moves.
+- Each hold before the last is a prompt. Its notes start with "Ask:" (Engagement above), and a prompt costs about a minute, so the slide's `time=` covers the clip's seconds and a minute per prompt; the build warns CLIP>TIME when it does not, and `lk review frags` names a hold without an "Ask:".
+- The strip is the static stages. The study PDF prints the hold after each part, numbered and labelled, as the static equivalent of the clip (Media above); `study=final` keeps the last frame alone where the stages add nothing on the page, and `study=` can name the holds that do.
+
 ## In one table
 
 | Rule | Check |
@@ -123,5 +133,6 @@ Project tokens, the model colours of the worked example among them (`gauss`, `Do
 | A visual on every slide, as large as the slide allows | `lk review shoot --sheet`; `lk review measure`; `lk review figs` |
 | Bullets of one line; no paragraph slides | `lk review measure`; `lk review overflow` |
 | Every clip has a static equivalent | the build stops without one; `lk clips` writes the still |
+| A clip in stages is the slide's only reveal; a prompt at each hold; the strip is its static stages | the build stops; CLIP>TIME; `lk review frags` |
 | Colour means something; colours legible on the surfaces | `lk review contrast`; review by eye |
 | Verified claims only; every image with its origin | `FACTS.md` and `MANIFEST.md`, signed off by the lecturer (WORKFLOW.md) |
