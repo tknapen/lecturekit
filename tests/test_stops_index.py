@@ -179,6 +179,21 @@ def test_rests_are_frames_of_unchanged_picture(tmp_path):
     assert clips.rests(lumas, size, 20) == (0, 0)
 
 
+def test_a_keyframe_in_a_rest_is_the_same_picture():
+    # H.264 codes a keyframe in a still rest afresh: at 160 px wide it differs from the frames before it by up to
+    # 5 grey levels on a few pixels (manim8's tuning_sweep), which is no change of picture; 9 levels is the tail of
+    # an eased motion, which is
+    size = (16, 9)
+    base = bytes([128] * (16 * 9))
+    noise = bytearray(base)
+    noise[3] += 5
+    noise[40] -= 4
+    motion = bytearray(base)
+    motion[70] += 9
+    assert clips.same_picture(base, bytes(noise), size)
+    assert not clips.same_picture(base, bytes(motion), size)
+
+
 # ---------------------------------------------------------------- adopt
 def test_adopt_writes_stills_that_are_the_frames_they_name(tmp_path, capsys):
     deck = make_deck(tmp_path)

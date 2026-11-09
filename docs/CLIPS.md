@@ -93,7 +93,7 @@ A clip is a short animation that plays in the live deck and prints as a still in
 | `stops[].label` | plain text of 1 to 40 characters for the study strip and the speaker; the id with spaces by default |
 | `stops[].notes` | what the producer says the frame shows (manim8: the snapshot's description); left out when there is none |
 | `stops[].still` | that exact frame as a PNG, `<name>.fNNNN.png`, extracted by its number (`select=eq(n,K)`) from the delivered video |
-| `stops[].rest_before`, `rest_after` | frames of unchanged picture just before and just after the stop: no grey level differs by more than 2 of 255 with the video scaled to 160 pixels wide. They are measured on the producer's frames, before a crop or a scale re-encodes them |
+| `stops[].rest_before`, `rest_after` | frames of unchanged picture just before and just after the stop: no grey level differs by more than 6 of 255 with the video scaled to 160 pixels wide (a keyframe in a still rest is coded afresh and differs by up to 5). They are measured on the producer's frames, before a crop or a scale re-encodes them |
 | `stops[].frozen` | manim8 only: the ids of the camera orbits that keep turning through the stop; empty elsewhere |
 | `end` | the last frame: its `frame`, `pts` and `still` |
 | `source` | where the clip comes from, relative to the deck: the scene file and class, the manim8 project's folder, or the adopted file (its name alone when it lies outside the deck) |

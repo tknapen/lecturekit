@@ -349,8 +349,10 @@ def frame_table(video: Path) -> FrameTable:
 
 
 #: two pictures are one when no luma value differs by more than this (of 255) with the video scaled to
-#: REST_WIDTH pixels wide; the rests before and after a stop are counted in such frames
-REST_TOLERANCE = 2
+#: REST_WIDTH pixels wide; the rests before and after a stop are counted in such frames. H.264 codes a keyframe
+#: in a still rest afresh, and at that size it differs from the frames before it by up to 5 levels (manim8's
+#: tuning_sweep at 1280 by 720, every stop a keyframe), while the tail of an eased motion differs by 9 or more
+REST_TOLERANCE = 6
 REST_WIDTH = 160
 
 
