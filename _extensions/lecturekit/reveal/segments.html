@@ -1,8 +1,8 @@
 <style>
 /* A clip in parts (dual-output.lua, stops=): the video and one still per boundary share one box. The runtime below
-   shows a still over every seek (data-lk-show) and the video while it plays or holds (.lk-driving); without the
-   runtime (the speaker view's previews, print, a clip that failed) the still of the current state shows, chosen by the
-   visible cues. The forced rules are as specific as the state rules. */
+   shows a still over every seek and at every hold (data-lk-show), and the video while it plays (.lk-driving); without
+   the runtime (the speaker view's previews, print, a clip that failed) the still of the current state shows, chosen by
+   the visible cues. The forced rules are as specific as the state rules. */
 .reveal .slides section .lk-seg{position:relative}
 .reveal .slides section .lk-seg > video{max-width:none;max-height:none}
 .reveal .slides section .lk-seg > img.lk-still{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;object-fit:contain;opacity:0;pointer-events:none}
@@ -79,6 +79,10 @@
   function showStill(st, b) { st.box.classList.remove('lk-driving'); st.box.setAttribute('data-lk-show', String(b)); }
   function staticStill(st) { st.box.classList.remove('lk-driving'); st.box.removeAttribute('data-lk-show'); }
   function drive(st) { st.box.classList.add('lk-driving'); st.box.removeAttribute('data-lk-show'); }
+  // a hold: the video sits on boundary b, under the still of that very frame. The still is what the room sees: a
+  // paused video that was sought before it ever played may not have painted the new frame yet (Chromium showed its
+  // frame 0 after a jump onto a hold, once), and the still is the frame by construction
+  function rest(st, b) { st.box.classList.add('lk-driving'); st.box.setAttribute('data-lk-show', String(b)); }
   function pause(st) { if (!st.v.paused) st.v.pause(); }
   function phase(st, p, at) { st.phase = p; if (at !== undefined) st.at = at; attrs(st); }
   function degrade(st, why) {
@@ -152,7 +156,7 @@
     pause(st); showStill(st, b); phase(st, 'seeking', b); st.target = b;
     seek(st, b, gen).then(function (ok) {
       if (!ok) return;
-      drive(st); phase(st, 'holding', b); held(st, b);
+      rest(st, b); phase(st, 'holding', b); held(st, b);
       note(st, 'hold ' + b + ' (' + why + ')');
     });
   }
@@ -165,9 +169,11 @@
     var gen = ++st.gen; st.target = target;
     function go() {
       if (gen !== st.gen) return;
-      drive(st); phase(st, 'playing', from === null ? st.at : from);
+      phase(st, 'playing', from === null ? st.at : from);
       watch(st, gen);
       var p = st.v.play();
+      // the still of the hold stays up until the video plays, so that the video is never seen before it paints
+      if (p && p.then) p.then(function () { if (gen === st.gen) drive(st); }, function () {}); else drive(st);
       if (p && p.catch) p.catch(function (e) {
         if (gen !== st.gen) return;
         // the browser refused: show where the part starts, and let Space (a gesture) play it
@@ -187,7 +193,7 @@
     st.lastPause = { b: b, media: st.lastMedia, frame: Math.round(st.lastMedia * st.fps), t: st.v.currentTime };
     seek(st, b, g).then(function (ok) {
       if (!ok) return;
-      phase(st, 'holding', b); held(st, b);
+      rest(st, b); phase(st, 'holding', b); held(st, b);
       note(st, 'reached ' + b + ' (paused at ' + st.lastMedia.toFixed(4) + ')');
     });
   }
