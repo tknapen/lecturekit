@@ -255,7 +255,38 @@ takes the still from the entry's `checkpoints` (a manim8 clip lists every checkp
 
 names the still explicitly; a `.png` of the same name beside the video is picked up without `still=`. A `.movie` without a still and outside `.live-only` is an error: "Wrap a movie in .live-only and supply a study alternative". Every clip has a static equivalent in the study PDF, as the policy requires.
 
-In the browser a clip plays only while it is on stage: on the present slide, outside a hidden fragment and not covered by a later step of its `.r-stack`. It starts from its first frame when it comes on stage, whether the slide is entered forwards, backwards or by a jump, and stops when it leaves; it is muted and has no browser controls. A click or the space bar pauses and resumes the clip on stage (space advances only on a slide without one; Shift+Space goes back), and R replays it from the start; R never switches on Quarto's Scroll View. A clip slide, one `.movie` in `.live-only`, gives the clip everything below the title at 16:9; a clip among other content is 440 px tall. A clip on a key press puts the fragment outside the live-only block, never inside it: `::: {.fragment}` around `:::: {.live-only}` around the `.movie` (a `clip=` movie may sit in the `.fragment` directly, since the filter boxes it); `lk review frags` flags the reverse, `.live-only` around `.fragment`, whose box keeps its place on the slide while the clip is hidden. A sequence of clips is an `.r-stack` inside `.live-only`, each later clip in a `.fragment`; a step's clip starts from its first frame when its fragment appears and the step it covers stops; stepping back restarts the earlier step, and entering the slide backwards plays the top step alone.
+In the browser a clip plays only while it is on stage: on the present slide, outside a hidden fragment and not covered by a later step of its `.r-stack`. It starts from its first frame when it comes on stage, whether the slide is entered forwards, backwards or by a jump, and stops when it leaves; it is muted and has no browser controls. A click or the space bar pauses and resumes the clip on stage (space advances only on a slide without one; Shift+Space goes back), and R replays it from the start; R never switches on Quarto's Scroll View. A clip in parts, below, takes the same keys with a meaning of its own. A clip slide, one `.movie` in `.live-only`, gives the clip everything below the title at 16:9; a clip among other content is 440 px tall. A clip on a key press puts the fragment outside the live-only block, never inside it: `::: {.fragment}` around `:::: {.live-only}` around the `.movie` (a `clip=` movie may sit in the `.fragment` directly, since the filter boxes it); `lk review frags` flags the reverse, `.live-only` around `.fragment`, whose box keeps its place on the slide while the clip is hidden. A sequence of clips is an `.r-stack` inside `.live-only`, each later clip in a `.fragment`; a step's clip starts from its first frame when its fragment appears and the step it covers stops; stepping back restarts the earlier step, and entering the slide backwards plays the top step alone.
+
+### A clip in parts
+
+One clip can play in parts: each part starts on the presenter's key and holds exactly on the frame where it ends. A clip in parts is a reveal (POLICY.md, Clips in stages), so it is for a clip whose order is the explanation, most often to let the room predict the next part.
+
+```markdown
+## Criterion and hit rate {role=example time=4}
+
+::: {.movie clip="criterion_roc" stops="neutral strict" start=key}
+The criterion moves; hits and false alarms trade along one curve.
+
+:::: {.stop ref="start"}
+Ask: if the criterion moves right, which rate falls faster?
+::::
+:::: {.stop ref="neutral"}
+Ask: where will the point be when the criterion reaches 2?
+::::
+:::
+```
+
+- `stops=` names stops of the clip's entry in `clips.json`, in time order, or `all` for every one. The entry lists candidates and the deck chooses; it must be of format 2 (CLIPS.md), which `lk clips` writes for a kit scene with `checkpoint()` calls, for a manim8 project with stops and for an MP4 brought in with `lk clips adopt`. Ids compare exactly. Without `stops=` the clip plays straight through, as above.
+- `start=auto`, the default, plays part 1 when the slide appears. `start=key` opens the slide on frame 0, and the first key starts part 1: the form for predict, then reveal.
+- `:::: {.stop ref="..."}` holds the speaker notes for one hold: a stop's id, `end` for the last frame, or `start` for frame 0 (with `start=key` only, since otherwise part 1 is already playing). The rest of the movie's body is the caption, as for any clip.
+- `study=` chooses the study page. `strip`, the default, prints the hold after each part, numbered and labelled, in one strip of at most six panels within `height=` (default 4.8 cm). `final` prints the last frame alone, as for an ordinary clip. A list of holds, `study="start neutral end"`, prints those in time order; a clip without `stops=` may name holds the same way.
+- `still=` on a format 2 entry may also name a stop, `start` or `end`.
+
+The build stops on an unknown or out-of-order id; `stops=` on the `src=` form or on an entry that is not of format 2; a chosen stop with fewer than three frames of unchanged picture before it (its `rest_before`: the player pauses up to two frames early, and the rest hides that); more than five stops; two clips in parts on one slide; any other fragment on the slide (a `.fragment`, an `.incremental` list, a fragment span, a `. . .` pause); a clip in parts inside a `.fragment` or an `.r-stack`; a `.stop` that names no hold, or one in a movie without `stops=`; a `start=` other than `auto` or `key`; and a study list that names something else or more than six panels. The message names the movie and its slide.
+
+In the browser, Next (Right, Down, Page Down, Space at a hold) plays the coming part and holds on its last frame. A key pressed while a part plays lets it play on through the coming stop to the one after it. Previous holds the earlier stop at once and never plays backwards; entering the slide backwards, by a jump or from a URL holds that step's frame at once and plays nothing. Space pauses and resumes a playing part, plays the next part at a hold and does nothing at the last hold; Shift+Space goes back; R replays the part that ends at the current hold; a click on the clip is Space. Keys pressed in the speaker window act on the main window's clip. The overview, a hidden tab and B pause a playing part, and it resumes when you come back. If the browser refuses to play, the clip shows the start of the part and Space plays it. The slide carries one empty fragment per key, so Reveal's step count, the URL, the overview and the speaker view stay true. Only the main window loads the clip: the speaker view's previews show a still of each hold, and print shows the last hold. A clip whose server does not answer byte ranges is fetched whole and played from memory; a clip that fails to load or to seek falls back to its stills, which then follow the keys.
+
+The speaker notes of each hold are composed in this order: the `.stop` text, a line for the part ("Part 2 of 4, 3.0 seconds: holds on neutral."), what the producer says is on screen, then the slide's own notes, since a step's notes replace the slide's. The timing report gets a line per clip in parts with its parts and its prompts; when the clip's seconds and a minute per "Ask:" exceed the slide's `time=`, the build warns CLIP>TIME. `lk review frags` walks the clip with real keys and reports, per step, the frame expected and the frame shown, where the pause landed and the time from key to hold, then a backward entry and a jump, and each hold before the last whose notes have no "Ask:".
 
 ## Colour emphasis and coloured spans
 

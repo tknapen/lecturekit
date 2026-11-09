@@ -33,8 +33,10 @@ Check: `lk review measure <deck>/_build/slides-live.html` prints, per slide, the
 - Clips play without browser controls: click or space pauses and resumes the clip on stage, R replays it (and never switches on Scroll View). Space advances only on a slide with no clip shown. Only the clip on stage plays: a hidden fragment's clip and an r-stack step covered by a later one are stopped. Browsers cache clips by file name: a re-rendered clip that looks unchanged on screen needs a new file name.
 - A clip slide (one `.movie` in `.live-only`) gives the clip everything below the title at 16:9, so a clip under a two-line title still clears the foot; a clip among other content is 440 px tall.
 - Every clip has a static equivalent in the study PDF (a `.study-only` figure, or the still that `clip=` places), as the policy requires.
+- A clip in parts (`stops=`, AUTHORING.md) takes the box of a clip slide, and its stills sit in the same box, so a hold never moves. It stands alone as its slide's reveal: no other fragment on the slide.
+- Its study page is a strip of the holds (`\lkstrip`, beside `\lkimageh`), numbered and labelled in small muted type. The whole strip, labels included, stays within `height=`, by default 4.8 cm, the one-bullet budget, because the caption takes the bullet's line. On the 142 mm text width with 3 mm gaps: two panels in one row of about 69 by 39 mm; three in one row of 45 by 25 mm; four in two rows of two, and five or six in two rows of three, each about 34 by 19 mm. A panel is never upscaled. Seven panels or more stop the build (name fewer holds with `study=`); `study=final` prints the last frame alone at 4 cm.
 
-Check: `lk review frags <live.html> [--slides N ...]` writes a PNG per fragment step and prints which fragments are visible, where the images sit and whether a clip is shown and playing; it exits 1 on a misplaced fragment or a hidden clip that plays. Its server answers byte ranges, so clips seek as on a web server.
+Check: `lk review frags <live.html> [--slides N ...]` writes a PNG per fragment step and prints which fragments are visible, where the images sit and whether a clip is shown and playing; it exits 1 on a misplaced fragment or a hidden clip that plays. Its server answers byte ranges, so clips seek as on a web server. A clip in parts it walks with real keys: per step the frame expected and the frame shown, the frame where the pause landed and the time from key to hold, then a backward entry and a jump; it exits 1 when a hold is off its frame, a pause lands after its stop or an entry plays. The strip's panels: `lk review overflow` for the page, and the PDF itself.
 
 ## Study PDF
 
@@ -49,7 +51,7 @@ Check: `lk review frags <live.html> [--slides N ...]` writes a PNG per fragment 
 | Rule | Command |
 | --- | --- |
 | Nothing crosses the foot or the right edge; no console or load errors; titles on one line | `lk review shoot <deck>/_build/slides-live.html [--sheet] [--fragments] [--scale 2] [--against DIR]` (`review/shots/slide-NN.png`, `report.json`, a contact sheet; `--against` lists the slides whose pixels changed since an earlier round) |
-| A staged slide builds as intended; a clip is shown and playing at the right step; a clip's `.fragment` wraps its `.live-only` block | `lk review frags <deck>/_build/slides-live.html [--slides N ...] [--out DIR]` |
+| A staged slide builds as intended; a clip is shown and playing at the right step; a clip's `.fragment` wraps its `.live-only` block; a clip in parts holds on the exact frame of each stop | `lk review frags <deck>/_build/slides-live.html [--slides N ...] [--out DIR]` |
 | Where the title, figure, bullets and foot sit; free pixels above the foot; a figure's natural size | `lk review measure <deck>/_build/slides-live.html [--slide N]` |
 | A figure's natural size and look before it enters a slide | `lk review figs <deck> [name ...] [--brand FILE] [--mode dark]` (`review/figs/<name>.png` at 88 px per cm) |
 | The study PDF fits; no missing characters or undefined colours | `lk review overflow <deck>` or `lk review overflow <deck>/slides.log [--min PT]` |
