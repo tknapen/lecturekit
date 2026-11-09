@@ -257,6 +257,16 @@ def test_one_failing_clip_does_not_stop_the_run(scianim, tmp_path, monkeypatch, 
     assert "alpha (manim8):" in err and "broken (kit):" in err
 
 
+def test_a_failure_reason_is_the_error_not_a_pointer_to_it():
+    printed = ["  error   /x/storyboard.yaml: invalid storyboard specification:\n",
+               "  - scenes.1.objects.0.kind: Input should be 'text_caption' or 'custom'\n",
+               "  note    project uses style 'a' while family 'b' defaults to 'c'\n",
+               "x: invalid (1 errors, 0 warnings)\n", "error: fix the errors above before generating code\n"]
+    assert clips._reason(printed) == ("/x/storyboard.yaml: invalid storyboard specification: "
+                                      "scenes.1.objects.0.kind: Input should be 'text_caption' or 'custom'")
+    assert clips._reason(["first\n", "\x1b[31mthe last\x1b[0m\n", "\n"]) == "the last"
+
+
 def test_missing_manim_names_the_clips_extra(monkeypatch, tmp_path):
     monkeypatch.setattr(clips, "_manim_exe", lambda: None)
     (tmp_path / "anim").mkdir()

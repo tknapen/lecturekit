@@ -221,10 +221,28 @@ def _last_line(lines: list[str] | deque) -> str:
     return ""
 
 
+def _reason(lines: list[str] | deque, limit: int = 300) -> str:
+    """The one-line reason of a tool's failure: its last line, or, when that only points at the errors above
+    it (manim8's "fix the errors above"), the first error with its first detail."""
+    clean = [s for s in (_ANSI.sub("", line).strip() for line in lines) if s]
+    if not clean:
+        return ""
+    reason = clean[-1]
+    if "above" in reason:
+        for i, line in enumerate(clean[:-1]):
+            if re.match(r"error\b", line):
+                reason = re.sub(r"^error[:\s]+", "", line)
+                if i + 1 < len(clean) - 1 and clean[i + 1].startswith("- "):
+                    reason += " " + clean[i + 1][2:]
+                break
+    reason = reason.replace(f"{Path.cwd()}{os.sep}", "")
+    return reason if len(reason) <= limit else reason[:limit - 3] + "..."
+
+
 def run_tool(cmd: list[str], *, env: dict[str, str] | None = None, cwd: Path | None = None,
              capture: bool = False, quiet: bool = False) -> tuple[int, str, str]:
     """Run a tool with its human output on stderr. Returns the exit code, stdout when `capture` (else ''), and
-    the last line it printed, as the one-line reason of a failure."""
+    the one-line reason of a failure (`_reason`)."""
     if not quiet:
         print("lecturekit: " + " ".join(str(c) for c in cmd), file=sys.stderr)
     try:
@@ -232,10 +250,10 @@ def run_tool(cmd: list[str], *, env: dict[str, str] | None = None, cwd: Path | N
                                 stderr=subprocess.PIPE, text=True, errors="replace")
     except FileNotFoundError as exc:
         raise ClipError(f"{cmd[0]} not found") from exc
-    tail: deque = deque(maxlen=40)
+    tails: dict[str, deque] = {"out": deque(maxlen=40), "err": deque(maxlen=40)}
     out: list[str] = []
 
-    def pump(stream, keep: list[str] | None) -> None:
+    def pump(stream, keep: list[str] | None, tail: deque) -> None:
         for line in stream:
             if keep is not None:
                 keep.append(line)
@@ -245,14 +263,15 @@ def run_tool(cmd: list[str], *, env: dict[str, str] | None = None, cwd: Path | N
                 sys.stderr.write(line)
                 sys.stderr.flush()
 
-    threads = [threading.Thread(target=pump, args=(proc.stderr, None), daemon=True),
-               threading.Thread(target=pump, args=(proc.stdout, out if capture else None), daemon=True)]
+    threads = [threading.Thread(target=pump, args=(proc.stderr, None, tails["err"]), daemon=True),
+               threading.Thread(target=pump, args=(proc.stdout, out if capture else None, tails["out"]), daemon=True)]
     for th in threads:
         th.start()
     rc = proc.wait()
     for th in threads:
         th.join()
-    return rc, "".join(out), _last_line(tail)
+    # the two streams interleave unpredictably: read stdout as printed above stderr, whose last line is the verdict
+    return rc, "".join(out), _reason([*tails["out"], *tails["err"]])
 
 
 def tool_env(deck: Path) -> dict[str, str]:
