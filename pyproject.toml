@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lecturekit"
-version = "0.3.1"
+version = "0.4.0"
 description = "One Markdown source, a live Reveal.js deck and a Beamer study PDF: a Quarto extension, figure and clip kits, and review tools for computed lectures."
 readme = "README.md"
 license = { file = "LICENSE" }
