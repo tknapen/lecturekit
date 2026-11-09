@@ -93,8 +93,10 @@ lk review contrast _brand.yml                         # WCAG AA on every surface
 
 The engine builds both example decks in both formats and both presets, and a project scaffolded by `lk new` builds
 from a fresh directory; the figures of the worked example regenerate byte for byte from `make_assets.py` on the
-kit. manim8, the deeper animation layer, is planned as an optional extra for the second release; its seam (`clip=`
-on a movie block and `assets/clips/clips.json`) is in place.
+kit. manim8, the deeper animation layer, is an optional extra on Python 3.12 (`pip install "lecturekit[manim8]"`,
+pinned to manim8's `v0.1.0a0` tag): `lk new --manim8` makes a project's `clips/` a manim8 workspace, `lk theme --manim8`
+bridges the brand into manim8 styles for both presets, and `lk clips` renders kit scenes and manim8 projects alike
+into `assets/clips/clips.json`, the seam that `clip=` on a movie block reads (docs/CLIPS.md).
 
 ## Licences
 

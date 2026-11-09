@@ -13,11 +13,11 @@ Ten short episodes, each one repository action shown end to end with the prompt 
 | 7 | [Restyle in one instruction](07-restyle-in-one-instruction/README.md) | The dark preset from one instruction, including the palette judgement in its second half | 10 min |
 | 8 | [Publish and share](08-publish-and-share/README.md) | The continuous build, GitHub Pages, exporting the PDF, how a colleague forks a project | 5 min |
 | 9 | [A talk from a paper](09-a-talk-from-a-paper/README.md) | Hedger et al. (2025) dropped into a new project; a 20-slide talk built in dialogue, the author correcting the assistant's reading on camera; figures redrawn and recomputed; `FACTS.md` from the paper | 12 to 15 min, or two parts |
-| 10 | [A clip from a brief](10-a-clip-from-a-brief/README.md) | A manim8 clip from a one-paragraph brief, through checkpoints and review, into a slide through the seam (second release) | 8 min |
+| 10 | [A clip from a brief](10-a-clip-from-a-brief/README.md) | A manim8 clip from a one-paragraph brief, through checkpoints and review, into a slide through the seam, in both presets | 8 min |
 
 ## What can be replayed today
 
-Episodes 1, 2, 4, 5, 6 and 7 run on `examples/kickoff`, which builds in both formats and both presets from a fresh clone; episode 2 can also be followed on `examples/features`, the small deck that exercises every construct. Episode 3 runs on a fresh `lk new` project, with the kickoff's own `STORYBOARD.md` and `PLAN.md` as the model of what comes out. Episode 8 shows the continuous build in `.github/workflows/build.yml`, which builds both example decks and publishes them to Pages; the fork half needs a project repository on the released engine, which is still to come. Episode 9 is a new project from a paper. Episode 10 waits for the second release, which brings manim8.
+Episodes 1, 2, 4, 5, 6 and 7 run on `examples/kickoff`, which builds in both formats and both presets from a fresh clone; episode 2 can also be followed on `examples/features`, the small deck that exercises every construct. Episode 3 runs on a fresh `lk new` project, with the kickoff's own `STORYBOARD.md` and `PLAN.md` as the model of what comes out. Episode 8 shows the continuous build in `.github/workflows/build.yml`, which builds both example decks and publishes them to Pages; the fork half needs a project repository on the released engine, which is still to come. Episode 9 is a new project from a paper. Episode 10 is a new project made with `lk new --manim8`; it needs manim8 0.1.0a0, which lecturekit's `manim8` extra installs on Python 3.12 or later.
 
 ## Folder layout
 

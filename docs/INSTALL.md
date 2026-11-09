@@ -1,6 +1,6 @@
 # Installation
 
-A build needs Quarto, a TeX distribution with XeLaTeX, and Python 3.11 or later with the `lecturekit` package; the review tools need Playwright's Chromium; the clips need Manim. macOS and Linux are supported. `tools/install.sh` does the Linux and macOS steps below in one go and ends by building both example decks; this page says what it does and what to do by hand.
+A build needs Quarto, a TeX distribution with XeLaTeX, and Python 3.11 or later with the `lecturekit` package; the review tools need Playwright's Chromium; the clips need Manim, and manim8 clips need Python 3.12 or later. macOS and Linux are supported. `tools/install.sh` does the Linux and macOS steps below in one go and ends by building both example decks; this page says what it does and what to do by hand.
 
 ## Quarto
 
@@ -63,7 +63,30 @@ Clips. `lk clips` renders Manim scenes on the kit:
 pip install "lecturekit[clips]"
 ```
 
-brings Manim Community 0.22 with Pillow below 11.3 and `imageio-ffmpeg`. Manim needs the Cairo and Pango development headers on the machine (`libcairo2-dev libpango1.0-dev` on Debian and Ubuntu, `cairo pango` through Homebrew).
+brings Manim Community 0.22 with Pillow below 11.3 and `imageio-ffmpeg`. Manim needs the Cairo and Pango development headers on the machine (`libcairo2-dev libpango1.0-dev pkg-config` on Debian and Ubuntu, `cairo pango pkg-config` through Homebrew).
+
+## manim8
+
+manim8 is the second clip producer (CLIPS.md). It needs Python 3.12 or later; the extra installs nothing on an older Python. With pip:
+
+```sh
+pip install "lecturekit[manim8]"
+```
+
+or with uv, in a project's environment:
+
+```sh
+uv pip install "lecturekit[manim8]"
+```
+
+The extra installs manim8 and its contracts package, `manim8-core`, from manim8's `v0.1.0a0` tag on GitHub (pip needs both named, since it does not read uv's workspace sources; the extra names both). manim8 depends on the `uv` package, so a pip install brings the uv that manim8 uses to build each family's render environment; a uv already on the path is used as well. The render environment holds Manim and manim8's bridge, at the same commit as the control plane, and is built once per family, on the first `lk clips` that needs it (or by `scianim family env sync clips/families/<family>`); Manim's Cairo and Pango headers are needed for it as above. Then:
+
+```sh
+lk new my-lecture --manim8        # clips/ as a manim8 workspace, the bridged styles, a starter project
+scianim skill install             # the manim8 skill for the agent that turns a brief into a storyboard
+```
+
+`scianim doctor` checks the control plane, and `scianim doctor --family clips/families/<family>` a family's render environment.
 
 ## An existing Quarto project
 

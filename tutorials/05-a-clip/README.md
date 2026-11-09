@@ -8,13 +8,13 @@ The bar-and-BOLD scene on the Manim kit, rendered by `lk clips` and indexed in `
 
 ## What the viewer sees
 
-`examples/kickoff/anim/clip_bar_bold.py`: one scene class on the kit, `from kit import *`, its docstring saying what the clip shows and in which stages, its colours tokens (`BLUE`, `INK`, `MUTED`, `PAPER`), its numbers from `assets/data/s01.json` through the same numpy forward model as the static figure (`anim/bar_model.py`). `lk clips` renders it (the waiting cut) at 1280 by 720 on white and writes `assets/clips/bar-bold.mp4`, the still `bar-bold.png` from the last frame, and the entry in `clips.json` with width, height, duration, source and revision. The movie block in `slides.qmd`; the build; the clip autoplays on its slide; a click pauses it, space resumes it, R replays it; the PDF page shows the TikZ figure drawn from the same run. Then the second form: the block rewritten as `clip="bar-bold"`, which needs no live-only wrapper and puts the still in the PDF.
+`examples/kickoff/anim/clip_bar_bold.py`: one scene class on the kit, `from kit import *`, its docstring saying what the clip shows and in which stages, its colours tokens (`BLUE`, `INK`, `MUTED`, `PAPER`), its numbers from `assets/data/s01.json` through the same numpy forward model as the static figure (`anim/bar_model.py`). `lk clips` renders it (the waiting cut) at 1280 by 720 on white and writes `assets/clips/bar-bold.mp4`, the still `bar-bold.png` from the last frame, and the entry in `clips.json` with width, height, frame rate, duration, source, revision and producer. The movie block in `slides.qmd`; the build; the clip autoplays on its slide; a click pauses it, space resumes it, R replays it; the PDF page shows the TikZ figure drawn from the same run. Then the second form: the block rewritten as `clip="bar-bold"`, which needs no live-only wrapper and puts the still in the PDF.
 
 ## Commands
 
 ```sh
 cat examples/kickoff/anim/clip_bar_bold.py
-lk clips examples/kickoff --only bar
+lk clips examples/kickoff --only bar-bold
 cat examples/kickoff/assets/clips/clips.json
 lk build examples/kickoff
 open examples/kickoff/_build/slides-live.html
@@ -43,7 +43,7 @@ A bar sweeps the visual field; the predicted BOLD response follows.
 
 ## Points to make
 
-- The deck names the clip; `clips.json` knows the files. Any renderer that writes the entry can feed the slide (`docs/CLIPS.md`); manim8 will, in the second release.
+- The deck names the clip; `clips.json` knows the files. Any renderer that writes the entry can feed the slide (`docs/CLIPS.md`); manim8 does, in episode 10. `--only bar-bold` and `--only bar_bold` name the same clip.
 - The aspect comes from the entry's width and height, so the slide reserves the box before the video loads; `--crop` trims a clip to its content for a column, and the entry records the new shape.
 - The still is the last frame, or the second the scene names with `still = <seconds>`; the kickoff keeps its TikZ figure as the study equivalent because a drawing of the whole run reads better on paper than one frame.
 - Clips carry no titles and render on the slide colour; click or space pauses, R replays; a re-rendered clip needs a new file name before a browser shows it.

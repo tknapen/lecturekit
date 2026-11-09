@@ -7,13 +7,13 @@ from lecturekit.manim import *
 HERE = Path(__file__).resolve().parent; DATA = HERE.parent / 'assets' / 'data'
 ```
 
-and every clip starts with `from kit import *`, which gives it the modules below, with `HERE` and `DATA` as the deck's `anim/` and `assets/data/`. `lk clips` renders the scenes (CLIPS.md). Manim Community 0.22 needs Pillow below 11.3: `pip install lecturekit[clips]`.
+and every clip starts with `from kit import *`, which gives it the modules below, with `HERE` and `DATA` as the deck's `anim/` and `assets/data/`. `lk clips` renders the scenes (CLIPS.md), `lk clips --mode dark` the dark preset's, into `assets/clips/dark/`. Manim Community 0.22 needs Pillow below 11.3: `pip install lecturekit[clips]`.
 
 ## nmstyle: the house style
 
 The clips carry no titles; the slide supplies the claim. Importing the kit sets the render to 1280 by 720 at 30 frames per second, a frame of 16 by 9 scene units, and the slide colour as background; `clip_size()` or `NM_CLIP_SIZE` change the size and keep the frame 9 units high.
 
-Colours come from the deck's `_brand.yml`, found upwards from the working directory or named by `LECTUREKIT_BRAND` (`LECTUREKIT_MODE=dark` selects the dark side of a unified file), so a clip re-rendered after a restyle follows the new palette; the paper preset's values are the fall-back. The constants: `INK`, `MUTED`, `HAIR`, `PAPER`, `SLIDE`; `BLUE` (the concept blue), `TEAL` (state), `ORANGE` (update), `PURPLE` (context), `RED` and `CAVEAT`; `INPUT`, `EXAMPLE`, `ANCHOR`, `QUESTION`; the model colours `GAUSS`, `DOG`, `CSS`, `DN` and `FUTURE` (drawn dotted); `COLORS`, the whole dictionary, and `token(name)` for a project token that has no constant.
+Colours come from the deck's `_brand.yml`, found upwards from the working directory or named by `LECTUREKIT_BRAND` (`LECTUREKIT_MODE=dark` selects the dark side of a unified file), so a clip re-rendered after a restyle follows the new palette (`lk clips --mode dark` sets both for the dark preset, from the brand file that `_quarto-dark.yml` names); the paper preset's values are the fall-back. The constants: `INK`, `MUTED`, `HAIR`, `PAPER`, `SLIDE`; `BLUE` (the concept blue), `TEAL` (state), `ORANGE` (update), `PURPLE` (context), `RED` and `CAVEAT`; `INPUT`, `EXAMPLE`, `ANCHOR`, `QUESTION`; the model colours `GAUSS`, `DOG`, `CSS`, `DN` and `FUTURE` (drawn dotted); `COLORS`, the whole dictionary, and `token(name)` for a project token that has no constant.
 
 Fonts are the bundled TeX Gyre faces of the extension (and Roboto), registered with Pango; `SERIF` and `SANS` are the brand's heading and body families, so the dark preset's Roboto wins when it is active. `label(s, size=22, color=INK, serif=False)` is a `Text` in the house font. `Frame(left, bottom, width, height, u_range, w_range)` maps data coordinates to scene coordinates: call it with `(u, w)`, `inv(point)` goes back, `scale` gives scene units per data unit, `axes(u_ticks, w_ticks, u_label, w_label)` draws thin L-shaped axes in muted, `polyline(points, colour, width)` a trace. `normal_pdf(x, mu, sd)` is the Gaussian.
 
