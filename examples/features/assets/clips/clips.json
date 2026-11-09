@@ -1,11 +1,16 @@
 {
   "bar_bold": {
-    "video": "assets/clips/bar_bold.mp4",
-    "still": "assets/clips/bar_bold.png",
-    "width": 960,
-    "height": 540,
+    "checkpoints": {
+      "midway": "assets/clips/bar_bold.midway.png"
+    },
     "duration": 1.5,
+    "fps": 30.0,
+    "height": 540,
+    "producer": "external",
+    "revision": "none",
     "source": "synthetic stand-in",
-    "revision": "none"
+    "still": "assets/clips/bar_bold.png",
+    "video": "assets/clips/bar_bold.mp4",
+    "width": 960
   }
 }

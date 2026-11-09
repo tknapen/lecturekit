@@ -84,6 +84,54 @@ Say: a click or the space bar pauses the clip, R replays it; the study PDF carri
 Named in `assets/clips/clips.json`: the live deck gets the video, the study PDF the still, and both the shape.
 :::
 
+## A clip on a key press {role=example time=0.5}
+
+- The sweep waits for the presenter's key, then plays from its start.
+
+::: {.fragment}
+:::: {.live-only}
+::: {.movie src="assets/clips/bar_bold.mp4" label="A bar sweeps a disc from left to right"}
+:::
+::::
+:::
+
+::: {.study-only}
+![](assets/clips/bar_bold.png){height=36mm}
+:::
+
+::: notes
+Say: the fragment wraps the live-only block; frags flags the reverse order.
+:::
+
+## A sequence of clips {role=example time=0.5}
+
+:::: {.live-only}
+::::: {.r-stack}
+::: {.movie src="assets/clips/bar_bold.mp4" label="A bar sweeps a disc from left to right"}
+:::
+:::: {.fragment}
+::: {.movie src="assets/clips/bar_back.mp4" label="The bar sweeps back from right to left"}
+:::
+::::
+:::::
+::::
+
+::: {.study-only}
+![](assets/clips/bar_bold.png){height=36mm}
+
+The sweep out and, on the next key, the sweep back; one step plays at a time.
+:::
+
+::: notes
+Say: each key brings the next step; the step it covers stops, and stepping back restarts the earlier one.
+:::
+
+## A still from a checkpoint {role=example time=0.5}
+
+::: {.movie clip="bar-bold" still="midway" height=3.5cm}
+`still="midway"` names a checkpoint of the clip's entry; the PDF shows the bar halfway.
+:::
+
 ## Revealed step by step {role=explanation time=1.5}
 
 ::: incremental

@@ -88,7 +88,9 @@ local function compile(body, label)
   end
   local target = base .. "." .. figure_ext
   if not file_exists(target) then
-    local ok = pcall(pandoc.pipe, "python3", { tikz2svg, base .. ".pdf", target }, "")
+    -- the Python that lk build runs on (it sets QUARTO_PYTHON), so pymupdf is found without an activated venv
+    local python = os.getenv("QUARTO_PYTHON") or "python3"
+    local ok = pcall(pandoc.pipe, python, { tikz2svg, base .. ".pdf", target }, "")
     if not ok or not file_exists(target) then
       io.stderr:write(string.format("lecturekit: conversion to %s failed for '%s' (is pymupdf installed?)\n", figure_ext, label))
       return nil

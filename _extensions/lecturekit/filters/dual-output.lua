@@ -15,10 +15,11 @@
 --     data attributes live, the nmrole frame option in Beamer), the minutes
 --     go to the timing report and the speaker view's pacing clock;
 --   * inserts the per-slide foot of the live deck (short title, n / total);
---   * rewrites .movie Divs into autoplaying clips without browser controls
---     (live) and into the clip's still (study) when assets/clips/clips.json
---     or still= names one; otherwise it insists on a .live-only wrapper and
---     a study alternative, as the policy requires;
+--   * rewrites .movie Divs into clips without browser controls that the
+--     live runtime (reveal/live-head.html) plays, and into the clip's still
+--     (study) when assets/clips/clips.json or still= names one; otherwise it
+--     insists on a .live-only wrapper and a study alternative, as the policy
+--     requires; a dark build reads assets/clips/dark/clips.json first;
 --   * carries print heights (height=42mm, \nmfigureh{4cm}) over to the live
 --     deck as max-height at 8.8 px per mm; composites images on warm-paper
 --     slides with multiply; lays out .row image rows; .small, .incremental;
@@ -31,6 +32,11 @@
 -- TikZ figures (\nmfigureh{...}{file}, \input{file}, ![](file.tex), fenced
 -- {.tikz} blocks) are handled by tikz.lua, which runs after this filter;
 -- colour and font tokens from _brand.yml by tokens.lua.
+--
+-- Its checks stop the render. Quarto (1.11) redefines the global error() as a
+-- logger that returns, so the filter never calls it: fail() below writes the
+-- reason to stderr as an ERROR line and raises through Lua's own assert(),
+-- which Pandoc reports as a filter failure and Quarto as a failed render.
 
 local script_dir = debug.getinfo(1, "S").source:sub(2):match("^(.*)[/\\]") or "."
 package.path = script_dir .. "/?.lua;" .. package.path
@@ -61,11 +67,18 @@ local paper_roles = { goals = true, summary = true, section = true, pause = true
 -- --------------------------------------------------------------------------
 -- Helpers
 -- --------------------------------------------------------------------------
+-- A check that stops the render: an ERROR line naming lecturekit (lk build looks for it), then a real Lua error.
+-- Quarto's error() only logs; assert() is Lua's own and raises.
+local function fail(msg)
+  io.stderr:write('ERROR (lecturekit) ' .. msg .. '\n')
+  assert(false, 'lecturekit: ' .. msg)
+end
+
 local function has(el, cls) return el.classes ~= nil and el.classes:includes(cls) end
 local function excluded(el)
   return (live and has(el, 'study-only')) or (study and has(el, 'live-only'))
 end
-local function html_escape(s) return (s:gsub('[&<>"]', { ['&'] = '&amp;', ['<'] = '&lt;', ['>'] = '&gt;', ['"'] = '&quot;' })) end
+local function html_escape(s) return (tostring(s):gsub('[&<>"]', { ['&'] = '&amp;', ['<'] = '&lt;', ['>'] = '&gt;', ['"'] = '&quot;' })) end
 local function dirname(p) return p:match('^(.*)[/\\]') or '.' end
 local function basename_noext(p) return ((p:match('([^/\\]+)$') or p):gsub('%.[^.]+$', '')) end
 local function file_exists(p) local f = io.open(p, 'r'); if f then f:close() return true end return false end
@@ -95,6 +108,7 @@ local PX_PER_MM = 8.8
 -- --------------------------------------------------------------------------
 local short_title = ''
 local total_slides, slide_index, current_role = 1, 1, 'explanation'
+local current_title = '(title slide)'
 local timing, budget_min = {}, nil
 local cite_small = false
 local paper_hex = brand.colors().paper or '#F3F2EE'
@@ -102,31 +116,84 @@ local paper_hex = brand.colors().paper or '#F3F2EE'
 -- --------------------------------------------------------------------------
 -- clips.json: the seam between a deck and whatever rendered its clips
 -- --------------------------------------------------------------------------
-local clips_index = nil
-local function clips()
-  if clips_index then return clips_index end
-  clips_index = {}
-  local s = read_file(input_dir .. '/assets/clips/clips.json')
-  if s then
-    local ok, data = pcall(pandoc.json.decode, s)
-    if ok and type(data) == 'table' then clips_index = data end
+-- An entry (CLIPS.md): video, still, width, height, fps, duration, source, revision, producer, job, checkpoints.
+-- A JSON null decodes to pandoc.json.null, a userdata that Lua takes as true; every field is read through str()
+-- or num(), which take a value of the wrong type, null included, as absent.
+local function str(v) if type(v) == 'string' and v ~= '' then return v end return nil end
+local function num(v) if type(v) == 'number' then return v end return nil end
+
+-- '-' and '_' are one character in a clip name: `bar-bold` and `bar_bold` name one clip
+local function norm_name(name) return (tostring(name):gsub('-', '_')) end
+
+-- the preset of this build: dark when the brand mode is dark (the dark profile sets brand-mode: dark)
+local dark = brand.mode() == 'dark'
+
+local function read_index(rel)
+  local s = read_file(input_dir .. '/' .. rel)
+  if not s then return nil end
+  local ok, data = pcall(pandoc.json.decode, s, false)
+  if not ok or type(data) ~= 'table' then fail(rel .. ' is not a JSON object of clips: run lk clips again') end
+  local by_norm = {}
+  for key, entry in pairs(data) do
+    if type(key) == 'string' and type(entry) == 'table' then
+      local n = norm_name(key)
+      if by_norm[n] and by_norm[n].key ~= key then
+        fail(rel .. ' names one clip twice: "' .. by_norm[n].key .. '" and "' .. key .. '" ("-" and "_" are the same)')
+      end
+      by_norm[n] = { key = key, entry = entry, index = rel }
+    end
   end
-  return clips_index
+  return by_norm
 end
 
--- src, still and aspect ("W:H") of a .movie Div, from its attributes and clips.json
+-- the indexes to look in, in order: the dark preset's own first in a dark build, then the paper one
+local clip_indexes = nil
+local function indexes()
+  if clip_indexes then return clip_indexes end
+  clip_indexes = {}
+  local order = dark and { 'assets/clips/dark/clips.json', 'assets/clips/clips.json' } or { 'assets/clips/clips.json' }
+  for _, rel in ipairs(order) do
+    local idx = read_index(rel)
+    if idx then clip_indexes[#clip_indexes + 1] = idx end
+  end
+  return clip_indexes
+end
+
+local function lookup_clip(name)
+  local n = norm_name(name)
+  for _, idx in ipairs(indexes()) do
+    if idx[n] then return idx[n].entry, idx[n].index end
+  end
+  return nil
+end
+
+-- src, still and aspect ("W:H") of a .movie Div, from its attributes and clips.json; nil and the reason when the
+-- block cannot be resolved. still= is a path, or the id of one of the entry's checkpoints.
 local function resolve_clip(attrs)
-  local info = { src = attrs.src, still = attrs.still, aspect = attrs.aspect, name = attrs.clip or attrs.src }
-  if attrs.clip then
-    local e = clips()[attrs.clip]
+  local info = { src = str(attrs.src), still = str(attrs.still), aspect = str(attrs.aspect),
+                 name = str(attrs.clip) or str(attrs.src) or '(unnamed)' }
+  local clip = str(attrs.clip)
+  if clip then
+    local e, where = lookup_clip(clip)
     if e then
-      info.src = info.src or e.video or e.mp4
-      info.still = info.still or e.still or e.png
-      if not info.aspect and e.width and e.height then
-        info.aspect = string.format('%d:%d', e.width, e.height)
+      info.index = where
+      info.src = info.src or str(e.video) or str(e.mp4)
+      local checkpoints = type(e.checkpoints) == 'table' and e.checkpoints or {}
+      if info.still and str(checkpoints[info.still]) then
+        info.still = str(checkpoints[info.still])
+      elseif info.still and info.still:match('^[%a][%w_]*$') then
+        local ids = {}
+        for k, v in pairs(checkpoints) do if str(v) then ids[#ids + 1] = k end end
+        table.sort(ids)
+        return nil, 'still="' .. info.still .. '" names no checkpoint of clip "' .. clip .. '" in ' .. where
+          .. ' (it has ' .. (#ids > 0 and table.concat(ids, ', ') or 'none') .. ')'
       end
+      info.still = info.still or str(e.still) or str(e.png)
+      local w, h = num(e.width), num(e.height)
+      if not info.aspect and w and h then info.aspect = string.format('%d:%d', w, h) end
     elseif not info.src then
-      error('Clip "' .. attrs.clip .. '" is not in assets/clips/clips.json (run lk clips) and no src= is given')
+      return nil, 'Clip "' .. clip .. '" is not in ' .. (dark and 'assets/clips/dark/clips.json or ' or '')
+        .. 'assets/clips/clips.json (run lk clips) and no src= is given'
     end
   end
   if info.src and not info.still then
@@ -205,34 +272,44 @@ local function Image(el)
 end
 
 local function movie(el)
-  local info = resolve_clip(el.attributes)
+  local info, why = resolve_clip(el.attributes)
+  local where = ' (movie "' .. (str(el.attributes.clip) or str(el.attributes.src) or '?') .. '" on slide "' .. current_title .. '")'
+  if not info then fail(why .. where) end
   local label = el.attributes.label or 'Animation'
   if study then
     local h = el.attributes.height or '4cm'
     if info.still then
+      if not file_exists(input_dir .. '/' .. info.still) then
+        fail('The still ' .. info.still .. ' does not exist' .. where .. ': run lk clips, or name another still=')
+      end
       local out = pandoc.List({ pandoc.RawBlock('latex', string.format('\\lkimageh{%s}{%s}', h, info.still)) })
       out:extend(el.content)
       return out, false
     end
-    error('Wrap a movie in .live-only and supply a study alternative (or a still= / clips.json entry): ' .. tostring(info.name))
+    if str(el.attributes.clip) then
+      fail('No still for the study PDF' .. where .. ': its clips.json entry has none and still= names none; '
+        .. 'run lk clips (a manim8 clip takes a checkpoint), or give still=')
+    end
+    fail('Wrap a movie in .live-only and supply a study alternative (or a still= / clips.json entry)' .. where)
   end
   local src = info.src
-  if not src or not src:match('^[%w%._/%-]+$') then error('Use a relative movie path without spaces: ' .. tostring(src)) end
+  if not src or not src:match('^[%w%._/%-]+$') then fail('Use a relative movie path without spaces: ' .. tostring(src) .. where) end
   local classes = {}
   if (paper_roles[current_role] or has(el, 'paper')) and not has(el, 'keepwhite') then classes[#classes + 1] = 'paper' end
   -- aspect="4:3" or "1:1": a clip that is not 16:9 (for a column); the wrapper takes the clip's own shape (theme.scss).
   -- Any other aspect="W:H" (a clip cropped to its content) is set on the wrapper by the Div handler.
   local aspect = info.aspect
   if aspect then
-    if not aspect:match('^%d+:%d+$') then error('Movie aspect must be W:H in whole numbers, not ' .. aspect) end
+    if not aspect:match('^%d+:%d+$') then fail('Movie aspect must be W:H in whole numbers, not ' .. aspect .. where) end
     if aspect == '4:3' or aspect == '1:1' then classes[#classes + 1] = 'aspect-' .. aspect:gsub(':', '-') end
   end
   local cls = #classes > 0 and ' class="' .. table.concat(classes, ' ') .. '"' or ''
   local poster = info.still and (' poster="' .. html_escape(info.still) .. '"') or ''
-  -- data-autoplay: Reveal starts the clip when its slide is shown and pauses it on leaving; muted keeps the
-  -- browser's autoplay policy out of the way (the clips are silent). No browser controls: a click or the space
-  -- bar pauses and resumes, R replays (live-head.html).
-  local video = '<video' .. cls .. ' data-autoplay muted preload="auto" playsinline aria-label="'
+  -- data-lk-autoplay: the runtime (live-head.html) starts the clip when its slide or step is shown and stops it
+  -- when it is not; Reveal's own data-autoplay is not used, since it plays every step of a sequence at once.
+  -- muted keeps the browser's autoplay policy out of the way (the clips are silent). No browser controls: a click
+  -- or the space bar pauses and resumes, R replays.
+  local video = '<video' .. cls .. ' data-lk-autoplay muted preload="auto" playsinline aria-label="'
     .. html_escape(label) .. '"' .. poster .. ' src="' .. src .. '"></video>'
   if not el.attributes['lk-boxed'] then
     -- no .live-only wrapper in the source (the clip= form): supply the box that sizes the clip, with its shape
@@ -279,8 +356,8 @@ local function Div(el)
       local found
       el:walk({ Div = function(d)
         if not found and has(d, 'movie') then
-          local ok, info = pcall(resolve_clip, d.attributes)
-          if ok and info.aspect then found = info.aspect end
+          local info = resolve_clip(d.attributes)
+          if info and info.aspect then found = info.aspect end
         end
       end })
       local w, h = (found or ''):match('^(%d+):(%d+)$')
@@ -329,13 +406,14 @@ local function role_of(el)
     for _, c in ipairs(el.classes) do if roles[c] then role = c; break end end
   end
   role = role or 'explanation'
-  if not roles[role] then error('Unknown slide role: ' .. role .. ' (' .. stringify(el.content) .. ')') end
+  if not roles[role] then fail('Unknown slide role: ' .. role .. ' (' .. stringify(el.content) .. ')') end
   return role
 end
 
 local function Header(el)
   if el.level ~= 2 then return el end
   local title = stringify(el.content)
+  current_title = title
   if utf8.len(title) > 32 then io.stderr:write('Title may wrap (over 30 characters): ' .. title .. '\n') end
   local role = role_of(el)
   el.attributes.role = nil
