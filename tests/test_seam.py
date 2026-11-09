@@ -109,6 +109,23 @@ def jobs(project: Path) -> list[Path]:
     return sorted(p for p in (project / "renders").glob("*/job_*") if p.is_dir())
 
 
+def job_of(video: Path) -> str | None:
+    """The job a fake scianim movie comes from: the comment it writes into the file's metadata, which lk clips's
+    remux by stream copy keeps."""
+    r = subprocess.run([clips._ffmpeg(), "-hide_banner", "-i", str(video)], capture_output=True, text=True)
+    m = re.search(r"^\s*comment\s*:\s*(\S+)", r.stderr, re.M)
+    return m.group(1) if m else None
+
+
+def same_frames(a: Path, b: Path) -> bool:
+    """Whether two videos decode to the same frames, as a remux by stream copy does."""
+    def md5s(v: Path) -> list[str]:
+        out = subprocess.run([clips._ffmpeg(), "-v", "error", "-i", str(v), "-map", "0:v:0", "-f", "framemd5", "-"],
+                             capture_output=True, text=True, check=True).stdout
+        return [line.rsplit(",", 1)[-1].strip() for line in out.splitlines() if line and not line.startswith("#")]
+    return md5s(a) == md5s(b)
+
+
 def no_nulls(obj) -> bool:
     if isinstance(obj, dict):
         return all(v is not None and no_nulls(v) for v in obj.values())
@@ -152,8 +169,10 @@ def test_manim8_clip_is_the_full_movie_with_its_checkpoints(scianim, tmp_path):
     movie = job / f"{job.name}.mp4"
     copied = deck / rec["video"]
     assert rec["video"] == "assets/clips/divisive_normalization.mp4"
-    assert sha(copied) == sha(movie) == manifest["result"]["videos"][0]["sha256"]       # the movie ...
-    assert all(sha(copied) != sha(s) for s in (job / "sections").glob("*.mp4"))         # ... never a section
+    assert sha(movie) == manifest["result"]["videos"][0]["sha256"]
+    assert job_of(copied) == job.name and same_frames(copied, movie)                    # the movie, remuxed ...
+    assert rec["sha256"] == sha(copied) and rec["format"] == 2 and rec["frames"] == 60
+    assert all(not same_frames(copied, s) for s in (job / "sections").glob("*.mp4"))    # ... never a section
     assert max((job / "sections").glob("*.mp4"), key=lambda p: p.stat().st_mtime).stat().st_mtime \
         >= movie.stat().st_mtime                                                         # sections are newer
     assert (rec["width"], rec["height"], rec["fps"], rec["duration"]) == (320, 180, 30.0, 2.0)
@@ -219,7 +238,7 @@ def assert_index_matches_files(deck: Path, name: str = "divisive_normalization")
     rec = json.loads((deck / "assets" / "clips" / "clips.json").read_text())[name]
     project = deck / rec["source"]
     (job,) = [j for j in jobs(project) if j.name == rec["job"]["id"]]
-    assert sha(deck / rec["video"]) == sha(job / f"{job.name}.mp4")
+    assert job_of(deck / rec["video"]) == job.name and same_frames(deck / rec["video"], job / f"{job.name}.mp4")
     for sid, png in rec["checkpoints"].items():
         assert sha(deck / png) == sha(job / f"{sid}.png")
     assert not [p for p in (deck / "assets" / "clips").iterdir() if p.name.startswith(".")]   # no staging left
@@ -355,7 +374,7 @@ def test_older_manim8_without_json_finds_the_job_by_cache_key(scianim, tmp_path,
     assert failures == []
     assert "--json" not in scianim.calls("render")[-1]
     (job,) = [j for j in jobs(project) if j != decoy]
-    assert sha(deck / index["divisive_normalization"]["video"]) == sha(job / f"{job.name}.mp4")
+    assert job_of(deck / index["divisive_normalization"]["video"]) == job.name
     index, failures = clips.run_clips(deck)                               # a cache hit: the same job again
     assert failures == [] and index["divisive_normalization"]["job"]["id"] == job.name
 

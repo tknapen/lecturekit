@@ -3,6 +3,7 @@
     lk new <dir>            scaffold a project (vendors the Quarto extension; --manim8 adds a clips workspace)
     lk build [dir]          render live deck and study PDF, print the timing plan
     lk clips [deck]         render kit scenes and manim8 projects into assets/clips and write clips.json
+    lk clips adopt <mp4>    copy an MP4 made elsewhere into assets/clips and write its entry (--name, --stops)
     lk theme [dir]          write tokens.tex, tokens.css, tokens.py (and the bridged manim8 styles)
     lk review <tool> ...    shoot | frags | measure | contrast | overflow | figs
     lk docs                 where the documentation is
@@ -66,6 +67,45 @@ def cmd_clips(a: argparse.Namespace) -> int:
         for f in failures:
             print(f"  {f.name} ({f.producer}): {f.reason}", file=sys.stderr)
         return 1
+    return 0
+
+
+def clips_adopt_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="lk clips adopt",
+        description="Copy an MP4 made elsewhere into the deck's clips folder (with its index first, by stream copy) "
+                    "and write its clips.json entry: the frame count, the frame rate, a still of frame 0, of each "
+                    "stop and of the last frame, and the rest around each stop, measured on the pixels.")
+    p.add_argument("mp4", help="the video to adopt")
+    p.add_argument("--name", required=True, help="the clip's name in clips.json (what clip= names)")
+    p.add_argument("--deck", default=None, help="the deck folder (default: the current folder)")
+    p.add_argument("--stops", nargs="+", default=[], metavar="S",
+                   help="candidate stops, each a second of the video or ID=SECONDS, snapped to the nearest frame "
+                        "(a bare second gets the id stop_1, stop_2, ...)")
+    p.add_argument("--labels", nargs="+", default=[], metavar="L",
+                   help="one label per stop, in the same order (plain text, 1 to 40 characters; default the id)")
+    p.add_argument("--mode", choices=["light", "dark"],
+                   help="the preset (default LECTUREKIT_MODE, else light); dark writes assets/clips/dark/")
+    p.add_argument("--crop", action="store_true",
+                   help="crop to the content's bounding box against the slide colour (re-encodes)")
+    p.add_argument("--size", metavar="WxH", help="scale to this size (re-encodes as H.264)")
+    return p
+
+
+def cmd_clips_adopt(argv: list[str]) -> int:
+    from .clips import ClipError, adopt, clip_mode, index_path
+    a = clips_adopt_parser().parse_args(argv)
+    deck = Path(a.deck) if a.deck else Path.cwd()
+    try:
+        mode = clip_mode(a.mode)
+        rec = adopt(deck, Path(a.mp4), a.name, stops=a.stops, labels=a.labels, mode=mode, crop=a.crop, size=a.size)
+    except ClipError as exc:
+        print(f"lk clips adopt: {exc}", file=sys.stderr)
+        return 1
+    stops = ", ".join(f"{s['id']} at frame {s['frame']} ({s['pts']:g} s, rest {s['rest_before']}+{s['rest_after']})"
+                      for s in rec.stops or []) or "no stops"
+    print(f"{a.name}: {rec.width}x{rec.height}, {rec.frames} frames at {rec.fps:g} fps; {stops}")
+    print(f"  {rec.video} in {index_path(deck, mode)}")
     return 0
 
 
@@ -146,8 +186,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("targets", nargs="*", help="specific .qmd files")
     p.set_defaults(fn=cmd_build)
 
-    p = sub.add_parser("clips", help="render clips and write clips.json")
-    p.add_argument("dir", nargs="?")
+    p = sub.add_parser("clips", help="render clips and write clips.json (lk clips adopt <mp4>: bring one in)",
+                       epilog="lk clips adopt <mp4> --name NAME [--stops S ...] [--labels L ...] [--mode dark] "
+                              "copies an MP4 made elsewhere in; lk clips adopt --help says more")
+    p.add_argument("dir", nargs="?", help="the deck folder (default: the current folder)")
     p.add_argument("--only", nargs="+", action="extend", metavar="NAME",
                    help="clip names (- and _ are the same); repeatable, and one --only takes several")
     p.add_argument("--size", default=None, help="kit render size, WxH (1280x720; the kit reads NM_CLIP_SIZE); "
@@ -184,6 +226,9 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("version")
     p.set_defaults(fn=cmd_version)
 
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv[:2] == ["clips", "adopt"]:   # `lk clips [deck]` takes a folder; `lk clips adopt` is its own command
+        return cmd_clips_adopt(argv[2:])
     a = ap.parse_args(argv)
     return a.fn(a)
 

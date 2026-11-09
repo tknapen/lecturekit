@@ -5,48 +5,68 @@ The seam between the deck and whatever made the clip. A deck's movie block names
     ::: {.movie clip="bar-bold" height=4cm}
 
 and `assets/clips/clips.json` says what that name means (paths relative to the deck folder; a value that is
-not known is left out, never written as null):
+not known is left out, never written as null). Every entry `lk clips` writes is `format: 2`: besides the video,
+the still, the size and the source, it carries the facts a deck needs to hold the clip at a frame:
 
-    {"bar-bold": {"video": "assets/clips/bar-bold.mp4", "still": "assets/clips/bar-bold.png",
-                  "width": 1280, "height": 720, "fps": 30.0, "duration": 20.0,
+    {"bar-bold": {"format": 2, "video": "assets/clips/bar-bold.mp4", "still": "assets/clips/bar-bold.png",
+                  "width": 1280, "height": 720, "fps": 30.0, "frames": 600, "duration": 20.0,
+                  "sha256": "<of the video>", "poster": "assets/clips/bar-bold.f0000.png",
+                  "stops": [{"id": "first_sweep", "frame": 204, "pts": 6.8, "label": "first sweep",
+                             "still": "assets/clips/bar-bold.f0204.png", "rest_before": 9, "rest_after": 9,
+                             "frozen": []}],
+                  "end": {"frame": 599, "pts": 19.966667, "still": "assets/clips/bar-bold.f0599.png"},
                   "source": "anim/clip_bar_bold.py:BarBold", "revision": "<sha1 of the script>",
                   "producer": "kit"}}
 
-Two producers fill it:
+`frames` is counted by decoding the delivered video; a stop's `frame` is authoritative and `pts` is that frame's
+presentation time; every still is that exact frame (`select=eq(n,K)`), named by its number; `rest_before` and
+`rest_after` count the frames of unchanged picture on either side, measured on the pixels. `stops` are
+candidates: the deck chooses among them. Every delivered video is remuxed with its index first (`+faststart`)
+by stream copy; a re-encode (`--crop`, `adopt --size`) forces a keyframe at every stop and checks that the frame
+count did not change. An entry without `format` (written by an older lecturekit, or by hand) keeps its meaning.
+
+Three producers fill it:
 
 * kit scenes: `anim/clip_<name>.py`, one or more Manim `Scene` classes on the shared kit (`from kit import *`).
   Rendered with Manim at 1280 by 720 on the slide colour (`--size 1920x1080` or the environment variable
-  NM_CLIP_SIZE for another size; the kit reads it), 30 fps, without a title. The video is copied to
-  `assets/clips/<name>.mp4`; its last frame becomes the still `<name>.png` unless the scene class sets
-  `still = <seconds>`.
+  NM_CLIP_SIZE for another size; the kit reads it), 30 fps, without a title, with `--save_sections`. The video is
+  copied to `assets/clips/<name>.mp4`; its last frame becomes the still `<name>.png` unless the scene class sets
+  `still = <seconds>` or `still = "<checkpoint id>"`. Each `checkpoint(self, id, label=None, rest=0.0)` in the
+  scene opens a Manim section of type `lecturekit.checkpoint`; its frame is the sum of the frames of the sections
+  before it, and the labels come back through the file NM_CHECKPOINTS_FILE names.
 * manim8 projects: `clips/families/<family>/.../<name>/`, rendered with `scianim render --profile final --json`.
   `lk clips` builds the family environment when it is missing (`scianim family env sync`) and generates the
   scene module of the working copy (`scianim codegen`) first. The manifest printed on stdout names the full
   movie (`result.videos[0]`), its size, frame rate and duration, the job and its cache key, the revision and
   every checkpoint PNG; all of them are copied into `assets/clips/`, and the still is the latest checkpoint
-  unless `--still <clip>=<snapshot_id>` names another. The record adds `job` and `checkpoints`. A clip renders
-  at its project's `output`; `lk clips` warns when that is not the deck's size (`--size`, else 1280 by 720) or
-  30 fps. manim8's warnings are printed; a cache hit on a job that lost the deck's fonts (rendered outside
-  `lk clips`, on a machine without them) is rendered once more with them.
+  unless `--still <clip>=<snapshot_id>` names another. The record adds `job` and `checkpoints`. The stops are
+  the manifest's `result.stops` (manim8's snapshots marked `stop: true`, ADR-045), cross-checked against the
+  movie; a manifest without them gives no candidates. A clip renders at its project's `output`; `lk clips` warns
+  when that is not the deck's size (`--size`, else 1280 by 720) or 30 fps. manim8's warnings are printed; a cache
+  hit on a job that lost the deck's fonts (rendered outside `lk clips`, on a machine without them) is rendered
+  once more with them.
+* an MP4 made elsewhere: `lk clips adopt <mp4> --name NAME [--stops S1 S2 ...] [--labels L1 L2 ...]` copies it in
+  and writes its entry; a stop is a second of the video (or `ID=SECONDS`), snapped to the nearest frame.
 
-`--crop` trims the video and the stills of either producer to the content's bounding box against the slide
+`--crop` trims the video and the stills of any producer to the content's bounding box against the slide
 colour, and the record carries the resulting shape, which the deck uses as the clip's aspect. `--mode dark`
 (or LECTUREKIT_MODE=dark) renders the dark preset into `assets/clips/dark/` with its own `clips.json`: kit
 scenes read the dark brand, manim8 projects render under the brand's bridged dark style (`lk theme --manim8`).
 
 Names: `-` and `_` are equivalent wherever a clip is looked up, so `--only bar_bold` and `--only bar-bold` name
-the same clip; two clips whose names differ only in that way are an error.
+the same clip; two clips whose names differ only in that way are an error. Stop ids are exact slugs.
 
 A failing clip is reported with its producer and a one-line reason, the index is saved after every clip, and
 the run goes on; a clip's files are made in a staging folder and moved in together, so a failure leaves
-`assets/clips/` as the index describes it; `lk clips` exits non-zero at the end when a clip failed. A
-re-rendered clip that looks unchanged on screen is a browser cache at work: browsers cache clips by file name.
+`assets/clips/` as the index describes it; `lk clips` exits non-zero at the end when a clip failed. The deck
+versions a clip's URL by its `sha256`, so a browser never shows a cached older render.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -90,6 +110,13 @@ class ClipRecord:
     producer: str = "kit"
     job: dict[str, Any] | None = None
     checkpoints: dict[str, str] | None = None
+    # format 2 (every entry lk clips writes): the facts a deck needs to hold the clip at a frame
+    format: int | None = None
+    frames: int | None = None
+    sha256: str | None = None
+    poster: str | None = None
+    stops: list[dict[str, Any]] | None = None
+    end: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """The index entry: every known value, the unknown ones left out (never null)."""
@@ -181,24 +208,250 @@ def union_box(boxes: list[tuple[int, int, int, int]]) -> tuple[int, int, int, in
     return x0, y0, (x1 - x0) // 2 * 2, (y1 - y0) // 2 * 2
 
 
+def _need_ffmpeg() -> str:
+    exe = _ffmpeg()
+    if not exe:
+        raise ClipError("ffmpeg not found (pip install imageio-ffmpeg, or install ffmpeg)")
+    return exe
+
+
+def _ffprobe() -> str | None:
+    """ffprobe on PATH or beside ffmpeg; None when only an ffmpeg (imageio-ffmpeg's) is there."""
+    exe = shutil.which("ffprobe")
+    if exe:
+        return exe
+    ff = _ffmpeg()
+    if ff:
+        cand = Path(ff).with_name("ffprobe" + Path(ff).suffix)
+        if cand.exists():
+            return str(cand)
+    return None
+
+
+_PASSTHROUGH: dict[str, list[str]] = {}
+
+
+def _passthrough(exe: str) -> list[str]:
+    """The options that keep every decoded frame and add none: `-fps_mode passthrough` (ffmpeg 5.1 and later),
+    else `-vsync passthrough`."""
+    if exe not in _PASSTHROUGH:
+        r = subprocess.run([exe, "-hide_banner", "-h", "long"], capture_output=True, text=True)
+        _PASSTHROUGH[exe] = ["-fps_mode", "passthrough"] if "-fps_mode" in r.stdout + r.stderr else \
+            ["-vsync", "passthrough"]
+    return _PASSTHROUGH[exe]
+
+
+def _ff(args: list[str], what: str, *, binary: bool = False) -> subprocess.CompletedProcess:
+    """Run ffmpeg; a failure is a ClipError that says what was being done and ffmpeg's last line."""
+    r = subprocess.run([_need_ffmpeg(), "-y", "-v", "error", *args], capture_output=True, text=not binary)
+    if r.returncode:
+        err = r.stderr.decode(errors="replace") if binary else r.stderr
+        raise ClipError(f"ffmpeg could not {what}: {_last_line(err.splitlines()) or f'exited {r.returncode}'}")
+    return r
+
+
+def _fraction(value: Any) -> float | None:
+    try:
+        num, _, den = str(value).partition("/")
+        f = float(num) / float(den or 1)
+    except (ValueError, ZeroDivisionError):
+        return None
+    return f if f > 0 else None
+
+
+@dataclass
+class FrameTable:
+    """What decoding a video says: its size, its frame rate, and every frame's presentation time and keyframe flag,
+    in display order."""
+    width: int
+    height: int
+    fps: float
+    pts: list[float]
+    keys: list[bool]
+    codec: str | None = None
+
+    @property
+    def frames(self) -> int:
+        return len(self.pts)
+
+    def nearest(self, seconds: float) -> int:
+        """The frame whose presentation time is nearest to `seconds` (the earlier one on a tie)."""
+        import bisect
+        i = bisect.bisect_left(self.pts, seconds)
+        if i <= 0:
+            return 0
+        if i >= self.frames:
+            return self.frames - 1
+        return i - 1 if seconds - self.pts[i - 1] <= self.pts[i] - seconds else i
+
+
+def frame_table(video: Path) -> FrameTable:
+    """Decode a video's frames and list them: `ffprobe -count_frames` with every frame's `pts_time` and
+    `key_frame`, or ffmpeg's `showinfo` filter where there is no ffprobe. The count is the decoded one, never the
+    container's."""
+    video = Path(video)
+    probe = _ffprobe()
+    if probe:
+        r = subprocess.run([probe, "-v", "error", "-select_streams", "v:0", "-count_frames", "-show_entries",
+                            "stream=codec_name,width,height,r_frame_rate,avg_frame_rate,nb_read_frames:"
+                            "frame=pts_time,best_effort_timestamp_time,key_frame", "-of", "json", str(video)],
+                           capture_output=True, text=True)
+        if r.returncode:
+            raise ClipError(f"ffprobe could not read {video.name}: {_last_line(r.stderr.splitlines())}")
+        data = json.loads(r.stdout or "{}")
+        streams = data.get("streams") or []
+        if not streams:
+            raise ClipError(f"{video.name} has no video stream")
+        st = streams[0]
+        pts: list[float] = []
+        keys: list[bool] = []
+        for f in data.get("frames") or []:
+            t = f.get("pts_time")
+            if t in (None, "N/A"):
+                t = f.get("best_effort_timestamp_time")
+            pts.append(float(t) if t not in (None, "N/A") else float("nan"))
+            keys.append(str(f.get("key_frame")) == "1")
+        counted = int(st.get("nb_read_frames") or len(pts))
+        if counted != len(pts):
+            raise ClipError(f"ffprobe counted {counted} frames in {video.name} but listed {len(pts)}")
+        r_rate, avg = _fraction(st.get("r_frame_rate")), _fraction(st.get("avg_frame_rate"))
+        width, height, codec = int(st.get("width") or 0), int(st.get("height") or 0), st.get("codec_name")
+    else:
+        exe = _need_ffmpeg()
+        r = subprocess.run([exe, "-hide_banner", "-nostats", "-i", str(video), "-map", "0:v:0", "-vf", "showinfo",
+                            *_passthrough(exe), "-f", "null", "-"], capture_output=True, text=True)
+        if r.returncode:
+            raise ClipError(f"ffmpeg could not read {video.name}: {_last_line(r.stderr.splitlines())}")
+        pts, keys = [], []
+        width = height = 0
+        rate = re.search(r"config in time_base: (\d+/\d+), frame_rate: (\d+/\d+)", r.stderr)
+        r_rate = avg = _fraction(rate.group(2)) if rate else None
+        base = _fraction(rate.group(1)) if rate else None
+        for m in re.finditer(r"n:\s*\d+ pts:\s*(-?\d+) pts_time:(\S+).*? s:(\d+)x(\d+).*? iskey:(\d)", r.stderr):
+            # pts_time is printed to six significant digits; the pts in the time base is exact
+            pts.append(int(m.group(1)) * base if base else float(m.group(2)))
+            width, height = int(m.group(3)), int(m.group(4))
+            keys.append(m.group(5) == "1")
+        codec = None
+    if not pts:
+        raise ClipError(f"{video.name} has no frames")
+    if r_rate and avg and abs(r_rate - avg) <= 0.001 * avg:
+        fps = r_rate
+    else:
+        fps = avg or r_rate
+    if not fps:
+        raise ClipError(f"could not read the frame rate of {video.name}")
+    for i, t in enumerate(pts):   # a frame without a timestamp sits on the frame grid after the one before it
+        if math.isnan(t):
+            pts[i] = (pts[i - 1] + 1 / fps) if i else 0.0
+    return FrameTable(width=width, height=height, fps=round(fps, 6), pts=[round(t, 6) for t in pts], keys=keys,
+                      codec=codec)
+
+
+#: two pictures are one when no luma value differs by more than this (of 255) with the video scaled to
+#: REST_WIDTH pixels wide; the rests before and after a stop are counted in such frames
+REST_TOLERANCE = 2
+REST_WIDTH = 160
+
+
+def luma_frames(video: Path, table: FrameTable) -> tuple[tuple[int, int], list[bytes]]:
+    """Every frame of the video as grey bytes at REST_WIDTH pixels wide (area-averaged, which smooths the coding
+    noise of a still picture), in display order."""
+    w = REST_WIDTH
+    h = max(2, round(w * table.height / max(table.width, 1) / 2) * 2)
+    exe = _need_ffmpeg()
+    r = _ff(["-i", str(video), "-map", "0:v:0", "-vf", f"scale={w}:{h}:flags=area,format=gray",
+             *_passthrough(exe), "-f", "rawvideo", "-"], f"decode {Path(video).name}", binary=True)
+    size = w * h
+    data = r.stdout
+    if len(data) % size:
+        raise ClipError(f"decoding {Path(video).name} gave a partial frame")
+    return (w, h), [data[i:i + size] for i in range(0, len(data), size)]
+
+
+def same_picture(a: bytes, b: bytes, size: tuple[int, int]) -> bool:
+    """Whether two grey frames show one picture: no pixel differs by more than REST_TOLERANCE."""
+    if a == b:
+        return True
+    try:
+        from PIL import Image, ImageChops
+        diff = ImageChops.difference(Image.frombytes("L", size, a), Image.frombytes("L", size, b))
+        return diff.getextrema()[1] <= REST_TOLERANCE
+    except ImportError:
+        return max(abs(x - y) for x, y in zip(a, b)) <= REST_TOLERANCE
+
+
+def rests(lumas: list[bytes], size: tuple[int, int], k: int) -> tuple[int, int]:
+    """Frames of unchanged picture before and after frame k: the frames next to it that show its picture."""
+    before = 0
+    while k - before - 1 >= 0 and same_picture(lumas[k - before - 1], lumas[k], size):
+        before += 1
+    after = 0
+    while k + after + 1 < len(lumas) and same_picture(lumas[k + after + 1], lumas[k], size):
+        after += 1
+    return before, after
+
+
+def extract_frames(video: Path, frames: list[int], outs: list[Path]) -> None:
+    """Write frame `frames[i]` of the video (0-based, in display order) to `outs[i]` as a PNG: selected by its
+    number (`select=eq(n,K)`), never by a time. One decoding pass for all of them."""
+    if not frames:
+        return
+    order = sorted(set(frames))
+    exe = _need_ffmpeg()
+    tmp = Path(tempfile.mkdtemp(prefix="._frames.", dir=Path(outs[0]).parent))
+    try:
+        expr = "+".join(f"eq(n\\,{k})" for k in order)
+        _ff(["-i", str(video), "-map", "0:v:0", "-vf", f"select={expr}", *_passthrough(exe),
+             "-frames:v", str(len(order)), "-start_number", "0", str(tmp / "%06d.png")],
+            f"extract frames {', '.join(map(str, order))} of {Path(video).name}")
+        got = sorted(tmp.glob("*.png"))
+        if len(got) != len(order):
+            raise ClipError(f"{Path(video).name} has no frame {order[len(got)]} (it has fewer frames)")
+        by_frame = dict(zip(order, got))
+        for k, out in zip(frames, outs):
+            shutil.copyfile(by_frame[k], out)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def extract_frame(video: Path, at: float, out: Path) -> None:
-    exe = _ffmpeg()
-    if not exe:
-        raise ClipError("ffmpeg not found (pip install imageio-ffmpeg, or install ffmpeg)")
-    subprocess.run([exe, "-y", "-loglevel", "error", "-ss", f"{max(at, 0):.3f}", "-i", str(video),
-                    "-frames:v", "1", str(out)], check=True)
+    """The frame shown at `at` seconds, by its number (the frame whose presentation time is nearest)."""
+    table = frame_table(video)
+    extract_frames(video, [table.nearest(at)], [Path(out)])
 
 
-def crop_video(src: Path, dst: Path, box: tuple[int, int, int, int]) -> None:
-    exe = _ffmpeg()
-    if not exe:
-        raise ClipError("ffmpeg not found (pip install imageio-ffmpeg, or install ffmpeg)")
+def faststart(src: Path, dst: Path) -> None:
+    """Copy a video with its index (moov) first, by stream copy: every frame and keyframe stays as it was, and a
+    browser can seek before the whole file has arrived."""
+    _ff(["-i", str(src), "-map", "0:v:0", "-map", "0:a?", "-c", "copy", "-movflags", "+faststart", str(dst)],
+        f"remux {Path(src).name}")
+
+
+def reencode(src: Path, dst: Path, filters: list[str], keyframes: list[int], expect: int) -> FrameTable:
+    """Re-encode a video through `filters` (a crop, a scale) with a keyframe forced at frame 0 and at every frame in
+    `keyframes`, every frame kept, the index first; then check that it still has `expect` frames."""
+    exe = _need_ffmpeg()
+    force = "expr:" + "+".join(f"eq(n,{k})" for k in sorted({0, *keyframes}))
+    _ff(["-i", str(src), "-map", "0:v:0", "-vf", ",".join(filters), "-c:v", "libx264", "-pix_fmt", "yuv420p",
+         "-crf", "18", "-force_key_frames", force, *_passthrough(exe), "-movflags", "+faststart", "-an", str(dst)],
+        f"re-encode {Path(src).name}")
+    table = frame_table(dst)
+    if table.frames != expect:
+        raise ClipError(f"re-encoding {Path(src).name} gave {table.frames} frames, not {expect}")
+    return table
+
+
+def crop_video(src: Path, dst: Path, box: tuple[int, int, int, int], keyframes: list[int] = (),
+               expect: int | None = None) -> FrameTable:
+    """Crop a video to `box` (x, y, w, h), forcing keyframes at `keyframes` and keeping the frame count."""
     x, y, w, h = box
     tmp = dst.with_name(f"_{dst.name}")
-    subprocess.run([exe, "-y", "-loglevel", "error", "-i", str(src), "-vf", f"crop={w}:{h}:{x}:{y}",
-                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", "-movflags", "+faststart",
-                    "-an", str(tmp)], check=True)
+    if expect is None:
+        expect = frame_table(src).frames
+    table = reencode(src, tmp, [f"crop={w}:{h}:{x}:{y}"], list(keyframes), expect)
     tmp.replace(dst)
+    return table
 
 
 def crop_image(src: Path, dst: Path, box: tuple[int, int, int, int]) -> None:
@@ -210,6 +463,155 @@ def crop_image(src: Path, dst: Path, box: tuple[int, int, int, int]) -> None:
 
 def file_hash(path: Path) -> str:
     return hashlib.sha1(path.read_bytes()).hexdigest()[:12]
+
+
+def sha256_of(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def mean_difference(a: Path, b: Path) -> float | None:
+    """The mean absolute difference of two pictures, 0 to 255, the second scaled to the first's size; None without
+    Pillow."""
+    try:
+        from PIL import Image, ImageChops, ImageStat
+    except ImportError:
+        return None
+    with Image.open(a) as ia, Image.open(b) as ib:
+        x, y = ia.convert("RGB"), ib.convert("RGB")
+        if y.size != x.size:
+            y = y.resize(x.size)
+        return sum(ImageStat.Stat(ImageChops.difference(x, y)).mean) / 3
+
+
+# ------------------------------------------------------------------------- stops
+#: the slug rule of manim8's ids, for stop ids; compared exactly
+STOP_ID = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
+#: words the deck's `stops=` and `.stop ref=` give a meaning of their own
+RESERVED_STOP_IDS = ("start", "end", "all")
+LABEL_MAX = 40
+#: a deck refuses a stop with fewer frames of rest before it (the live deck pauses a frame or two early)
+MIN_REST_FRAMES = 3
+#: two stops closer than this are allowed, and warned about
+MIN_STOP_GAP = 0.5
+#: the kit's checkpoint() (lecturekit.manim.nmcheckpoint, which imports Manim through its package)
+CHECKPOINT_SECTION = "lecturekit.checkpoint"
+CHECKPOINTS_ENV = "NM_CHECKPOINTS_FILE"
+#: the most a still may differ from the producer's own picture of that frame (mean, of 255)
+STILL_MATCH = 1.0
+
+
+@dataclass
+class Candidate:
+    """A frame where a deck may hold the clip, before it is measured."""
+    id: str
+    frame: int
+    label: str | None = None
+    notes: str | None = None
+    frozen: list[str] = field(default_factory=list)
+    declared_rest: int | None = None   # frames of rest before it that the producer says it made
+    picture: Path | None = None        # the producer's own picture of the frame, to compare the still with
+
+
+def _warn(name: str, message: str) -> None:
+    print(f"lecturekit: clip {name}: {message}", file=sys.stderr)
+
+
+def check_candidates(name: str, candidates: list[Candidate], table: FrameTable, warn: bool = True) -> list[Candidate]:
+    """The candidates in time order, or a ClipError for one a deck could never hold: an id that is not a slug or
+    is reserved, a label that is not 1 to 40 characters of one line, a frame outside the video, at its first or
+    last frame, or one frame for two stops. Two stops closer than 0.5 s are a warning."""
+    seen: set[str] = set()
+    for c in candidates:
+        if not STOP_ID.match(c.id) or c.id in RESERVED_STOP_IDS:
+            raise ClipError(f"stop id {c.id!r} is not a slug ([a-z][a-z0-9_]*, at most 64 characters) other than "
+                            f"{', '.join(RESERVED_STOP_IDS)}")
+        if c.id in seen:
+            raise ClipError(f"stop id {c.id!r} is used twice")
+        seen.add(c.id)
+        if c.label is not None and (not 1 <= len(c.label) <= LABEL_MAX or "\n" in c.label):
+            raise ClipError(f"stop {c.id}: the label is plain text of 1 to {LABEL_MAX} characters, one line")
+        if not 0 < c.frame < table.frames - 1:
+            where = "the first frame" if c.frame == 0 else \
+                "the last frame" if c.frame == table.frames - 1 else "outside the video"
+            raise ClipError(f"stop {c.id} is at frame {c.frame}, {where} (the video has {table.frames} frames, "
+                            "and a stop sits strictly between its first and its last)")
+    ordered = sorted(candidates, key=lambda c: c.frame)
+    for a, b in zip(ordered, ordered[1:]):
+        if a.frame == b.frame:
+            raise ClipError(f"stops {a.id} and {b.id} are both at frame {a.frame}")
+        gap = table.pts[b.frame] - table.pts[a.frame]
+        if gap < MIN_STOP_GAP and warn:
+            _warn(name, f"stops {a.id} and {b.id} are {gap:.2f} s apart (a part shorter than {MIN_STOP_GAP:g} s "
+                  "is hard to see)")
+    return ordered
+
+
+def format2(video: Path, name: str, rel_dir: Path, candidates: list[Candidate], stage: Path,
+            still: tuple[str, int] | None = None, rests_from: tuple[Path, FrameTable] | None = None) -> dict[str, Any]:
+    """The format 2 fields of a delivered video in `stage`: its frame count, frame rate and sha256, the poster
+    (frame 0), each candidate stop with its still and its rests, and the end. The stills are written into `stage`
+    as `<name>.fNNNN.png`, and `still` = (file name, frame) writes one more (the study still). The rests are
+    measured on `rests_from`, the producer's video, when the delivered one is a re-encode of it: a keyframe forced
+    at a stop is coded afresh and differs from the frames before it by a few levels that are not in the picture."""
+    table = frame_table(video)
+    cands = check_candidates(name, candidates, table)
+    last = table.frames - 1
+    source, source_table = rests_from or (video, table)
+    if source_table.frames != table.frames:
+        raise ClipError(f"{Path(video).name} has {table.frames} frames, {Path(source).name} {source_table.frames}")
+    size, lumas = luma_frames(source, source_table) if cands else ((0, 0), [])
+    if cands and len(lumas) != table.frames:
+        raise ClipError(f"decoding {Path(source).name} gave {len(lumas)} frames, ffprobe {table.frames}")
+    bounds = sorted({0, last, *(c.frame for c in cands)})
+    file_of = {k: f"{name}.f{k:04d}.png" for k in bounds}
+    frames, outs = [k for k in bounds], [stage / file_of[k] for k in bounds]
+    if still:
+        frames.append(still[1])
+        outs.append(stage / still[0])
+    extract_frames(video, frames, outs)
+    rel = {k: (rel_dir / f).as_posix() for k, f in file_of.items()}
+    stops = []
+    for c in cands:
+        before, after = rests(lumas, size, c.frame)
+        if before < MIN_REST_FRAMES:
+            _warn(name, f"stop {c.id} (frame {c.frame}) has {before} frame{'s' if before != 1 else ''} of unchanged "
+                  f"picture before it; a deck refuses a stop with fewer than {MIN_REST_FRAMES}")
+        elif c.declared_rest is not None and before < c.declared_rest:
+            _warn(name, f"stop {c.id}: the producer made {c.declared_rest} frames of rest before it, the pixels "
+                  f"show {before}")
+        if not table.keys[c.frame]:
+            _warn(name, f"stop {c.id} (frame {c.frame}) is not a keyframe: a hold there is exact, but seeking to it "
+                  "takes longer")
+        if c.picture is not None and c.picture.exists():
+            d = mean_difference(stage / file_of[c.frame], c.picture)
+            if d is not None and d > STILL_MATCH:
+                raise ClipError(f"stop {c.id}: frame {c.frame} of the movie is not the producer's picture of it "
+                                f"(mean difference {d:.2f}); the stop's frame and the movie disagree")
+        stop = {"id": c.id, "frame": c.frame, "pts": table.pts[c.frame], "label": c.label or c.id.replace("_", " "),
+                "notes": c.notes or None, "still": rel[c.frame], "rest_before": before, "rest_after": after,
+                "frozen": list(c.frozen)}
+        stops.append({k: v for k, v in stop.items() if v is not None})
+    return {"format": 2, "fps": table.fps, "frames": table.frames, "sha256": sha256_of(video),
+            "poster": rel[0], "stops": stops, "end": {"frame": last, "pts": table.pts[last], "still": rel[last]},
+            "width": table.width, "height": table.height}
+
+
+def _move_in(stage: Path, out: Path, name: str) -> set[str]:
+    """Move a clip's staged files into its folder, then drop the frame stills (`<name>.fNNNN.png`) of an earlier
+    render that this one did not make. Returns the names of the files moved in."""
+    made = {p.name for p in stage.iterdir() if p.is_file()}
+    for f in sorted(stage.iterdir()):
+        if f.is_file():
+            f.replace(out / f.name)
+    still = re.compile(rf"^{re.escape(name)}\.f\d{{4,}}\.png$")
+    for old in out.iterdir():
+        if still.match(old.name) and old.name not in made:
+            old.unlink()
+    return made
 
 
 def _rel(path: Path, base: Path) -> str:
@@ -424,10 +826,10 @@ def _manim_exe() -> str | None:
 
 
 def render_kit_scene(deck: Path, script: Path, scene: str, size: str = KIT_SIZE, crop: bool = False,
-                     background: str | None = None, mode: str | None = None, still: float | None = None,
+                     background: str | None = None, mode: str | None = None, still: float | str | None = None,
                      out_dir: Path | None = None) -> ClipRecord:
-    """Render one Manim scene on the kit, copy it into the preset's clips folder, write the still, return the
-    record."""
+    """Render one Manim scene on the kit with its sections, copy it into the preset's clips folder with its index
+    first, write the stills, return the format 2 record: its stops are the scene's `checkpoint()` calls."""
     m = clip_mode(mode)
     exe = _manim_exe()
     if not exe:
@@ -440,41 +842,149 @@ def render_kit_scene(deck: Path, script: Path, scene: str, size: str = KIT_SIZE,
     env["NM_CLIP_SIZE"] = f"{w0}x{h0}"
     env["LECTUREKIT_MODE"] = m
     env.setdefault("LECTUREKIT_BRAND", str(_brand_for(deck, m)))
-    cmd = [exe, "--disable_caching", "--progress_bar", "none", "-r", f"{w0},{h0}",
+    sidecar = media / "lecturekit" / f"{name}.checkpoints.jsonl"
+    sidecar.parent.mkdir(parents=True, exist_ok=True)
+    sidecar.unlink(missing_ok=True)
+    env[CHECKPOINTS_ENV] = str(sidecar)
+    for old in media.rglob(f"sections/{name}.json") if media.is_dir() else []:
+        old.unlink()                   # a sections index of an earlier render must not be read as this one's
+    cmd = [exe, "--disable_caching", "--progress_bar", "none", "--save_sections", "-r", f"{w0},{h0}",
            "--media_dir", str(media), "-o", name, str(Path(script).resolve()), scene]
     rc, _, reason = run_tool(cmd, cwd=anim, env=env)
     if rc:
         raise ClipError(f"manim exited {rc}: {reason}" if reason else f"manim exited {rc}")
     produced = sorted(media.rglob(f"{name}.mp4"), key=lambda p: p.stat().st_mtime)
+    produced = [p for p in produced if p.parent.name != "sections"]
     if not produced:
         raise ClipError(f"Manim produced no video for {scene}")
     raw = produced[-1]
+    recorded = _read_checkpoints(sidecar)
+    raw_table = frame_table(raw)
+    candidates = kit_candidates(name, media, recorded, raw_table, raw)
     rel_dir = clips_dir(m)
     out = out_dir or (deck / rel_dir)
     out.mkdir(parents=True, exist_ok=True)
     info = probe_video(raw)
-    duration = info["duration"]
     still_at = still if still is not None else _scene_attr(script, scene, "still")
-    at = duration - 0.05 if still_at in (None, "last") else float(still_at)
+    still_frame = _kit_still_frame(name, still_at, candidates, raw_table)
     video = out / f"{name}.mp4"
     still_png = out / f"{name}.png"
-    w, h = info["width"], info["height"]
-    with _staging(out, name) as stage:   # the video and the still move in together, or neither does
-        tmp_frame = stage / f"_{name}_frame.png"
-        extract_frame(raw, at, tmp_frame)
-        box = content_box(tmp_frame, background or _slide_color(deck, m)) if crop else None
+    with _staging(out, name) as stage:   # the video and the stills move in together, or none does
+        box = None
+        if crop:
+            box = _content_of(raw, sorted({0, raw_table.frames - 1, still_frame, *(c.frame for c in candidates)}),
+                              background or _slide_color(deck, m), stage)
         if box:
-            crop_video(raw, stage / video.name, box)
-            crop_image(tmp_frame, stage / still_png.name, box)
-            w, h = box[2], box[3]
+            crop_video(raw, stage / video.name, box, [c.frame for c in candidates], raw_table.frames)
         else:
-            shutil.copy2(raw, stage / video.name)
-            shutil.copy2(tmp_frame, stage / still_png.name)
-        (stage / video.name).replace(video)
-        (stage / still_png.name).replace(still_png)
+            faststart(raw, stage / video.name)
+        fields = format2(stage / video.name, name, rel_dir, candidates, stage, still=(still_png.name, still_frame),
+                         rests_from=(raw, raw_table) if box else None)
+        w, h = fields.pop("width"), fields.pop("height")
+        _move_in(stage, out, name)
     return ClipRecord(video=(rel_dir / video.name).as_posix(), still=(rel_dir / still_png.name).as_posix(),
-                      width=w, height=h, fps=info["fps"], duration=round(duration, 3),
-                      source=f"{_rel(script, deck)}:{scene}", revision=file_hash(script), producer="kit")
+                      width=w, height=h, duration=round(info["duration"], 3),
+                      source=f"{_rel(script, deck)}:{scene}", revision=file_hash(script), producer="kit",
+                      checkpoints={s["id"]: s["still"] for s in fields["stops"]} or None, **fields)
+
+
+def _read_checkpoints(sidecar: Path) -> list[dict]:
+    """What the scene's checkpoint() calls wrote: one JSON object per call (id, label, rest), in call order."""
+    if not sidecar.exists():
+        return []
+    rows = []
+    for line in sidecar.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            rows.append(json.loads(line))
+    return rows
+
+
+def kit_candidates(name: str, media: Path, recorded: list[dict], table: FrameTable, raw: Path) -> list[Candidate]:
+    """The stops of a kit clip: each section of type `lecturekit.checkpoint` in Manim's sections index starts at
+    the sum of the frames of the sections before it. The sum of all sections must be the movie's decoded frame
+    count, and each checkpoint section's first frame must be the movie's frame there."""
+    found = sorted(media.rglob(f"sections/{name}.json"), key=lambda p: p.stat().st_mtime) if media.is_dir() else []
+    if not found:
+        if recorded:
+            raise ClipError(f"the scene calls checkpoint() ({', '.join(r['id'] for r in recorded)}) but Manim wrote "
+                            "no sections index (it needs --save_sections, which lk clips passes)")
+        return []
+    index_file = found[-1]
+    sections = json.loads(index_file.read_text(encoding="utf-8"))
+    labels = {r["id"]: r for r in recorded}
+    frame = 0
+    out: list[Candidate] = []
+    firsts: list[tuple[Candidate, Path]] = []
+    for sec in sections:
+        nb = int(sec.get("nb_frames") or 0)
+        video = index_file.parent / str(sec.get("video", ""))
+        if nb <= 0 and video.is_file():
+            nb = frame_table(video).frames
+        if sec.get("type") == CHECKPOINT_SECTION:
+            r = labels.get(sec.get("name"), {})
+            rest = r.get("rest")
+            c = Candidate(id=str(sec.get("name")), frame=frame, label=r.get("label"),
+                          declared_rest=int(rest / 2 * table.fps + 1e-6) if rest else None)
+            out.append(c)
+            if video.is_file():
+                firsts.append((c, video))
+        frame += nb
+    if frame != table.frames:
+        raise ClipError(f"Manim's sections add up to {frame} frames, the movie has {table.frames}")
+    missing = [r["id"] for r in recorded if r["id"] not in {c.id for c in out}]
+    if missing:
+        raise ClipError(f"checkpoint {missing[0]} has no frames after it: put an animation or a wait between it and "
+                        "the next checkpoint, or the end of the scene")
+    if out and out[0].frame == 0:
+        raise ClipError(f"checkpoint {out[0].id} is at the first frame: a stop sits after something has been shown")
+    _check_section_starts(raw, firsts)
+    return out
+
+
+def _check_section_starts(raw: Path, firsts: list[tuple[Candidate, Path]]) -> None:
+    """Each checkpoint section's first frame, from its own file, against the movie's frame at the summed index."""
+    if not firsts:
+        return
+    tmp = Path(tempfile.mkdtemp(prefix="._sections.", dir=raw.parent))
+    try:
+        movie = [tmp / f"m{c.frame}.png" for c, _ in firsts]
+        extract_frames(raw, [c.frame for c, _ in firsts], movie)
+        for (c, video), png in zip(firsts, movie):
+            own = tmp / f"s{c.frame}.png"
+            extract_frames(video, [0], [own])
+            d = mean_difference(png, own)
+            if d is not None and d > STILL_MATCH:
+                raise ClipError(f"checkpoint {c.id}: frame {c.frame} of the movie is not the first frame of its "
+                                f"section (mean difference {d:.2f})")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _kit_still_frame(name: str, still_at: Any, candidates: list[Candidate], table: FrameTable) -> int:
+    """The study still of a kit clip: the last frame, a second of the clip, or a checkpoint's frame."""
+    if still_at in (None, "last"):
+        return table.frames - 1
+    if isinstance(still_at, str):
+        try:
+            still_at = float(still_at)
+        except ValueError:
+            by_id = {c.id: c.frame for c in candidates}
+            if still_at not in by_id:
+                raise ClipError(f"still {still_at!r} is neither a second of the clip nor one of its checkpoints "
+                                f"({', '.join(by_id) or 'it has none'})") from None
+            return by_id[still_at]
+    return table.nearest(float(still_at))
+
+
+def _content_of(video: Path, frames: list[int], background: str, stage: Path) -> tuple[int, int, int, int] | None:
+    """The box around the content of the given frames, against the slide colour."""
+    pngs = [stage / f"_box{k}.png" for k in frames]
+    extract_frames(video, frames, pngs)
+    try:
+        return union_box([b for b in (content_box(p, background) for p in pngs) if b])
+    finally:
+        for p in pngs:
+            p.unlink(missing_ok=True)
 
 
 def _scene_attr(script: Path, scene: str, attr: str):
@@ -726,6 +1236,14 @@ def manim8_record(deck: Path, clip_dir: Path, manifest: dict, still: str | float
                             f"(it has {', '.join(sid for sid, _, _ in checkpoints) or 'none'})") from None
     width, height = int(v0["width_px"]), int(v0["height_px"])
     _check_output(name, width, height, v0.get("fps"), size)
+    raw_table = frame_table(movie)
+    candidates = manim8_candidates(name, manifest, raw_table)
+    declared = v0.get("frame_count")
+    if declared is not None and int(declared) != raw_table.frames:
+        message = f"the manifest says the movie has {declared} frames; decoding it gives {raw_table.frames}"
+        if candidates:
+            raise ClipError(f"{message}, so its stops' frames cannot be trusted")
+        _warn(name, message)
     rel_dir = clips_dir(m)
     out = out_dir or (deck / rel_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -734,17 +1252,12 @@ def manim8_record(deck: Path, clip_dir: Path, manifest: dict, still: str | float
         if crop:
             bg = background or _slide_color(deck, m)
             frames = [p for _, p, _ in checkpoints]
-            if not frames:
-                frames = [stage / f"_{name}_frame.png"]
-                extract_frame(movie, max(float(v0.get("duration_seconds", 0)) - 0.05, 0), frames[0])
-            box = union_box([b for b in (content_box(f, bg) for f in frames) if b])
-            if frames[0].parent == stage:
-                frames[0].unlink(missing_ok=True)
+            box = union_box([b for b in (content_box(f, bg) for f in frames) if b]) if frames else \
+                _content_of(movie, [raw_table.frames - 1], bg, stage)
         if box:
-            crop_video(movie, stage / f"{name}.mp4", box)
-            width, height = box[2], box[3]
+            crop_video(movie, stage / f"{name}.mp4", box, [c.frame for c in candidates], raw_table.frames)
         else:
-            shutil.copy2(movie, stage / f"{name}.mp4")
+            faststart(movie, stage / f"{name}.mp4")
         copied: dict[str, str] = {}
         for sid, png, _ in checkpoints:
             dst = stage / f"{name}.{sid}.png"
@@ -753,11 +1266,15 @@ def manim8_record(deck: Path, clip_dir: Path, manifest: dict, still: str | float
             else:
                 shutil.copy2(png, dst)
             copied[sid] = (rel_dir / dst.name).as_posix()
-        still_path = _manim8_still(name, still, checkpoints, copied, movie, stage, rel_dir, box, v0)
+        for c in candidates:   # the still of each stop is compared with manim8's own picture of that frame
+            if c.id in copied:
+                c.picture = stage / f"{name}.{c.id}.png"
+        still_path, extract = _manim8_still(name, still, checkpoints, copied, raw_table, rel_dir)
+        fields = format2(stage / f"{name}.mp4", name, rel_dir, candidates, stage, still=extract,
+                         rests_from=(movie, raw_table) if box else None)
+        width, height = fields.pop("width"), fields.pop("height")
         # every file is made: move them in, then drop the checkpoints (and a still) of an earlier job
-        made = {p.name for p in stage.iterdir()}
-        for f in sorted(stage.iterdir()):
-            f.replace(out / f.name)
+        made = _move_in(stage, out, name)
     stale = re.compile(rf"^{re.escape(name)}\.([a-z][a-z0-9_]*)\.png$")
     for old in out.glob(f"{name}.*.png"):
         hit = stale.match(old.name)
@@ -771,12 +1288,53 @@ def manim8_record(deck: Path, clip_dir: Path, manifest: dict, still: str | float
                "style": f"{resolved['theme']}@{resolved['theme_version']}"
                if resolved.get("theme") and resolved.get("theme_version") else None}
     return ClipRecord(video=(rel_dir / f"{name}.mp4").as_posix(), still=still_path, width=width, height=height,
-                      fps=float(v0["fps"]) if v0.get("fps") is not None else None,
                       duration=round(float(v0["duration_seconds"]), 3) if v0.get("duration_seconds") is not None
                       else None,
                       source=_rel(clip_dir, deck), revision=job.get("revision_id"), producer="manim8",
                       job={k: v for k, v in job_rec.items() if v is not None},
-                      checkpoints=copied or None)
+                      checkpoints=copied or None, **fields)
+
+
+def manim8_candidates(name: str, manifest: dict, table: FrameTable) -> list[Candidate]:
+    """The stops of a manim8 clip: `result.stops`, which manim8 derives from the snapshots marked `stop: true`
+    (ADR-045). Each one's `frame_index` must be its time on the movie's frame grid (a disagreement stops the
+    clip); a stop where no play starts, or whose rest is not static plays, is a warning (manim8 refuses both in a
+    final render and only warns in a draft). A manifest without `result.stops` gives no candidates."""
+    result = manifest.get("result") or {}
+    snapshots = (manifest.get("job") or {}).get("snapshots") or {}
+    fps = table.fps
+    plays = []
+    for p in result.get("plays") or []:
+        try:
+            first = round(float(p["start_seconds"]) * fps)
+            plays.append((first, first + int(p.get("frames", 1)), bool(p.get("static"))))
+        except (KeyError, TypeError, ValueError):
+            continue
+    out = []
+    for s in result.get("stops") or []:
+        sid, k = s.get("snapshot_id"), s.get("frame_index")
+        if not sid or k is None:
+            raise ClipError(f"a stop in the manifest has no snapshot_id or frame_index: {json.dumps(s)[:120]}")
+        k = int(k)
+        t = s.get("time_seconds")
+        if t is not None and round(float(t) * fps) != k:
+            raise ClipError(f"stop {sid}: frame_index {k} is not its time, {float(t):g} s at {fps:g} fps "
+                            f"(frame {round(float(t) * fps)})")
+        before = s.get("rest_before_frames")
+        if plays:
+            if not any(first == k for first, _, _ in plays):
+                _warn(name, f"stop {sid}: no play of the movie starts at its frame {k}")
+            if before:
+                moving = [first for first, last, static in plays if first < k and last > k - int(before)
+                          and not static]
+                if moving:
+                    _warn(name, f"stop {sid}: a play that moves (from frame {moving[0]}) runs in the "
+                          f"{int(before)} frames of rest before it")
+        notes = s.get("notes") or (snapshots.get(sid) or {}).get("description")
+        out.append(Candidate(id=str(sid), frame=k, label=s.get("label"), notes=notes,
+                             frozen=[str(f) for f in s.get("frozen") or []],
+                             declared_rest=int(before) if before is not None else None))
+    return out
 
 
 @contextmanager
@@ -789,14 +1347,15 @@ def _staging(out: Path, name: str):
         shutil.rmtree(stage, ignore_errors=True)
 
 
-def _manim8_still(name, still, checkpoints, copied, movie, out, rel_dir, box, v0) -> str:
-    """The still of a manim8 clip: the named checkpoint, a second of the movie, or the latest checkpoint. A
-    frame of the movie is written into `out` as `<name>.png`."""
+def _manim8_still(name, still, checkpoints, copied, table: FrameTable, rel_dir: Path):
+    """The still of a manim8 clip: the named checkpoint, a frame of the movie at a second, or the latest
+    checkpoint (the last frame when the job has none). Returns its path and, for a frame of the movie, the file
+    name and frame number to extract."""
     seconds = None
     if still is not None:
         sid = str(still)
         if sid in copied:
-            return copied[sid]
+            return copied[sid], None
         try:
             seconds = float(still)
         except (TypeError, ValueError):
@@ -804,17 +1363,9 @@ def _manim8_still(name, still, checkpoints, copied, movie, out, rel_dir, box, v0
                             f"(it has {', '.join(copied) or 'none'})") from None
     if seconds is None and checkpoints:
         latest = max(checkpoints, key=lambda c: c[2])
-        return copied[latest[0]]
-    at = seconds if seconds is not None else max(float(v0.get("duration_seconds", 0)) - 0.05, 0)
-    png = out / f"{name}.png"
-    frame = out / f"_{name}_frame.png"
-    extract_frame(movie, at, frame)
-    if box:
-        crop_image(frame, png, box)
-        frame.unlink(missing_ok=True)
-    else:
-        frame.replace(png)
-    return (rel_dir / png.name).as_posix()
+        return copied[latest[0]], None
+    frame = table.nearest(seconds) if seconds is not None else table.frames - 1
+    return (rel_dir / f"{name}.png").as_posix(), (f"{name}.png", frame)
 
 
 # ----------------------------------------------------------------------- the index
@@ -847,8 +1398,9 @@ def store(index: dict, name: str, rec: ClipRecord | dict) -> None:
 
 
 def index_existing(deck: Path, mode: str = "light") -> dict:
-    """Record the clips already in the preset's clips folder (an .mp4 with or without a .png) without rendering
-    anything."""
+    """The index with an entry (without `format`) for each MP4 already in the preset's clips folder that it does
+    not name, with or without a .png beside it; nothing is rendered, copied or saved. For older callers:
+    `lk clips adopt` is the way to bring an MP4 in."""
     index = load_index(deck, mode)
     known = {norm_name(k) for k in index}
     rel_dir = clips_dir(mode)
@@ -865,6 +1417,93 @@ def index_existing(deck: Path, mode: str = "light") -> dict:
                                  duration=info["duration"], source=(rel_dir / video.name).as_posix(),
                                  revision=file_hash(video), producer="external").to_dict()
     return index
+
+
+CLIP_NAME = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
+
+
+def parse_stops(stops: list[str] | None, labels: list[str] | None) -> list[tuple[str, float, str | None]]:
+    """`--stops 4.0 8.0` or `--stops lenient=4.0 strict=8.0`, with `--labels` in the same order: (id, seconds,
+    label) triples. A bare second gets the id `stop_1`, `stop_2`, ... by its position."""
+    stops, labels = list(stops or []), list(labels or [])
+    if labels and len(labels) != len(stops):
+        raise ClipError(f"{len(labels)} label{'s' if len(labels) != 1 else ''} for {len(stops)} "
+                        f"stop{'s' if len(stops) != 1 else ''}: give one label per stop, in the same order")
+    out = []
+    for i, item in enumerate(stops):
+        sid, sep, value = str(item).rpartition("=")
+        sid = sid.strip() if sep else f"stop_{i + 1}"
+        try:
+            seconds = float(value)
+        except ValueError:
+            raise ClipError(f"--stops {item}: a stop is a second of the video, or ID=SECONDS") from None
+        if seconds < 0:
+            raise ClipError(f"--stops {item}: a negative second")
+        out.append((sid, seconds, labels[i] if labels else None))
+    return out
+
+
+def adopt(deck: Path, src: Path, name: str, stops: list[str] | None = None, labels: list[str] | None = None,
+          mode: str | None = None, crop: bool = False, size: str | None = None,
+          background: str | None = None) -> ClipRecord:
+    """Bring an MP4 made elsewhere into the deck: copy it to the preset's clips folder with its index first (by
+    stream copy; `crop` or `size` re-encode it with a keyframe at every stop), write its stills and its format 2
+    entry, and save the index. Each stop is a second of the video, snapped to the nearest frame."""
+    deck, src = Path(deck), Path(src)
+    m = clip_mode(mode)
+    if not CLIP_NAME.match(name):
+        raise ClipError(f"--name {name!r}: a clip name is lower case letters, digits, _ and -, starting with a letter")
+    if not src.is_file():
+        raise ClipError(f"{src} is not a file")
+    for clip in find_clips(deck):
+        if norm_name(clip.name) == norm_name(name):
+            raise ClipError(f"{name!r} is the {clip.producer} clip {_rel(clip.path, deck)}, which lk clips renders; "
+                            "adopt the file under another name")
+    table = frame_table(src)
+    if table.codec and table.codec != "h264" and not (crop or size):
+        _warn(name, f"the video is {table.codec}, which not every browser plays; --size WxH re-encodes it as H.264")
+    candidates = []
+    for sid, seconds, label in parse_stops(stops, labels):
+        if seconds > table.pts[-1] + 1 / table.fps:
+            raise ClipError(f"stop {sid} at {seconds:g} s is after the end of the video ({table.pts[-1]:g} s)")
+        candidates.append(Candidate(id=sid, frame=table.nearest(seconds), label=label))
+    check_candidates(name, candidates, table, warn=False)   # refuse before anything is copied
+    rel_dir = clips_dir(m)
+    out = deck / rel_dir
+    out.mkdir(parents=True, exist_ok=True)
+    keys = [c.frame for c in candidates]
+    with _staging(out, name) as stage:
+        video = stage / f"{name}.mp4"
+        filters = []
+        if crop:
+            box = _content_of(src, sorted({0, table.frames - 1, *keys}), background or _slide_color(deck, m), stage)
+            if box:
+                x, y, w, h = box
+                filters.append(f"crop={w}:{h}:{x}:{y}")
+        if size:
+            try:
+                w, h = (int(v) for v in size.lower().split("x"))
+            except ValueError:
+                raise ClipError(f"--size {size}: WxH, for example 1280x720") from None
+            filters.append(f"scale={w}:{h}")
+        if filters:
+            reencode(src, video, filters, keys, table.frames)
+        else:
+            faststart(src, video)
+        fields = format2(video, name, rel_dir, candidates, stage, still=(f"{name}.png", table.frames - 1),
+                         rests_from=(src, table) if filters else None)
+        width, height = fields.pop("width"), fields.pop("height")
+        info = probe_video(video)
+        _move_in(stage, out, name)
+    inside = src.resolve().is_relative_to(deck.resolve())
+    rec = ClipRecord(video=(rel_dir / f"{name}.mp4").as_posix(), still=(rel_dir / f"{name}.png").as_posix(),
+                     width=width, height=height, duration=info["duration"],
+                     source=_rel(src, deck) if inside else src.name, revision=file_hash(src), producer="external",
+                     checkpoints={s["id"]: s["still"] for s in fields["stops"]} or None, **fields)
+    index = load_index(deck, m)
+    store(index, name, rec)
+    save_index(deck, index, m)
+    return rec
 
 
 # ------------------------------------------------------------------------ the run
@@ -949,13 +1588,7 @@ def run_clips(deck: Path, only: list[str] | None = None, size: str | None = None
         key = norm_name(clip.name)
         try:
             if clip.producer == "kit":
-                still = still_for.get(key)
-                if still is not None:
-                    try:
-                        still = float(still)
-                    except ValueError:
-                        raise ClipError(f"--still {clip.name}={still}: a kit clip's still is a second of the "
-                                        "clip (or `still = <seconds>` on the scene class)") from None
+                still = still_for.get(key)   # a second of the clip, or one of its checkpoints
                 rec = render_kit_scene(deck, clip.path, clip.scene or "", size=size or KIT_SIZE, crop=crop,
                                        mode=m, still=still)
             else:
@@ -976,8 +1609,9 @@ def run_clips(deck: Path, only: list[str] | None = None, size: str | None = None
             continue
         store(index, clip.name, rec)
         save_index(deck, index, m)
-        print(f"lecturekit: {clip.producer} clip {clip.name}: {rec.width}x{rec.height}, {rec.duration}s -> "
-              f"{rec.video}", file=sys.stderr)
+        n = len(rec.stops or [])
+        print(f"lecturekit: {clip.producer} clip {clip.name}: {rec.width}x{rec.height}, {rec.duration}s, "
+              f"{rec.frames} frames, {n} stop{'s' if n != 1 else ''} -> {rec.video}", file=sys.stderr)
     for o in only or []:
         if norm_name(o) not in matched:
             names = ", ".join(c.name for c in clips) or "none"
