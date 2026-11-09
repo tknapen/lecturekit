@@ -88,6 +88,8 @@ scianim skill install             # the manim8 skill for the agent that turns a 
 
 `scianim doctor` checks the control plane, and `scianim doctor --family clips/families/<family>` a family's render environment.
 
+Another manim8 (a branch, a commit or a local checkout) replaces the tag in two ways. uv overrides the extra's sources: put `manim8 @ git+https://github.com/tknapen/manim8@<ref>` and `manim8-core @ git+https://github.com/tknapen/manim8@<ref>#subdirectory=packages/scianim_core` in a file and run `uv pip install --override that-file "lecturekit[manim8]"`. pip cannot override a source that a package names, and fetches the tag even when another manim8 is installed, so with pip install the two from `<ref>` first and then lecturekit without the `manim8` extra; lecturekit finds `scianim` on the path or beside its own Python either way. A ref with a slash in it (a branch such as `claude/x`) needs a recent pip; pip 24.0 refuses it. The family environments follow the control plane: the same commit for a git install, the checkout's own packages for an editable one (manim8's ADR-043).
+
 ## An existing Quarto project
 
 ```sh
