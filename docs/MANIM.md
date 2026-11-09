@@ -7,7 +7,7 @@ from lecturekit.manim import *
 HERE = Path(__file__).resolve().parent; DATA = HERE.parent / 'assets' / 'data'
 ```
 
-and every clip starts with `from kit import *`, which gives it the modules below, with `HERE` and `DATA` as the deck's `anim/` and `assets/data/`. `lk clips` renders the scenes (CLIPS.md), `lk clips --mode dark` the dark preset's, into `assets/clips/dark/`. Manim Community 0.22 needs Pillow below 11.3: `pip install lecturekit[clips]`.
+and every clip starts with `from kit import *`, which gives it the modules below (and `checkpoint()`, the frames where a deck may hold the clip), with `HERE` and `DATA` as the deck's `anim/` and `assets/data/`. `lk clips` renders the scenes (CLIPS.md), `lk clips --mode dark` the dark preset's, into `assets/clips/dark/`. Manim Community 0.22 needs Pillow below 11.3: `pip install lecturekit[clips]`.
 
 ## nmstyle: the house style
 
@@ -43,6 +43,26 @@ Written for the Coimbra pRF workshop's lecture 2 and reused by the course's lect
 - `Bars(frame)`: bars by slot (`bar(j, v0, v1, colour)`, stacked by passing the top of the bar below as `v0`), dashed outlines for predictions (`outline`) and labels under the slots (`under`).
 - `baseline(label)` and `on_baseline(label, y)`: align `Text` labels of different words by their baselines (a row of names under windows, a legend), since 'odd' and 'grating' have different boxes.
 - `APERTURE` is the light grey of stimulus apertures (ink at 20 percent). The model colours are the brand's: `GAUSS`, `DOG`, `CSS`, `DN` and `FUTURE` (drawn dotted); data and the voxel are `INK`. Blue is the Gaussian, so apertures are never blue.
+
+## nmcheckpoint: where a deck may hold the clip
+
+`checkpoint(self, id, label=None, rest=0.0)` marks a frame where a deck may hold the clip until the presenter's next key (a clip in parts, CLIPS.md). Call it in `construct` between two animations:
+
+```python
+class Sweep(Scene):
+    def construct(self):
+        ...
+        self.play(bar.animate.shift(4 * RIGHT), run_time=3)
+        checkpoint(self, "first_sweep", label="rightward sweep", rest=0.6)
+        self.play(bar.animate.shift(4 * LEFT), run_time=3)
+```
+
+It waits `rest / 2` seconds, opens a Manim section of type `lecturekit.checkpoint` named by the id, and waits `rest / 2` more. The stop is the section's first frame: `lk clips` renders the scene with `--save_sections` and adds up the frames of the sections before it, and the label reaches `clips.json` through the file that `NM_CHECKPOINTS_FILE` names. The rest before the stop hides the live deck's early pause, so `rest=0.6` (0.3 s on each side, 9 frames at 30 fps) is the usual value; `lk clips` measures the rests on the pixels, since an `always_redraw` that follows the clock keeps a wait moving, and warns about a stop with fewer than three frames of unchanged picture before it, which a deck refuses.
+
+- The id is a slug (`[a-z][a-z0-9_]*`, at most 64 characters) other than `start`, `end` and `all`, used once per scene; the label is plain text of 1 to 40 characters on one line, the id with spaces by default. A bad id or label, a negative rest or a repeated id raises `ValueError`, and the render fails.
+- Put an animation or a wait between two checkpoints, and after the last one: Manim drops a section with no frames, and `lk clips` then fails the clip and names the checkpoint. A checkpoint at the very start of the scene, without a rest, is at frame 0, which `lk clips` refuses.
+- A checkpoint is a candidate: the deck names the ones it holds at (`stops="first_sweep"`), and `still = "first_sweep"` on the scene class makes its frame the clip's study still.
+- Other sections the scene opens with `self.next_section()` count towards the frames and are not stops.
 
 ## Provenance
 

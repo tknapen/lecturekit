@@ -13,7 +13,9 @@ and every clip starts with `from kit import *`, which gives it:
 - `nmpix`: `PixelGrid`, `colour_for`, `conv2d`, `maxpool`;
 - `nmfield`: `arrows` and `streams` for a 2-D flow in a `Frame`, `integrate`, `trajectory`, `fixed_point`;
 - `nmprf`: population receptive field primitives (`VisualField`, `HeightSurface`, `FeatureStack`, `TracePanel`,
-  `Dial`, `Bars`, `clip_size`, the numpy fields and colour ramps).
+  `Dial`, `Bars`, `clip_size`, the numpy fields and colour ramps);
+- `nmcheckpoint`: `checkpoint(self, id, label=None, rest=0.0)`, a frame where a deck may hold the clip on a key
+  press.
 
 The designs of nmnet, nmpix and nmfield follow scenes from 3Blue1Brown's videos (github.com/3b1b/videos), used as
 storyboards only; the code is written for Manim Community and each clip's docstring names the scene it follows.
@@ -26,3 +28,4 @@ from .nmnet import *  # noqa: F401,F403
 from .nmpix import *  # noqa: F401,F403
 from .nmfield import *  # noqa: F401,F403
 from .nmprf import *  # noqa: F401,F403
+from .nmcheckpoint import *  # noqa: F401,F403
