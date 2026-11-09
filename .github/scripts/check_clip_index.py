@@ -5,12 +5,16 @@
 For each named clip, the entry in the preset's clips.json is compared with the manifest of the job it records
 (found under the project's renders/ by the job id):
 
-- the copied video is the job's full movie: its sha256 equals result.videos[0].sha256, and its size, frame rate,
-  duration and frame count (by ffprobe) equal the movie's;
+- the delivered video is the job's full movie remuxed with its index first: the same coded frames as
+  result.videos[0] (whose sha256 is the manifest's), the moov box before the mdat, the entry's sha256 its own, and
+  its size, frame rate, duration and frame count equal the movie's;
 - revision is job.revision_id, job.id and job.cache_key are the job's, source is relative to the deck;
 - every checkpoint of the job is copied byte for byte, and each one's frame in the copied video differs from its
   PNG by a mean of at most 1.0 grey level;
-- the still is one of the checkpoints, and no value in the entry is null.
+- the still is one of the checkpoints, and no value in the entry is null;
+- the entry is format 2: its stops are the manifest's result.stops (id, frame, label), in order, each still the
+  stop's frame of the delivered video and within a mean of 1.0 of the checkpoint PNG, with at least 3 frames of
+  rest before it; the poster is frame 0 and the end the last frame.
 
 Exit 0 when every check holds, 1 otherwise. Needs ffmpeg and ffprobe (or imageio-ffmpeg) and Pillow.
 """
@@ -45,6 +49,37 @@ def frame_count(video: Path) -> int:
                         "-progress", "pipe:1"], capture_output=True, text=True, check=True)
     frames = [line.split("=", 1)[1] for line in r.stdout.splitlines() if line.startswith("frame=")]
     return int(frames[-1])
+
+
+def packets(video: Path) -> list[str]:
+    """The hash of every coded frame of the video stream, in order: equal for a remux by stream copy."""
+    r = subprocess.run([ffmpeg(), "-v", "error", "-i", str(video), "-map", "0:v:0", "-c", "copy", "-f", "framemd5",
+                        "-"], capture_output=True, text=True, check=True)
+    return [line.rsplit(",", 1)[-1].strip() for line in r.stdout.splitlines() if line and not line.startswith("#")]
+
+
+def top_boxes(video: Path) -> list[str]:
+    """The top-level boxes of an MP4, in file order."""
+    names, data = [], video.read_bytes()
+    at = 0
+    while at + 8 <= len(data):
+        size = int.from_bytes(data[at:at + 4], "big")
+        names.append(data[at + 4:at + 8].decode("latin-1"))
+        if size == 1:
+            size = int.from_bytes(data[at + 8:at + 16], "big")
+        if size < 8:
+            break
+        at += size
+    return names
+
+
+def png_difference(a_path: Path, b_path: Path) -> float:
+    from PIL import Image, ImageChops, ImageStat
+    a = Image.open(a_path).convert("RGB")
+    b = Image.open(b_path).convert("RGB")
+    if a.size != b.size:
+        return float("inf")
+    return sum(ImageStat.Stat(ImageChops.difference(a, b)).mean) / 3
 
 
 def frame_difference(video: Path, index: int, png: Path) -> float:
@@ -97,7 +132,18 @@ def check(deck: Path, name: str, mode: str) -> list[str]:
         if ours != theirs:
             problems.append(f"{name}: {what} is {ours!r}, the manifest says {theirs!r}")
 
-    same("the video's sha256", sha256(video), movie["sha256"])
+    rendered = project / movie["path"]
+    if not rendered.exists():
+        problems.append(f"{name}: the job's movie {rendered} is missing")
+    else:
+        same("the rendered movie's sha256", sha256(rendered), movie["sha256"])
+        if packets(video) != packets(rendered):
+            problems.append(f"{name}: {entry['video']} does not hold the coded frames of the job's movie (a remux by "
+                            "stream copy keeps them)")
+    same("the entry's sha256", entry.get("sha256"), sha256(video))
+    boxes = top_boxes(video)
+    if "moov" not in boxes or "mdat" not in boxes or boxes.index("moov") > boxes.index("mdat"):
+        problems.append(f"{name}: {entry['video']} has its boxes in the order {boxes}; the index (moov) comes first")
     same("width", entry.get("width"), movie["width_px"])
     same("height", entry.get("height"), movie["height_px"])
     same("fps", entry.get("fps"), movie["fps"])
@@ -125,10 +171,38 @@ def check(deck: Path, name: str, mode: str) -> list[str]:
                                 f"by {diff:.2f} grey levels on average (at most 1.0)")
     if entry.get("still") not in copied.values():
         problems.append(f"{name}: the still {entry.get('still')} is not one of the checkpoints")
+    # format 2: the stops are manim8's, each still the frame it names
+    same("format", entry.get("format"), 2)
+    same("frames", entry.get("frames"), movie["frame_count"])
+    ours_stops = [(s.get("id"), s.get("frame"), s.get("label")) for s in entry.get("stops") or []]
+    same("the stops", ours_stops, [(s["snapshot_id"], s["frame_index"], s["label"]) for s in result.get("stops") or []])
+    by_id = {c["snapshot_id"]: c for c in result["checkpoints"]}
+    bounds = [(0, entry.get("poster"))] + [(s.get("frame"), s.get("still")) for s in entry.get("stops") or []]
+    end = entry.get("end") or {}
+    same("the end frame", end.get("frame"), movie["frame_count"] - 1)
+    bounds.append((end.get("frame"), end.get("still")))
+    for frame, still in bounds:
+        if not still or not (deck / still).exists():
+            problems.append(f"{name}: the still of frame {frame} ({still}) is missing")
+            continue
+        diff = frame_difference(video, frame, deck / still)
+        if diff > 0.0:
+            problems.append(f"{name}: {still} is not frame {frame} of the video (mean difference {diff:.3f})")
+    for s in entry.get("stops") or []:
+        if abs(s.get("pts", -1) - s["frame"] / movie["fps"]) > 1e-3:
+            problems.append(f"{name}: stop {s['id']}'s pts {s.get('pts')} is not frame {s['frame']} at {movie['fps']} fps")
+        if s.get("rest_before", 0) < 3:
+            problems.append(f"{name}: stop {s['id']} has {s.get('rest_before')} frames of rest before it (a deck needs 3)")
+        png = by_id.get(s["id"], {}).get("png")
+        if png and (project / png).exists() and (deck / s["still"]).exists():
+            diff = png_difference(deck / s["still"], project / png)
+            if diff > 1.0:
+                problems.append(f"{name}: stop {s['id']}'s still differs from manim8's checkpoint by {diff:.2f}")
     if not problems:
-        print(f"ok {name} ({mode}): {entry['video']} is job {mjob['job_id']}'s full movie, "
+        print(f"ok {name} ({mode}): {entry['video']} is job {mjob['job_id']}'s full movie remuxed, "
               f"{movie['duration_seconds']} s, {movie['frame_count']} frames, sha256 {movie['sha256'][:12]}..., "
-              f"revision {mjob['revision_id']}, {len(copied)} checkpoints, still {entry['still']}")
+              f"revision {mjob['revision_id']}, {len(copied)} checkpoints, still {entry['still']}, "
+              f"stops {', '.join(f'{i}@{f}' for i, f, _ in ours_stops) or 'none'}")
     return problems
 
 

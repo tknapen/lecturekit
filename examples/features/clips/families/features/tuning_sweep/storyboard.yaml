@@ -29,15 +29,19 @@ scenes:
         target: gain_curve
         parameter: g
         to: 2
-        at_seconds: 0.9
-        duration_seconds: 1.3
+        at_seconds: 1.3
+        duration_seconds: 0.7
         value_label: "gain g"
     snapshots:
       - id: gain_low
-        at_seconds: 0.88
+        at_seconds: 1.2
+        stop: true
+        label: "gain 1"
         description: "The toy curve at gain 1 and width 0.8, peaking at r = 1 over x = 0, before the sweep."
       - id: gain_high
         at_seconds: 2.3
+        stop: true
+        label: "gain 2"
         description: "The same curve at gain 2: the peak at r = 2, the width unchanged; the readout reads g = 2.0."
   - id: width
     start_seconds: 3

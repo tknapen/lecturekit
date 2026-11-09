@@ -20,18 +20,51 @@
       "widened": "assets/clips/dark/tuning_sweep.widened.png"
     },
     "duration": 6.0,
+    "end": {
+      "frame": 179,
+      "pts": 5.966667,
+      "still": "assets/clips/dark/tuning_sweep.f0179.png"
+    },
+    "format": 2,
     "fps": 30.0,
+    "frames": 180,
     "height": 720,
     "job": {
-      "cache_key": "sha256:023de84116b16f778b8a87fbd396398e66cc3aa5e5ff75efc60826203a1e9adc",
-      "id": "job_20261109T093208_125dc4",
+      "cache_key": "sha256:a2587cd0ef177950558ad626b5b7575524a72c8cfc5877046a0806e38b2ae5b7",
+      "id": "job_20261109T150912_c66986",
       "registry_version": "0.5.0",
       "style": "lecturekit_dark@0.1.0"
     },
+    "poster": "assets/clips/dark/tuning_sweep.f0000.png",
     "producer": "manim8",
     "revision": "working",
+    "sha256": "916f4161686f07bc929fa9dc17049da43244880c7042cfec6bb3ab712ce71e2f",
     "source": "clips/families/features/tuning_sweep",
     "still": "assets/clips/dark/tuning_sweep.widened.png",
+    "stops": [
+      {
+        "frame": 36,
+        "frozen": [],
+        "id": "gain_low",
+        "label": "gain 1",
+        "notes": "The toy curve at gain 1 and width 0.8, peaking at r = 1 over x = 0, before the sweep.",
+        "pts": 1.2,
+        "rest_after": 2,
+        "rest_before": 14,
+        "still": "assets/clips/dark/tuning_sweep.f0036.png"
+      },
+      {
+        "frame": 69,
+        "frozen": [],
+        "id": "gain_high",
+        "label": "gain 2",
+        "notes": "The same curve at gain 2: the peak at r = 2, the width unchanged; the readout reads g = 2.0.",
+        "pts": 2.3,
+        "rest_after": 6,
+        "rest_before": 9,
+        "still": "assets/clips/dark/tuning_sweep.f0069.png"
+      }
+    ],
     "video": "assets/clips/dark/tuning_sweep.mp4",
     "width": 1280
   }
