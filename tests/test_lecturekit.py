@@ -146,7 +146,7 @@ def test_features_live_deck(built_features):
 @needs_tex
 def test_features_study_pdf(built_features):
     pdf = built_features / "_build" / "slides-study.pdf"
-    assert pdf_pages(pdf) == 12
+    assert pdf_pages(pdf) == 15
     text = pdf_text(pdf)
     assert "STUDY-ONLY DETAIL" in text                                   # study-only slide kept, title in capitals
     assert "CORE CONCEPT" in text and "TAKEAWAYS" in text                # eyebrows
@@ -197,8 +197,8 @@ def test_review_tools(built_features, tmp_path):
     from lecturekit.review.shoot import shoot
     deck = built_features / "_build" / "slides-live.html"
     result = shoot(deck, tmp_path / "shots", sheet=True)
-    assert result["slides"] == 11
-    assert (tmp_path / "shots" / "slide-11.png").exists()
+    assert result["slides"] == 14
+    assert (tmp_path / "shots" / "slide-14.png").exists()
     assert (tmp_path / "shots" / "report.json").exists()
     assert not [r for r in result["report"] if r["over"]], result["report"]
     assert not result["errors"], result["errors"]
