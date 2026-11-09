@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [main]
+    branches: [main, "claude/**"]
   pull_request:
   workflow_dispatch:
 
@@ -11,9 +11,10 @@ permissions:
   pages: write
   id-token: write
 
+# one run per branch at a time; a newer push to a work branch replaces its running build
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   build:
@@ -103,10 +104,84 @@ jobs:
         with:
           path: site
 
+  # The seam with manim8, run for real: lecturekit installed from this repository with the manim8 extra (so manim8
+  # comes from the tag the extra names, with pip alone: manim8 brings uv), the feature deck's manim8 clip rendered
+  # afresh in both presets, its index checked against the manifest of the job, the deck built and its fragments
+  # checked, and the seam tests.
+  seam:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.11.9
+          tinytex: true
+
+      - name: TeX packages and the libraries Manim builds against
+        run: |
+          tlmgr install beamer adjustbox collectbox etoolbox ragged2e pgf xcolor standalone fontspec unicode-math \
+            textcase lm lm-math varwidth caption booktabs || true
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends lmodern fonts-lmodern \
+            libcairo2-dev libpango1.0-dev pkg-config ffmpeg
+          fc-cache -f
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python environment (pip, from the repository)
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install ".[dev,clips,manim8]"
+          .venv/bin/playwright install --with-deps chromium
+          .venv/bin/lk version
+          .venv/bin/scianim --help > /dev/null
+
+      - name: Render the feature deck's manim8 clip, both presets
+        run: |
+          source .venv/bin/activate
+          lk clips examples/features --only tuning_sweep --no-cache
+          lk clips examples/features --only tuning_sweep --no-cache --mode dark
+
+      - name: The index against the manifest
+        run: |
+          source .venv/bin/activate
+          python .github/scripts/check_clip_index.py examples/features tuning_sweep
+          python .github/scripts/check_clip_index.py examples/features tuning_sweep --mode dark
+
+      - name: Build the feature deck with the fresh clip, both presets
+        run: |
+          source .venv/bin/activate
+          lk build examples/features
+          lk build examples/features --profile dark
+          lk review frags examples/features/_build/slides-live.html --out review/seam/frags
+          lk review frags examples/features/_build-dark/slides-live.html --out review/seam/frags-dark
+
+      - name: Seam tests
+        run: |
+          source .venv/bin/activate
+          pytest -q tests/test_seam.py
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: seam
+          path: |
+            examples/features/assets/clips
+            examples/features/clips/families/*/*/renders/*/*/manifest.json
+            examples/features/_build*/slides-study.pdf
+            review/seam
+
   deploy:
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
