@@ -345,6 +345,47 @@ def test_dark_mode_writes_its_own_folder_and_index(scianim, tmp_path):
     assert light["divisive_normalization"]["job"]["id"] != rec["job"]["id"]
 
 
+FAKE_MANIM = """import json, os, subprocess, sys
+from pathlib import Path
+args = sys.argv[1:]
+media, name = Path(args[args.index("--media_dir") + 1]), args[args.index("-o") + 1]
+w, h = args[args.index("-r") + 1].split(",")
+out = media / "videos" / "clip" / f"{h}p30" / f"{name}.mp4"
+out.parent.mkdir(parents=True, exist_ok=True)
+subprocess.run([os.environ["FFMPEG"], "-y", "-loglevel", "error", "-f", "lavfi", "-i", f"color=c=black:s={w}x{h}:r=30:d=1",
+                "-pix_fmt", "yuv420p", str(out)], check=True)
+keys = ("LECTUREKIT_MODE", "LECTUREKIT_BRAND", "FONTCONFIG_FILE", "NM_CLIP_SIZE")
+Path(os.environ["FAKE_MANIM_ENV"]).write_text(json.dumps({k: os.environ.get(k) for k in keys}))
+"""
+
+
+@needs_ffmpeg
+def test_kit_clips_follow_the_preset(scianim, tmp_path, monkeypatch):
+    deck = make_deck(tmp_path, projects=())
+    (deck / "anim").mkdir()
+    (deck / "anim" / "clip_bar_bold.py").write_text("class BarBold(Scene):\n    still = 0.5\n")
+    fake = tmp_path / "manim"
+    fake.write_text(f"#!/bin/sh\nexec \"{sys.executable}\" \"{tmp_path / 'fake_manim.py'}\" \"$@\"\n")
+    fake.chmod(0o755)
+    (tmp_path / "fake_manim.py").write_text(FAKE_MANIM)
+    monkeypatch.setattr(clips, "_manim_exe", lambda: str(fake))
+    monkeypatch.setenv("FFMPEG", clips._ffmpeg())
+    monkeypatch.setenv("FAKE_MANIM_ENV", str(tmp_path / "env.json"))
+    monkeypatch.delenv("FONTCONFIG_FILE", raising=False)
+    index, failures = clips.run_clips(deck, mode="dark", size="640x360")
+    assert failures == []
+    env = json.loads((tmp_path / "env.json").read_text())
+    assert env["LECTUREKIT_MODE"] == "dark" and env["NM_CLIP_SIZE"] == "640x360"
+    assert Path(env["LECTUREKIT_BRAND"]).resolve() == (deck / "_brand-dark.yml").resolve()
+    assert env["FONTCONFIG_FILE"].endswith("fonts.conf")
+    rec = index["bar-bold"]
+    assert rec["video"] == "assets/clips/dark/bar-bold.mp4" and rec["still"] == "assets/clips/dark/bar-bold.png"
+    assert (rec["producer"], rec["width"], rec["height"], rec["fps"]) == ("kit", 640, 360, 30.0)
+    assert rec["source"] == "anim/clip_bar_bold.py:BarBold" and no_nulls(rec)
+    assert (deck / rec["video"]).exists() and (deck / rec["still"]).exists()
+    assert not (deck / "assets" / "clips" / "clips.json").exists()           # the paper index is untouched
+
+
 def test_dark_mode_needs_a_bridged_dark_style(scianim, tmp_path):
     deck = make_deck(tmp_path)
     _, failures = clips.run_clips(deck, mode="dark")
