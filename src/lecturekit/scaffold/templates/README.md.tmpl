@@ -8,7 +8,8 @@ lk build --to live  # the live deck only
 lk build --profile dark
 lk review shoot _build/slides-live.html
 lk review measure _build/slides-live.html
-lk clips            # anim/clip_*.py on the Manim kit, into assets/clips
+lk clips            # anim/clip_*.py on the Manim kit and the manim8 projects in clips/, into assets/clips
+lk clips --mode dark   # the dark preset's clips, into assets/clips/dark
 ```
 
 Method: `STORYBOARD.md` (intent) → `PLAN.md` (slides and minutes) →

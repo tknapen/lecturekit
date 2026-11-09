@@ -9,7 +9,7 @@ Commands: `lk build`, `lk review shoot|measure|frags|contrast|overflow|figs`,
 
 Rules that are this project's own:
 
-- Budget: see `_quarto.yml`; every slide heading carries `time=`.
+- Budget: `budget:` in the front matter of `slides.qmd`; every slide heading carries `time=`.
 - Colours: `_brand.yml`; never a hex value in a figure or a clip.
 - Every number on a slide traces to `assets/data/` and `FACTS.md`.
 - A figure whose data are missing becomes a labelled placeholder; the deck always builds.

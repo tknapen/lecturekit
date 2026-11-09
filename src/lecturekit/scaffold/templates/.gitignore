@@ -5,3 +5,17 @@ review/
 anim/media/
 *.log
 .quarto/
+_quarto_internal_scss_error.scss
+# what the study build leaves beside the source
+slides.tex
+slides.aux
+slides.nav
+slides.out
+slides.snm
+slides.toc
+slides.vrb
+# a manim8 workspace in clips/: renders, job scratch and family environments are rebuilt, never committed
+clips/**/renders/
+clips/**/.scianim/
+clips/**/.venv/
+__pycache__/

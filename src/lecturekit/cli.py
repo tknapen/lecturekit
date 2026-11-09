@@ -1,9 +1,9 @@
 """`lk`: the lecturekit command.
 
-    lk new <dir>            scaffold a project (vendors the Quarto extension)
+    lk new <dir>            scaffold a project (vendors the Quarto extension; --manim8 adds a clips workspace)
     lk build [dir]          render live deck and study PDF, print the timing plan
-    lk clips [deck]         render anim/clip_*.py into assets/clips and write clips.json
-    lk theme [dir]          write tokens.tex, tokens.css, tokens.py (and a manim8 style)
+    lk clips [deck]         render kit scenes and manim8 projects into assets/clips and write clips.json
+    lk theme [dir]          write tokens.tex, tokens.css, tokens.py (and the bridged manim8 styles)
     lk review <tool> ...    shoot | frags | measure | contrast | overflow | figs
     lk docs                 where the documentation is
     lk version
@@ -21,14 +21,22 @@ from .project import PACKAGE_DIR, extension_version, find_project, vendor_extens
 
 
 def cmd_new(a: argparse.Namespace) -> int:
-    from .scaffold import create_project
+    from .scaffold import create_manim8_workspace, create_project
     dest = Path(a.dir)
     if a.vendor_only:
         vendor_extension(dest, force=a.force)
         print(f"extension {extension_version()} vendored into {dest / '_extensions' / 'lecturekit'}")
         return 0
-    create_project(dest, title=a.title, force=a.force)
-    print(f"project created in {dest}\n  next: cd {dest} && lk build")
+    create_project(dest, title=a.title, force=a.force, budget=a.budget)
+    print(f"project created in {dest}")
+    if a.manim8:
+        try:
+            for line in create_manim8_workspace(dest):
+                print(f"  {line}")
+        except (RuntimeError, ValueError) as exc:
+            print(f"lk new --manim8: {exc}", file=sys.stderr)
+            return 1
+    print(f"  next: cd {dest} && lk build")
     return 0
 
 
@@ -119,6 +127,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--title", default="Untitled lecture")
     p.add_argument("--vendor-only", action="store_true", help="only copy the extension into an existing project")
     p.add_argument("--force", action="store_true", help="overwrite an existing vendored extension")
+    p.add_argument("--budget", type=int, default=45, metavar="MIN", help="the deck's budget in minutes (45)")
+    p.add_argument("--manim8", action="store_true",
+                   help="also make clips/ a manim8 workspace: a family, the bridged styles and a starter project")
     p.set_defaults(fn=cmd_new)
 
     p = sub.add_parser("build", help="render with quarto")

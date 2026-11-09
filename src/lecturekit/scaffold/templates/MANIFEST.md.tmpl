@@ -6,4 +6,4 @@ the source and says it was redrawn from digitised values.
 
 | File | Made by | From (data, source) | Licence | Notes |
 | --- | --- | --- | --- | --- |
-| `assets/figures/example.tikz` | `make_assets.py:example` | none (placeholder) | CC BY 4.0 | replace |
+| `assets/figures/example.tex` | `make_assets.py:example` | none (placeholder) | CC BY 4.0 | replace |

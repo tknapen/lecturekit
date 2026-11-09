@@ -529,3 +529,51 @@ def test_vendor_force_never_overwrites_a_shared_copy(tmp_path, capsys):
     assert "now a real directory" in capsys.readouterr().err
 
 
+# ---------------------------------------------------------------- the scaffold
+def test_new_with_a_budget(tmp_path):
+    assert lk(["new", str(tmp_path / "p"), "--budget", "20", "--title", "Joint visual and auditory maps"]) == 0
+    p = tmp_path / "p"
+    assert re.search(r"^budget: 20$", (p / "slides.qmd").read_text(), re.M)
+    plan = (p / "PLAN.md").read_text()
+    assert "Total: 5 of 20 minutes." in plan and "'s budget" not in plan and "example.tex" in plan
+    assert "example.tex" in (p / "MANIFEST.md").read_text() and "example.tikz" not in (p / "MANIFEST.md").read_text()
+    assert "_quarto.yml" not in (p / "AGENTS.md").read_text().split("Budget:")[1].splitlines()[0]
+    for f in p.rglob("*.md"):
+        assert "{{" not in f.read_text(), f
+    ignore = (p / ".gitignore").read_text().splitlines()
+    for pattern in ("clips/**/renders/", "clips/**/.scianim/", "clips/**/.venv/", "anim/media/",
+                    "slides.aux", "slides.nav", "slides.snm", "slides.toc"):
+        assert pattern in ignore, pattern
+
+
+def test_new_manim8_without_manim8_says_how_to_install(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("PATH", str(tmp_path / "nothing"))
+    assert lk(["new", str(tmp_path / "p"), "--manim8"]) == 1
+    assert "lecturekit[manim8]" in capsys.readouterr().err
+    assert (tmp_path / "p" / "slides.qmd").exists() and not (tmp_path / "p" / "clips").exists()
+
+
+def test_new_manim8_makes_a_workspace(scianim, tmp_path):
+    p = tmp_path / "my-lecture"
+    assert lk(["new", str(p), "--manim8"]) == 0
+    assert (p / "clips" / "workspace.yaml").exists()
+    assert (p / "clips" / "styles" / "lecturekit_paper" / "0.1.0" / "style.yaml").exists()
+    assert (p / "clips" / "styles" / "lecturekit_dark" / "0.1.0" / "style.yaml").exists()
+    fam = yaml.safe_load((p / "clips" / "families" / "my_lecture" / "family.yaml").read_text())
+    assert fam["style"] == {"name": "lecturekit_paper", "version": "0.1.0"}
+    spec = yaml.safe_load((p / "clips" / "families" / "my_lecture" / "first_clip" / "animation.yaml").read_text())
+    assert (spec["output"]["width_px"], spec["output"]["height_px"], spec["output"]["fps"]) == (1280, 720, 30)
+    assert spec["style"]["name"] == "lecturekit_paper" and str(spec["style"]["version"]) == "0.1.0"
+    # a project without a storyboard yet is skipped by lk clips, not an error
+    index, failures = clips.run_clips(p)
+    assert failures == [] and index == {}
+
+
+@needs_quarto
+def test_new_project_reports_its_budget(tmp_path):
+    p = tmp_path / "trial"
+    assert lk(["new", str(p), "--budget", "20"]) == 0
+    r = subprocess.run([sys.executable, "-m", "lecturekit.cli", "build", str(p), "--to", "live"],
+                       capture_output=True, text=True)
+    assert r.returncode == 0, (r.stdout + r.stderr)[-3000:]
+    assert "budget 20 min" in (p / "_build" / "timing.txt").read_text()
