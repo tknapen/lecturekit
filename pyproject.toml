@@ -27,8 +27,8 @@ clips = ["manim>=0.19,<0.23", "pillow<11.3", "imageio-ffmpeg"]
 # manim8 needs Python 3.12; its contracts package is named explicitly so that pip, which ignores uv's workspace
 # sources, resolves it from the same tag. manim8 builds each family's render environment with uv.
 manim8 = [
-  "manim8 @ git+https://github.com/tknapen/manim8@fa99e8f8379da0b1e40633deb5354d40f1eae4e0 ; python_version >= '3.12'",
-  "manim8-core @ git+https://github.com/tknapen/manim8@fa99e8f8379da0b1e40633deb5354d40f1eae4e0#subdirectory=packages/scianim_core ; python_version >= '3.12'",
+  "manim8 @ git+https://github.com/tknapen/manim8@bad3ae125aa36d2672f5b86cd601ee1673570334 ; python_version >= '3.12'",
+  "manim8-core @ git+https://github.com/tknapen/manim8@bad3ae125aa36d2672f5b86cd601ee1673570334#subdirectory=packages/scianim_core ; python_version >= '3.12'",
 ]
 dev = ["pytest", "pymupdf>=1.24", "playwright>=1.45", "pillow", "imageio-ffmpeg"]
 

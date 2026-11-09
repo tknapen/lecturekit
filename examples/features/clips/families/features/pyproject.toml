@@ -16,5 +16,5 @@ package = false
 
 [tool.uv.sources]
 # The bridge and the contracts from git: SCIANIM_BRIDGE_SOURCE (ADR-043).
-manim8-bridge = { git = "https://github.com/tknapen/manim8", rev = "fa99e8f8379da0b1e40633deb5354d40f1eae4e0", subdirectory = "packages/scianim_bridge" }
-manim8-core = { git = "https://github.com/tknapen/manim8", rev = "fa99e8f8379da0b1e40633deb5354d40f1eae4e0", subdirectory = "packages/scianim_core" }
+manim8-bridge = { git = "https://github.com/tknapen/manim8", rev = "bad3ae125aa36d2672f5b86cd601ee1673570334", subdirectory = "packages/scianim_bridge" }
+manim8-core = { git = "https://github.com/tknapen/manim8", rev = "bad3ae125aa36d2672f5b86cd601ee1673570334", subdirectory = "packages/scianim_core" }

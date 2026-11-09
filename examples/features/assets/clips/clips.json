@@ -122,8 +122,8 @@
     "frames": 180,
     "height": 720,
     "job": {
-      "cache_key": "sha256:d2c53c068a3459d8380f66376f762698f851bffa79eccbd241688893f0a293ab",
-      "id": "job_20261109T150906_fb9604",
+      "cache_key": "sha256:5419c24426f2d4ad079e265f920f832a5afe162de20956d0198b86deb98f565f",
+      "id": "job_20261109T181624_f4f355",
       "registry_version": "0.5.0",
       "style": "lecturekit_paper@0.1.0"
     },

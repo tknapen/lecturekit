@@ -179,8 +179,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "manim8-bridge", git = "https://github.com/tknapen/manim8?subdirectory=packages%2Fscianim_bridge&rev=fa99e8f8379da0b1e40633deb5354d40f1eae4e0" },
-    { name = "manim8-core", git = "https://github.com/tknapen/manim8?subdirectory=packages%2Fscianim_core&rev=fa99e8f8379da0b1e40633deb5354d40f1eae4e0" },
+    { name = "manim8-bridge", git = "https://github.com/tknapen/manim8?subdirectory=packages%2Fscianim_bridge&rev=bad3ae125aa36d2672f5b86cd601ee1673570334" },
+    { name = "manim8-core", git = "https://github.com/tknapen/manim8?subdirectory=packages%2Fscianim_core&rev=bad3ae125aa36d2672f5b86cd601ee1673570334" },
 ]
 
 [package.metadata.requires-dev]
@@ -290,7 +290,7 @@ typst = [
 [[package]]
 name = "manim8-bridge"
 version = "0.1.0a0"
-source = { git = "https://github.com/tknapen/manim8?subdirectory=packages%2Fscianim_bridge&rev=fa99e8f8379da0b1e40633deb5354d40f1eae4e0#fa99e8f8379da0b1e40633deb5354d40f1eae4e0" }
+source = { git = "https://github.com/tknapen/manim8?subdirectory=packages%2Fscianim_bridge&rev=bad3ae125aa36d2672f5b86cd601ee1673570334#bad3ae125aa36d2672f5b86cd601ee1673570334" }
 dependencies = [
     { name = "manim", extra = ["typst"] },
     { name = "manim8-core" },
@@ -302,7 +302,7 @@ dependencies = [
 [[package]]
 name = "manim8-core"
 version = "0.1.0a0"
-source = { git = "https://github.com/tknapen/manim8?subdirectory=packages%2Fscianim_core&rev=fa99e8f8379da0b1e40633deb5354d40f1eae4e0#fa99e8f8379da0b1e40633deb5354d40f1eae4e0" }
+source = { git = "https://github.com/tknapen/manim8?subdirectory=packages%2Fscianim_core&rev=bad3ae125aa36d2672f5b86cd601ee1673570334#bad3ae125aa36d2672f5b86cd601ee1673570334" }
 dependencies = [
     { name = "pydantic" },
 ]

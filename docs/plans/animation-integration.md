@@ -382,7 +382,7 @@ The expo needs:
 
 ## 3. Key-press segmentation
 
-> **Implemented in lecturekit 0.4.0, 9 November 2026**, with manim8's stops (ADR-045, commit `fa99e8f`). The
+> **Implemented in lecturekit 0.4.0, 9 November 2026**, with manim8's stops (ADR-045, commit `bad3ae1`). The
 > lecturer decided: a key pressed during a part plays through to the next stop; `study=strip` is the default;
 > manim8 gets the stop fields now; part 1 plays on entry (`start=key` opts out). Where the build differs from the
 > design below: the index has one `stops` list of candidates, with no interim from `result.reached`; the kit call

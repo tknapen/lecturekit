@@ -69,7 +69,7 @@ lk clips . --only tuning_sweep --mode dark   # the same under lecturekit_dark, i
 0.3 s with nothing moving before a stop, and the gain scene's closing fade starts at 2.35 s, so the gain's sweep
 was moved and shortened (from 0.9 s for 1.3 s to 1.3 s for 0.7 s) and `gain_low` moved from 0.88 s to 1.2 s; the
 project's README gives the arithmetic. Stops need manim8 at the commit that lecturekit's `manim8` extra names
-(`fa99e8f`), and so does the family's `uv.lock`.
+(`bad3ae1`), and so does the family's `uv.lock`.
 
 The first run builds the family's render environment with uv (Manim and manim8's bridge, at the commit that
 `clips/families/features/uv.lock` records). The MP4s, the checkpoint PNGs and both `clips.json` files are
@@ -89,7 +89,7 @@ the takeaways). Each clip in parts carries one "Ask:", at its first hold, since 
 holds before the last carry "Say:" notes, and `lk review frags` reports them (four holds), as it should. Checked:
 both presets build with `--strict`; `lk review frags` and a separate walk with real keys held every stop on its
 frame forwards, backwards, on a backward entry and on a jump, in both presets; the study strips measured on the PDF.
-Not checked: Firefox, WebKit, `file://` and the lecture laptop; the CI seam job, until manim8's commit `fa99e8f`
+Not checked: Firefox, WebKit, `file://` and the lecture laptop; the CI seam job, until manim8's commit `bad3ae1`
 is on GitHub.
 
 Content: CC BY 4.0, Tomas Knapen.
