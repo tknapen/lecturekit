@@ -4,8 +4,10 @@ _lecturekit/
 review/
 anim/media/
 *.log
-.quarto/
 _quarto_internal_scss_error.scss
+# Quarto's own lines, as it writes them (it appends them on the first render when they are missing)
+/.quarto/
+**/*.quarto_ipynb
 # what the study build leaves beside the source
 slides.tex
 slides.aux

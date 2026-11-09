@@ -46,9 +46,19 @@ allow-direct-references = true   # the manim8 extra points at manim8's git tag u
 [tool.hatch.build.targets.wheel]
 packages = ["src/lecturekit"]
 
-# the Quarto extension ships inside the wheel so that `lk new` can vendor it
+# the Quarto extension ships inside the wheel so that `lk new` can vendor it, and the docs (each docs/*.md, a test
+# checks the list) so that `lk docs` lists them where the package is installed
 [tool.hatch.build.targets.wheel.force-include]
 "_extensions/lecturekit" = "lecturekit/_extension"
+"docs/AUTHORING.md" = "lecturekit/docs/AUTHORING.md"
+"docs/CLIPS.md" = "lecturekit/docs/CLIPS.md"
+"docs/FIGURES.md" = "lecturekit/docs/FIGURES.md"
+"docs/INSTALL.md" = "lecturekit/docs/INSTALL.md"
+"docs/LAYOUT.md" = "lecturekit/docs/LAYOUT.md"
+"docs/MANIM.md" = "lecturekit/docs/MANIM.md"
+"docs/POLICY.md" = "lecturekit/docs/POLICY.md"
+"docs/THEMING.md" = "lecturekit/docs/THEMING.md"
+"docs/WORKFLOW.md" = "lecturekit/docs/WORKFLOW.md"
 
 [tool.hatch.build.targets.sdist]
 include = ["src", "_extensions", "examples", "docs", "README.md", "LICENSE", "NOTICE.md"]

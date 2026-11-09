@@ -223,15 +223,44 @@ def test_figs_preview(tmp_path):
 @needs_quarto
 @needs_tex
 def test_new_project_builds(tmp_path):
+    """A scaffolded project builds, and its first build leaves a committed scaffold clean: what the build writes
+    is ignored (Quarto's own .gitignore lines included) or is the scaffold's own figure, regenerated unchanged."""
     from lecturekit.scaffold import create_project
     proj = create_project(tmp_path / "trial", title="A trial lecture")
     assert (proj / "_extensions" / "lecturekit" / "_extension.yml").exists()
     assert (proj / "anim" / "kit.py").exists()
+    git = ["git", "-C", str(proj), "-c", "user.name=t", "-c", "user.email=t@example.org", "-c", "commit.gpgsign=false"]
+    for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "scaffold"]):
+        assert run([*git, *args]).returncode == 0
     r = run([sys.executable, "-m", "lecturekit.cli", "build", str(proj)])
     assert r.returncode == 0, (r.stdout + r.stderr)[-4000:]
     assert (proj / "_build" / "slides-live.html").exists()
     assert (proj / "_build" / "slides-study.pdf").exists()
     assert (proj / "assets" / "figures" / "example.tex").exists()     # make_assets ran as pre-render
+    status = run([*git, "status", "--porcelain", "--untracked-files=all"])
+    assert status.stdout == "", status.stdout
+
+
+def test_scaffold_figure_is_what_make_assets_writes(tmp_path):
+    """The scaffold ships assets/figures/example.tex so that a new project's first build changes no file; it must be
+    exactly what the scaffold's make_assets.py writes."""
+    pytest.importorskip("numpy")
+    from lecturekit.scaffold import TEMPLATE_DIR, create_project
+    proj = create_project(tmp_path / "p")
+    (proj / "assets" / "figures" / "example.tex").unlink()
+    r = run([sys.executable, str(proj / "make_assets.py")])
+    assert r.returncode == 0, r.stderr
+    assert (proj / "assets" / "figures" / "example.tex").read_bytes() == \
+        (TEMPLATE_DIR / "assets" / "figures" / "example.tex").read_bytes()
+
+
+def test_docs_ship_in_the_wheel():
+    """`lk docs` lists the docs where the package is installed: every docs/*.md is force-included in the wheel."""
+    import tomllib
+    include = tomllib.loads((ROOT / "pyproject.toml").read_text())["tool"]["hatch"]["build"]["targets"]["wheel"][
+        "force-include"]
+    docs = {f"docs/{p.name}": f"lecturekit/docs/{p.name}" for p in (ROOT / "docs").glob("*.md")}
+    assert docs and all(include.get(k) == v for k, v in docs.items())
 
 
 def test_clips_index_schema():
