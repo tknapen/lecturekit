@@ -400,7 +400,7 @@ def test_a_bare_exit_gets_the_hint_or_the_tool_error_above_it():
             "(its families then take the bridge from the same commit)\n",
             "error: `/usr/bin/uv lock` exited 1 after 0s\n"]
     reason = clips._reason(sync, limit=1000)
-    assert reason.startswith("error: `/usr/bin/uv lock` exited 1 after 0s: manim8-bridge is not on the package index")
+    assert reason.startswith("error: `uv lock` exited 1 after 0s: manim8-bridge is not on the package index")
     assert reason.endswith("(its families then take the bridge from the same commit)")
     reason = clips._reason([line for line in sync if not line.startswith(("hint", "(its"))], limit=1000)
     assert reason.endswith("exited 1 after 0s: No solution found when resolving dependencies: Because manim8-bridge "

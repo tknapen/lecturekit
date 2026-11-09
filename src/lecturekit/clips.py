@@ -243,6 +243,7 @@ def _reason(lines: list[str] | deque, limit: int = 300) -> str:
                     reason += " " + clean[i + 1][2:]
                 break
     elif re.search(r"\bexited -?\d+", reason):
+        reason = re.sub(r"`/[^`\s]*/([^/`\s]+)", r"`\1", reason)   # "`/abs/venv/bin/uv lock`" -> "`uv lock`"
         detail = _detail(clean[:-1])
         if detail:
             reason = f"{reason}: {detail}"
