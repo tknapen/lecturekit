@@ -34,7 +34,7 @@ The formats set `latex-auto-install: false`, so a missing package is reported du
 Python 3.11 or later. lecturekit is not on PyPI: it installs from GitHub at a release tag, or from a clone. At the tag, with pip (or `uv pip install`), in a virtual environment:
 
 ```sh
-pip install "lecturekit[review,figures] @ git+https://github.com/tknapen/lecturekit@v0.3.0"
+pip install "lecturekit[review,figures] @ git+https://github.com/tknapen/lecturekit@main"
 ```
 
 From a clone of this repository, with `uv` (astral.sh/uv):
@@ -45,7 +45,7 @@ source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
 
-The extras below go in the brackets of either form (`"lecturekit[review,figures,clips] @ git+https://github.com/tknapen/lecturekit@v0.3.0"`, or `-e ".[dev,clips]"` in a clone). Once lecturekit is installed, `pip install "lecturekit[clips]"` adds an extra's packages to it: pip finds the installed lecturekit and fetches only what the extra names. A project pins the tag of the engine it was built with (the expo's `requirements.txt` does).
+The extras below go in the brackets of either form (`"lecturekit[review,figures,clips] @ git+https://github.com/tknapen/lecturekit@main"`, or `-e ".[dev,clips]"` in a clone). Once lecturekit is installed, `pip install "lecturekit[clips]"` adds an extra's packages to it: pip finds the installed lecturekit and fetches only what the extra names. A project pins the commit (or, once tags are pushed, the tag) of the engine it was built with, in place of `main` (the expo's `requirements.txt` pins a commit).
 
 The command is `lk`, with `lecturekit` as an alias; `lk version` prints the package and extension versions and where Quarto was found. The `review` extra brings Playwright and the image tools for `lk review`; `figures` brings numpy, matplotlib, Pillow and PyMuPDF for `make_assets.py` and the figure conversion; `dev` brings both and pytest.
 
@@ -72,7 +72,7 @@ brings Manim Community 0.22 with Pillow below 11.3 and `imageio-ffmpeg`. Manim n
 manim8 is the second clip producer (CLIPS.md). It needs Python 3.12 or later; the extra installs nothing on an older Python. With pip, the engine and both clip producers at once:
 
 ```sh
-pip install "lecturekit[review,figures,clips,manim8] @ git+https://github.com/tknapen/lecturekit@v0.3.0"
+pip install "lecturekit[review,figures,clips,manim8] @ git+https://github.com/tknapen/lecturekit@main"
 ```
 
 or the extra added to an installed lecturekit, with pip or with uv:
@@ -82,7 +82,7 @@ pip install "lecturekit[manim8]"
 uv pip install "lecturekit[manim8]"
 ```
 
-The extra installs manim8 and its contracts package, `manim8-core`, from manim8's `v0.1.0a0` tag on GitHub (pip needs both named, since it does not read uv's workspace sources; the extra names both). manim8 depends on the `uv` package, so a pip install brings the uv that manim8 uses to build each family's render environment; a uv already on the path is used as well. The render environment holds Manim and manim8's bridge, at the same commit as the control plane, and is built once per family, on the first `lk clips` that needs it (or by `scianim family env sync clips/families/<family>`); Manim's Cairo and Pango headers are needed for it as above. Then:
+The extra installs manim8 and its contracts package, `manim8-core`, from manim8's release commit on GitHub (`d37489e`, 0.1.0a0, to be tagged `v0.1.0a0`) (pip needs both named, since it does not read uv's workspace sources; the extra names both). manim8 depends on the `uv` package, so a pip install brings the uv that manim8 uses to build each family's render environment; a uv already on the path is used as well. The render environment holds Manim and manim8's bridge, at the same commit as the control plane, and is built once per family, on the first `lk clips` that needs it (or by `scianim family env sync clips/families/<family>`); Manim's Cairo and Pango headers are needed for it as above. Then:
 
 ```sh
 lk new my-lecture --manim8        # clips/ as a manim8 workspace, the bridged styles, a starter project

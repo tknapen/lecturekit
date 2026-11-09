@@ -27,8 +27,8 @@ clips = ["manim>=0.19,<0.23", "pillow<11.3", "imageio-ffmpeg"]
 # manim8 needs Python 3.12; its contracts package is named explicitly so that pip, which ignores uv's workspace
 # sources, resolves it from the same tag. manim8 builds each family's render environment with uv.
 manim8 = [
-  "manim8 @ git+https://github.com/tknapen/manim8@v0.1.0a0 ; python_version >= '3.12'",
-  "manim8-core @ git+https://github.com/tknapen/manim8@v0.1.0a0#subdirectory=packages/scianim_core ; python_version >= '3.12'",
+  "manim8 @ git+https://github.com/tknapen/manim8@d37489eeb08df040f18201b37450514220bb7fcd ; python_version >= '3.12'",
+  "manim8-core @ git+https://github.com/tknapen/manim8@d37489eeb08df040f18201b37450514220bb7fcd#subdirectory=packages/scianim_core ; python_version >= '3.12'",
 ]
 dev = ["pytest", "pymupdf>=1.24", "playwright>=1.45", "pillow", "imageio-ffmpeg"]
 
@@ -41,7 +41,7 @@ Homepage = "https://github.com/tknapen/lecturekit"
 Issues = "https://github.com/tknapen/lecturekit/issues"
 
 [tool.hatch.metadata]
-allow-direct-references = true   # the manim8 extra points at manim8's git tag until its first PyPI release
+allow-direct-references = true   # the manim8 extra pins manim8's release commit until its first PyPI release
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lecturekit"]

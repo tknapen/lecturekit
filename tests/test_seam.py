@@ -122,7 +122,7 @@ def test_versions_and_the_manim8_extra():
     meta = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
     assert meta["version"] == __version__ == extension_version() == "0.3.0"
     extra = meta["optional-dependencies"]["manim8"]
-    assert any(d.startswith("manim8 @ git+https://github.com/tknapen/manim8@v0.1.0a0") for d in extra)
+    assert any(re.match(r"manim8 @ git\+https://github\.com/tknapen/manim8@([0-9a-f]{40}|v\d[^ ;]*) ", d) for d in extra)
     assert any("#subdirectory=packages/scianim_core" in d and d.startswith("manim8-core @") for d in extra)
     assert all("python_version >= '3.12'" in d for d in extra)
 

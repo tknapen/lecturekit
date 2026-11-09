@@ -14,8 +14,8 @@ A new project made with `lk new --manim8`: its `clips/` is a manim8 workspace wi
 
 ```sh
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install "lecturekit[clips,manim8] @ git+https://github.com/tknapen/lecturekit@v0.3.0"
-                                         # lecturekit at its tag, manim8 at v0.1.0a0 (docs/INSTALL.md)
+pip install "lecturekit[clips,manim8] @ git+https://github.com/tknapen/lecturekit@main"
+                                         # lecturekit 0.3.0, manim8 at its release commit (docs/INSTALL.md)
 scianim skill install                    # the manim8 skill, where the agent finds it
 lk new sweep-lecture --manim8 --budget 20
 cd sweep-lecture
