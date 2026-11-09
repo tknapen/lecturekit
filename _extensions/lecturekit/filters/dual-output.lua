@@ -449,8 +449,9 @@ local function seg_live(el, info, plan, where)
   out:insert(hold_notes(plan, 0, slide_notes))
   local ncues = #plan.bounds - (plan.key and 1 or 2)
   for k = 1, ncues do
+    -- attributes as a list of pairs, so that they are written in this order on every build
     out:insert(pandoc.Div({ hold_notes(plan, k, slide_notes) }, pandoc.Attr('', { 'fragment', 'lk-cue' },
-      { ['data-lk-for'] = plan.name, ['data-lk-k'] = tostring(k) })))
+      { { 'data-lk-for', plan.name }, { 'data-lk-k', tostring(k) } })))
   end
   return out
 end

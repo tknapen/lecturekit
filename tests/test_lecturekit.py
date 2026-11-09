@@ -138,9 +138,8 @@ def test_features_live_deck(built_features):
     assert 'poster="assets/clips/tuning_sweep.widened.png"' in html     # its latest checkpoint as the poster
     assert 'class="tikz"' in html and "_lecturekit/tikz/" in html        # TikZ as SVG
     # three clips in parts: one cue per key, the video loaded by the runtime only, versioned by its sha256
-    assert html.count('class="fragment lk-cue" data-lk-for="bar_steps"') == 3
-    assert html.count('class="fragment lk-cue" data-lk-for="tuning_sweep"') == 2
-    assert html.count('class="fragment lk-cue" data-lk-for="gauss-parts"') == 2      # start=key adds one
+    cues = re.findall(r'<div class="fragment lk-cue"[^>]*data-lk-for="([^"]+)"', html)
+    assert cues == ["bar_steps"] * 3 + ["tuning_sweep"] * 2 + ["gauss-parts"] * 2, cues   # start=key adds one
     assert 'data-lk-src="assets/clips/bar_steps.mp4"' in html and ' src="assets/clips/bar_steps.mp4' not in html
     assert 'data-lk-start="key"' in html and "Ask: the bar rests left of centre." in html
     assert "Study-only detail" not in html                              # study-only slide dropped
