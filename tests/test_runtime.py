@@ -166,6 +166,17 @@ def test_version_compatibility():
     assert not compatible("1.0.0", "2.0.0")
 
 
+def test_output_dir_follows_the_profile(tmp_path):
+    from lecturekit.build import output_dir
+    (tmp_path / "_quarto.yml").write_text("project:\n  output-dir: _build\n")
+    (tmp_path / "_quarto-dark.yml").write_text("project:\n  output-dir: _build-dark\nbrand: _brand-dark.yml\n")
+    (tmp_path / "_quarto-print.yml").write_text("brand: _brand.yml\n")
+    assert output_dir(tmp_path) == tmp_path / "_build"
+    assert output_dir(tmp_path, "dark") == tmp_path / "_build-dark"
+    assert output_dir(tmp_path, "print") == tmp_path / "_build"                 # the profile keeps the base's
+    assert output_dir(tmp_path / "nowhere") == tmp_path / "nowhere" / "_build"
+
+
 def test_filter_errors_are_found():
     from lecturekit.build import filter_errors
     out = ("\x1b[91mERROR (/p/_extensions/lecturekit/filters/dual-output.lua:217) Wrap a movie in .live-only\x1b[39m\n"

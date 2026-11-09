@@ -87,10 +87,25 @@ def build(project: Path | None = None, to: str | None = None, profile: str | Non
         return proc.returncode or 1
     if report:
         print(report)
-    timing = proj / "_build" / "timing.txt"
+    timing = output_dir(proj, profile) / "timing.txt"
     if proc.returncode == 0 and timing.exists():
         print(f"(per slide in {timing})")
     return proc.returncode
+
+
+def output_dir(proj: Path, profile: str | None = None) -> Path:
+    """The folder a render writes to: `project: output-dir:` of the profile's `_quarto-<profile>.yml`, else of
+    `_quarto.yml`, else `_build`."""
+    import yaml
+    for name in ([f"_quarto-{profile}.yml"] if profile else []) + ["_quarto.yml"]:
+        try:
+            config = yaml.safe_load((proj / name).read_text(encoding="utf-8")) or {}
+        except (OSError, yaml.YAMLError):
+            continue
+        out = (config.get("project") or {}).get("output-dir") if isinstance(config, dict) else None
+        if out:
+            return proj / out
+    return proj / "_build"
 
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
