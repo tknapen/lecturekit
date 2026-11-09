@@ -3,6 +3,7 @@
 -- filters and turns it into tokens for each output. Shared by dual-output.lua,
 -- tikz.lua and tokens.lua.
 --
+--   mode()           -> "dark" or "light": the brand mode of this build
 --   colors()         -> { name = "#RRGGBB", ... }  palette entries and semantic names
 --   camel(name)      -> LaTeX-safe name part: "role-concept" -> "RoleConcept"
 --   latex_colors()   -> \definecolor{nm<Name>}{HTML}{..} lines
@@ -36,11 +37,13 @@ local function sorted_keys(t)
   return keys
 end
 
+-- "dark" when the build's brand mode is dark (brand-mode: dark, as the dark profile sets it), else "light"
 local function mode()
   local ok, m = pcall(function() return param("brand-mode") end)
   if ok and m == "dark" then return "dark" end
   return "light"
 end
+M.mode = mode
 
 function M.raw()
   local ok, b = pcall(function() return param("brand") end)
