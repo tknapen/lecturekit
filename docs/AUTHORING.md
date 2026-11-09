@@ -15,7 +15,7 @@ The geometry of a slide and the command that checks each rule are in [LAYOUT.md]
 
 ## The project
 
-A deck is a Quarto project. `lk new <dir>` writes one: `_quarto.yml`, `_brand.yml` (the look, see THEMING.md), `_brand-dark.yml` and `_quarto-dark.yml` (the dark preset), `slides.qmd`, `make_assets.py`, `anim/kit.py`, `references.bib`, the method's files (`STORYBOARD.md`, `PLAN.md`, `FACTS.md`, `MANIFEST.md`, `README.md`, `AGENTS.md`), the `assets/` folders, and a copy of the engine's extension in `_extensions/lecturekit/`. Quarto's convention is that a project vendors the extension it builds with; `lk new --vendor-only <dir>` adds the extension to an existing project, `quarto add tknapen/lecturekit` does the same without the Python package, and `lk build` refuses to build when the vendored extension and the installed engine differ in major version.
+A deck is a Quarto project. `lk new <dir>` writes one: `_quarto.yml`, `_brand.yml` (the look, see THEMING.md), `_brand-dark.yml` and `_quarto-dark.yml` (the dark preset), `slides.qmd`, `make_assets.py`, `anim/kit.py`, `references.bib`, the method's files (`STORYBOARD.md`, `PLAN.md`, `FACTS.md`, `MANIFEST.md`, `README.md`, `AGENTS.md`), the `assets/` folders, and a copy of the engine's extension in `_extensions/lecturekit/`. Quarto's convention is that a project vendors the extension it builds with; `lk new --vendor-only <dir>` adds the extension to an existing project, `quarto add tknapen/lecturekit` does the same without the Python package, and `lk build` refuses to build when the vendored extension and the installed engine differ in major version (in minor version too while the major is 0).
 
 The kickoff example's `_quarto.yml`:
 
@@ -38,6 +38,8 @@ format:
 
 brand: _brand.yml
 ```
+
+`lk build` runs the pre-render on the Python it runs on itself (it sets `QUARTO_PYTHON` unless that is set), so `.venv/bin/lk build` works without an activated venv. It fails when a lecturekit filter reports an error, even where Quarto would carry on and write the outputs.
 
 The resources rule: clips, stills and data files are referenced from raw HTML that Quarto does not scan for dependencies, so `resources: [assets/**]` tells Quarto to copy `assets/` into the output directory. Without it the live deck in `_build/` has no clips. `lk new` writes the anchored form `/assets/**`, which Quarto reads relative to the project rather than to the output directory.
 
@@ -237,7 +239,14 @@ A one-line caption, set small and muted under the clip; on the page it follows t
 :::
 ```
 
-names a clip in `assets/clips/clips.json`, which `lk clips` writes (CLIPS.md). The entry supplies the video, the still, and the width and height that become the aspect, so this form needs no `.live-only` wrapper: the live deck gets a boxed video with the still as poster, the study PDF gets the still at `height=` (default 4 cm) through `\lkimageh`, which never upscales. A `clip=` name that is not in the index and has no `src=` stops the build.
+names a clip in `assets/clips/clips.json`, which `lk clips` writes (CLIPS.md). The entry supplies the video, the still, and the width and height that become the aspect, so this form needs no `.live-only` wrapper: the live deck gets a boxed video with the still as poster, the study PDF gets the still at `height=` (default 4 cm) through `\lkimageh`, which never upscales. `-` and `_` are the same character in a clip name: `clip="bar-bold"` finds the entry `bar_bold`. A dark build (`--profile dark`, `brand-mode: dark`) looks in `assets/clips/dark/clips.json` first and then in the paper index. A missing or null field in an entry counts as absent. A `clip=` name that is not in either index and has no `src=` stops the build, and so does a `clip=` movie that has no still for the study PDF; the message names the movie and its slide.
+
+```markdown
+::: {.movie clip="divisive_normalization" still="rebalanced"}
+:::
+```
+
+takes the still from the entry's `checkpoints` (a manim8 clip lists every checkpoint of its render there): `still=` that is a bare id, without a `/` or an extension, names a checkpoint, and an id the entry does not have stops the build with the ids it does have. A path in `still=` is a path, as below.
 
 ```markdown
 ::: {.movie src="assets/clips/name.mp4" still="assets/clips/name.png"}
@@ -246,7 +255,7 @@ names a clip in `assets/clips/clips.json`, which `lk clips` writes (CLIPS.md). T
 
 names the still explicitly; a `.png` of the same name beside the video is picked up without `still=`. A `.movie` without a still and outside `.live-only` is an error: "Wrap a movie in .live-only and supply a study alternative". Every clip has a static equivalent in the study PDF, as the policy requires.
 
-In the browser a clip starts when its slide appears and pauses when the slide is left; it is muted and has no browser controls. A click or the space bar pauses and resumes it (space does not advance the slide while a clip is shown), R replays it from the start. A clip slide, one `.movie` in `.live-only`, gives the clip everything below the title at 16:9; a clip among other content is 440 px tall. A clip on a key press puts the fragment outside the live-only block, never inside it: `::: {.fragment}` around `:::: {.live-only}` around the `.movie`; `lk review frags` flags the reverse. A sequence of clips is an `.r-stack` inside `.live-only`, each later clip in a `.fragment`; the step's clip starts when its fragment appears and the earlier one stops.
+In the browser a clip plays only while it is on stage: on the present slide, outside a hidden fragment and not covered by a later step of its `.r-stack`. It starts from its first frame when it comes on stage, whether the slide is entered forwards, backwards or by a jump, and stops when it leaves; it is muted and has no browser controls. A click or the space bar pauses and resumes the clip on stage (space advances only on a slide without one; Shift+Space goes back), and R replays it from the start; R never switches on Quarto's Scroll View. A clip slide, one `.movie` in `.live-only`, gives the clip everything below the title at 16:9; a clip among other content is 440 px tall. A clip on a key press puts the fragment outside the live-only block, never inside it: `::: {.fragment}` around `:::: {.live-only}` around the `.movie` (a `clip=` movie may sit in the `.fragment` directly, since the filter boxes it); `lk review frags` flags the reverse, `.live-only` around `.fragment`, whose box keeps its place on the slide while the clip is hidden. A sequence of clips is an `.r-stack` inside `.live-only`, each later clip in a `.fragment`; a step's clip starts from its first frame when its fragment appears and the step it covers stops; stepping back restarts the earlier step, and entering the slide backwards plays the top step alone.
 
 ## Colour emphasis and coloured spans
 
@@ -297,7 +306,7 @@ slides 8  planned 15 min  untimed 1  budget 15 min  ok
 
 The columns are the slide's minutes, the cumulative minutes, the role and the title; the last line sums the plan and says `ok` or `OVER` against the budget. Over is a warning, not an error. The study render prints its own report (study-only slides included) and writes no file.
 
-In the browser the same numbers drive the pacing clock in the speaker view (S): elapsed time against the plan up to the current slide, the difference, and the budget from the title slide. It turns red when more than a minute behind and teal when more than a minute ahead; P resets it. Planning first and timing a rehearsal against the plan is how topics fit.
+In the browser the same numbers drive the pacing clock in the speaker view (S): elapsed time against the plan up to the current slide, the difference, and the budget from the title slide. It turns red when more than a minute behind and teal when more than a minute ahead; P resets it, in the speaker window or the deck, and does not go back a slide. Planning first and timing a rehearsal against the plan is how topics fit.
 
 ## Profiles
 

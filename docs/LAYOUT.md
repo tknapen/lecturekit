@@ -28,13 +28,13 @@ Check: `lk review measure <deck>/_build/slides-live.html` prints, per slide, the
 
 ## Clips
 
-- A clip in a column or on a key press: the fragment wraps the live-only block, never the other way round: `::: {.fragment}` > `:::: {.live-only}` > `::: {.movie src=... aspect="W:H"}`. The reverse order covers the slide. `lk review frags` flags a clip's `.fragment` outside `.live-only`.
+- A clip in a column or on a key press: the fragment wraps the live-only block, never the other way round: `::: {.fragment}` > `:::: {.live-only}` > `::: {.movie src=... aspect="W:H"}`; the fragment then takes the space below the title. The reverse order keeps the clip's box on the slide while the clip is hidden. `lk review frags` flags a `.fragment` inside the clip's `.live-only` box; a `clip=` movie directly in a `.fragment` and a step of an `.r-stack` sequence pass.
 - `aspect=` is the clip's pixel ratio, from `assets/clips/clips.json` (written by `lk clips`); the `clip="name"` form reads it from there. A wrong aspect letterboxes the clip and wastes height.
-- Clips play without browser controls: click or space pauses and resumes, R replays. Space does not advance a slide while a clip is shown. Browsers cache clips by file name: a re-rendered clip that looks unchanged on screen needs a new file name.
+- Clips play without browser controls: click or space pauses and resumes the clip on stage, R replays it (and never switches on Scroll View). Space advances only on a slide with no clip shown. Only the clip on stage plays: a hidden fragment's clip and an r-stack step covered by a later one are stopped. Browsers cache clips by file name: a re-rendered clip that looks unchanged on screen needs a new file name.
 - A clip slide (one `.movie` in `.live-only`) gives the clip everything below the title at 16:9, so a clip under a two-line title still clears the foot; a clip among other content is 440 px tall.
 - Every clip has a static equivalent in the study PDF (a `.study-only` figure, or the still that `clip=` places), as the policy requires.
 
-Check: `lk review frags <live.html> [--slides N ...]` writes a PNG per fragment step and prints which fragments are visible, where the images sit and whether a clip is shown and playing.
+Check: `lk review frags <live.html> [--slides N ...]` writes a PNG per fragment step and prints which fragments are visible, where the images sit and whether a clip is shown and playing; it exits 1 on a misplaced fragment or a hidden clip that plays. Its server answers byte ranges, so clips seek as on a web server.
 
 ## Study PDF
 
