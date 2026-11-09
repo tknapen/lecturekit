@@ -9,13 +9,18 @@
 // covered it is hidden again. A clip that leaves the stage stops. A guard pauses any video that starts playing off
 // stage, and the previews of the speaker view never play one.
 //
+// A clip in parts (stops=, a .lk-seg box) is played by reveal/segments.html, which this file hands its keys and clicks
+// to (window.lecturekitSegments); it is not a clip on stage in the sense above.
+//
 // Keys go through Reveal's keyboard configuration, which Reveal consults before Quarto's bindings and its own
 // defaults; keys pressed in the speaker window reach the same bindings through Reveal's triggerKey, in the preview,
 // which hands clip actions to the main window:
-//   Space    pauses or resumes the clip on stage; with no clip on stage, the next step (Shift+Space: the previous)
-//   R        replays the clip on stage from its start, or re-runs a flash slide (Quarto's Scroll View key is not bound)
+//   Space    pauses or resumes the clip on stage; with no clip on stage, the next step (Shift+Space: the previous);
+//            on a clip in parts: pauses or resumes a playing part, at a hold the next step, at the last hold nothing
+//   R        replays the clip on stage from its start, or re-runs a flash slide (Quarto's Scroll View key is not bound);
+//            on a clip in parts: replays the part that ends at the current hold
 //   P        resets the pacing clock, and does not go to the previous slide
-// A click on a clip pauses or resumes it.
+// A click on a clip pauses or resumes it; a click on a clip in parts is Space.
 //
 // Flash slides: a slide with data-flash="500" shows its image for 500 ms after a short fixation cross, then blanks it;
 // the title stays. Used for the brief-exposure trials of lecture 2.
@@ -26,6 +31,12 @@
 (function () {
   var NS = 'lecturekit';
   function speaker() { return !!(window.Reveal && Reveal.isSpeakerNotes && Reveal.isSpeakerNotes()); }
+  // the runtime of clips in parts (reveal/segments.html), when the deck has one and the current slide holds it
+  function parts() {
+    var seg = window.lecturekitSegments;
+    return seg && seg.here() ? seg : null;
+  }
+  function inParts(v) { return !!(v && v.closest && v.closest('.lk-seg')); }
   function play(v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
   function restart(v) { try { v.currentTime = 0; } catch (e) { /* not seekable yet */ } play(v); }
   function toggle(v) { if (v.paused || v.ended) play(v); else v.pause(); }
@@ -72,7 +83,7 @@
   function onStage(v) { return !speaker() && visible(v); }
   function shownClips() {
     var slide = window.Reveal && Reveal.getCurrentSlide();
-    return slide ? Array.prototype.filter.call(slide.querySelectorAll('video'), visible) : [];
+    return slide ? Array.prototype.filter.call(slide.querySelectorAll('video'), function (v) { return visible(v) && !inParts(v); }) : [];
   }
   // the clip the keys act on: the last one shown, the topmost step of a sequence
   function currentClip() { var cs = shownClips(); return cs.length ? cs[cs.length - 1] : null; }
@@ -102,7 +113,7 @@
     var main = null;
     try { main = window.parent && window.parent !== window ? window.parent.opener : null; } catch (e) { main = null; }
     if (!main) return false;
-    try { main.postMessage(JSON.stringify({ namespace: NS, action: action }), '*'); return true; } catch (e) { return false; }
+    try { main.postMessage(JSON.stringify({ namespace: NS, action: action, state: Reveal.getState() }), '*'); return true; } catch (e) { return false; }
   }
   var channel = null;
   try { channel = new BroadcastChannel(NS); } catch (e) { channel = null; }
@@ -121,6 +132,12 @@
     else if (speaker()) return;
     else if (data.action === 'toggle') { var v = currentClip(); if (v) toggle(v); }
     else if (data.action === 'replay') replay();
+    else if (data.action === 'parts-space' || data.action === 'parts-replay') {
+      // only for the step the speaker window shows: a key pressed there just before the main window moved is dropped
+      var s = Reveal.getState(), d = data.state || {}, seg = parts();
+      if (!seg || d.indexh !== s.indexh || d.indexv !== s.indexv || d.indexf !== s.indexf) return;
+      if (data.action === 'parts-space') { if (!seg.space()) Reveal.next(); } else seg.replay();
+    }
   }
   window.addEventListener('message', function (e) { receive(e.data); });
   if (channel) channel.onmessage = function (e) { receive(e.data); };
@@ -134,7 +151,12 @@
     return false;
   }
   function spaceKey(e) {
-    if (!(e && e.shiftKey)) {
+    var seg = parts();
+    if (seg && !(e && e.shiftKey)) {
+      if (speaker()) { tellMain('parts-space'); return; }
+      if (seg.space()) return;
+    }
+    if (!seg && !(e && e.shiftKey)) {
       var v = currentClip();
       if (v) { if (speaker()) tellMain('toggle'); else toggle(v); return; }
     }
@@ -143,6 +165,8 @@
     if (e && e.shiftKey) Reveal.prev(opts); else Reveal.next(opts);
   }
   function replayKey() {
+    var seg = parts();
+    if (seg) { if (speaker()) tellMain('parts-replay'); else seg.replay(); return; }
     if (!speaker()) { replay(); return; }
     var slide = Reveal.getCurrentSlide();
     if (currentClip() || (slide && slide.hasAttribute('data-flash'))) tellMain('replay');
@@ -164,6 +188,11 @@
   // Clips carry no browser controls: a click on a clip on stage pauses or resumes it.
   document.addEventListener('click', function (e) {
     var v = e.target && e.target.closest ? e.target.closest('video') : null;
+    if (v && inParts(v)) {
+      var seg = parts();
+      if (seg && visible(v)) { e.preventDefault(); if (speaker()) tellMain('parts-space'); else seg.space(); }
+      return;
+    }
     if (v && visible(v)) { e.preventDefault(); if (speaker()) tellMain('toggle'); else toggle(v); }
   });
 

@@ -1,0 +1,377 @@
+<style>
+/* A clip in parts (dual-output.lua, stops=): the video and one still per boundary share one box. The runtime below
+   shows a still over every seek (data-lk-show) and the video while it plays or holds (.lk-driving); without the
+   runtime (the speaker view's previews, print, a clip that failed) the still of the current state shows, chosen by the
+   visible cues. The forced rules are as specific as the state rules. */
+.reveal .slides section .lk-seg{position:relative}
+.reveal .slides section .lk-seg > video{max-width:none;max-height:none}
+.reveal .slides section .lk-seg > img.lk-still{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;object-fit:contain;opacity:0;pointer-events:none}
+.reveal .lk-cue{display:none}
+.reveal .slides section .live-only:has(> .lk-seg){flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+.reveal .slides section .lk-seg[data-lk-show="0"] > img[data-lk-b="0"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="1"] > img[data-lk-b="1"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="2"] > img[data-lk-b="2"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="3"] > img[data-lk-b="3"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="4"] > img[data-lk-b="4"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="5"] > img[data-lk-b="5"]{opacity:1}
+.reveal .slides section .lk-seg[data-lk-show="6"] > img[data-lk-b="6"]{opacity:1}
+.reveal .slides section:not(:has(.lk-cue.visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="0"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="1"].visible):not(:has(.lk-cue[data-lk-k="2"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="1"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="2"].visible):not(:has(.lk-cue[data-lk-k="3"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="2"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="3"].visible):not(:has(.lk-cue[data-lk-k="4"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="3"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="4"].visible):not(:has(.lk-cue[data-lk-k="5"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="4"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="5"].visible):not(:has(.lk-cue[data-lk-k="6"].visible)) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="5"]{opacity:1}
+.reveal .slides section:has(.lk-cue[data-lk-k="6"].visible) .lk-seg:not(.lk-driving):not([data-lk-show]) > img[data-lk-s="6"]{opacity:1}
+</style>
+<script>
+// A clip in parts: one video held at its stops by the presenter's keys (dual-output.lua writes the markup).
+//
+// The boundaries of a clip are frame 0, its stops and its last frame (data-lk-bounds: frame and presentation time of
+// each). Its cues are empty fragments, one per key. With k cues visible the clip holds on boundary T(k): k + 1 with
+// start=auto (part 1 plays on entry), k with start=key (the slide opens on frame 0). The runtime never moves Reveal
+// (except for Space at a hold, which is a next key); it makes the video agree with k:
+//
+//   entering with k = 0      start=auto: play part 1 from frame 0; start=key: hold frame 0
+//   entering with k > 0      (back from the next slide, a jump, a hash) hold T(k) at once, never play
+//   a next key               while a part plays: play on through the coming stop to T(k); while holding: play to T(k)
+//   a previous key           hold T(k) at once, never play backwards
+//   reaching the target      pause two frames before it (requestVideoFrameCallback; else timeupdate 0.3 s before),
+//                            then seek to the middle of the target frame and hold it exactly
+//   Space                    pauses and resumes a playing part; at a hold, the next key; at the last hold, nothing
+//   R                        replays the part that ends at the current hold
+//   the overview, a hidden   pauses a playing part; it resumes on return if nothing moved
+//   tab, B (blank)
+//   play() refused           shows the still of the part's start (never a hold the room has not seen); Space plays it
+//   a play it did not start  is paused, and the hold sought again
+//   a seek that does not     (2 s) or a media error: the clip is degraded, its stills follow the cues and the keys move
+//   finish                   Reveal only
+//
+// A still covers every seek. Only the main window loads a clip (data-lk-src becomes src for the current slide and its
+// neighbours); the speaker view's previews and print show the stills. A clip whose server cannot seek it (no byte
+// ranges) is fetched into a Blob and played from there. Keys reach this file through live-head.html, which owns the
+// keyboard configuration and the messages between windows: window.lecturekitSegments is its interface, and the
+// review tools (lk review frags) read state() from it.
+(function () {
+  var Q = new URLSearchParams(location.search);
+  var GUARD_FRAMES = 2;                 // rVFC pauses this many frames before a boundary
+  var TU_LEAD = 0.3;                    // seconds: the timeupdate fallback pauses this early
+  var SEEK_TIMEOUT = 2000, META_TIMEOUT = 15000;
+  var NO_RVFC = Q.has('lk-timeupdate'); // test switch: the timeupdate path
+  var clips = [], log = [];
+  function note(st, msg) {
+    log.push([Math.round(performance.now()), st ? st.id : '-', msg]);
+    if (log.length > 4000) log.splice(0, 1000);
+  }
+
+  function receiver() { return !!(window.Reveal && Reveal.isSpeakerNotes && Reveal.isSpeakerNotes()); }
+  function printing() { return /print-pdf/i.test(location.search) || !!(Reveal.isPrintView && Reveal.isPrintView()); }
+  function present(st) { return st.slide.classList.contains('present'); }
+  function live(st) {
+    return !receiver() && !printing() && present(st) && !Reveal.isOverview() && !document.hidden && !st.degraded;
+  }
+  function kOf(st) { return st.slide.querySelectorAll('.lk-cue[data-lk-for="' + st.id + '"].visible').length; }
+  function T(st, k) { return st.key ? k : k + 1; }
+  function last(st) { return st.bounds.length - 1; }
+  function tOf(st, b) { return st.bounds[b].t + 0.5 / st.fps; }      // the middle of boundary b's frame
+  // the frame on screen at time t: nothing follows the last frame, which a seek near the end may report as the duration
+  function frameAt(st, t) { return Math.min(Math.floor(t * st.fps + 1e-3), st.bounds[st.bounds.length - 1].f); }
+  function attrs(st) { st.box.setAttribute('data-lk-phase', st.phase); st.box.setAttribute('data-lk-at', String(st.at)); }
+  function showStill(st, b) { st.box.classList.remove('lk-driving'); st.box.setAttribute('data-lk-show', String(b)); }
+  function staticStill(st) { st.box.classList.remove('lk-driving'); st.box.removeAttribute('data-lk-show'); }
+  function drive(st) { st.box.classList.add('lk-driving'); st.box.removeAttribute('data-lk-show'); }
+  function pause(st) { if (!st.v.paused) st.v.pause(); }
+  function phase(st, p, at) { st.phase = p; if (at !== undefined) st.at = at; attrs(st); }
+  function degrade(st, why) {
+    if (st.degraded) return;
+    st.degraded = true; st.gen++; pause(st); staticStill(st); phase(st, 'degraded'); note(st, 'degraded: ' + why);
+  }
+
+  // ---------------------------------------------------------------- loading
+  function load(st) {
+    if (st.v.getAttribute('src')) return;
+    var src = st.v.getAttribute('data-lk-src') + (st.ver ? '?v=' + st.ver : '');
+    st.v.preload = 'auto'; st.v.setAttribute('src', src); st.v.load();
+    note(st, 'load ' + src);
+  }
+  // a server without byte ranges leaves the clip unseekable: fetch it into a Blob and play that (http(s) only)
+  function checkSeekable(st) {
+    var v = st.v, s = v.seekable;
+    var ok = s.length > 0 && s.end(s.length - 1) >= v.duration - 0.05 && s.start(0) <= 0.05;
+    note(st, 'seekable ' + (ok ? 'yes' : 'no') + ' (ranges ' + s.length + ', duration ' + v.duration.toFixed(3) + ')');
+    if (ok || st.blob || !/^https?:/.test(location.protocol)) return;
+    st.blob = true;
+    // nothing acts on the unseekable source meanwhile: the clip waits on a still and starts over from the Blob
+    st.gen++; pause(st); showStill(st, st.at >= 0 ? st.at : 0); phase(st, 'loading');
+    note(st, 'not seekable: fetching it into a Blob');
+    fetch(v.currentSrc).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.blob();
+    }).then(function (b) {
+      st.gen++; v.src = URL.createObjectURL(b); v.load(); note(st, 'Blob in place');
+      st.entered = false; reconcile(st, 'blob');
+    }).catch(function (e) { degrade(st, 'Blob fetch failed: ' + e); });
+  }
+
+  // ---------------------------------------------------------------- seeking, holding, playing
+  // seek onto boundary b; resolves true once that frame is up (false for a stale generation or a miss)
+  function seek(st, b, gen) {
+    var v = st.v, t = tOf(st, b);
+    return new Promise(function (resolve) {
+      var done = false, timer = null;
+      function finish(ok) {
+        if (done) return; done = true; clearTimeout(timer); v.removeEventListener('seeked', onSeeked);
+        resolve(ok && gen === st.gen);
+      }
+      function onSeeked() {
+        if (gen !== st.gen) return finish(false);
+        // Chromium lands a seek into the last frame on the duration when the video already sits near the end
+        var hit = b === last(st) ? v.currentTime >= st.bounds[b].t - 1e-3 : Math.abs(v.currentTime - t) <= 0.5 / st.fps;
+        if (!hit) {
+          note(st, 'seek missed: at ' + v.currentTime.toFixed(4) + ', wanted ' + t.toFixed(4));
+          return finish(false);
+        }
+        if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(function () { finish(true); });
+        requestAnimationFrame(function () { requestAnimationFrame(function () { finish(true); }); });
+      }
+      function arm(ms) {
+        clearTimeout(timer);
+        timer = setTimeout(function () { if (gen === st.gen) degrade(st, 'the seek to boundary ' + b + ' did not finish'); finish(false); }, ms);
+      }
+      v.addEventListener('seeked', onSeeked);
+      if (v.readyState < 1) {
+        arm(META_TIMEOUT);
+        v.addEventListener('loadedmetadata', function () { if (!done && gen === st.gen) { arm(SEEK_TIMEOUT); v.currentTime = t; } }, { once: true });
+      } else {
+        arm(SEEK_TIMEOUT); v.currentTime = t;
+      }
+    });
+  }
+
+  function hold(st, b, why) {
+    var gen = ++st.gen;
+    pause(st); showStill(st, b); phase(st, 'seeking', b); st.target = b;
+    seek(st, b, gen).then(function (ok) {
+      if (!ok) return;
+      drive(st); phase(st, 'holding', b); held(st, b);
+      note(st, 'hold ' + b + ' (' + why + ')');
+    });
+  }
+  function held(st, b) {
+    st.lastHold = { b: b, frame: frameAt(st, st.v.currentTime), ms: st.kAt ? Math.round(performance.now() - st.kAt) : null };
+  }
+
+  // play towards boundary `target`, from boundary `from` (sought first) or from where the video is (from = null)
+  function playTo(st, target, from) {
+    var gen = ++st.gen; st.target = target;
+    function go() {
+      if (gen !== st.gen) return;
+      drive(st); phase(st, 'playing', from === null ? st.at : from);
+      watch(st, gen);
+      var p = st.v.play();
+      if (p && p.catch) p.catch(function (e) {
+        if (gen !== st.gen) return;
+        // the browser refused: show where the part starts, and let Space (a gesture) play it
+        note(st, 'play refused: ' + e.name); phase(st, 'blocked'); showStill(st, st.at);
+      });
+      note(st, 'play to ' + target + (from === null ? ' from here' : ' from ' + from));
+    }
+    if (from === null) return go();
+    pause(st); showStill(st, from); phase(st, 'seeking', from);
+    seek(st, from, gen).then(function (ok) { if (ok) go(); });
+  }
+
+  // the watched frame is at the target: pause, then seek onto it exactly
+  function arrive(st) {
+    var b = st.target, g = ++st.gen;
+    pause(st);
+    st.lastPause = { b: b, media: st.lastMedia, frame: Math.round(st.lastMedia * st.fps), t: st.v.currentTime };
+    seek(st, b, g).then(function (ok) {
+      if (!ok) return;
+      phase(st, 'holding', b); held(st, b);
+      note(st, 'reached ' + b + ' (paused at ' + st.lastMedia.toFixed(4) + ')');
+    });
+  }
+  function watch(st, gen) {
+    if (st.v.requestVideoFrameCallback && !NO_RVFC) {
+      var cb = function (now, md) {
+        st.lastMedia = md.mediaTime;
+        if (gen !== st.gen || st.phase !== 'playing') return;
+        if (md.mediaTime >= st.bounds[st.target].t - GUARD_FRAMES / st.fps - 1e-4) return arrive(st);
+        st.v.requestVideoFrameCallback(cb);
+      };
+      st.v.requestVideoFrameCallback(cb);
+    } else {
+      st.v.ontimeupdate = function () {
+        if (gen !== st.gen || st.phase !== 'playing') return;
+        st.lastMedia = st.v.currentTime;
+        if (st.v.currentTime >= st.bounds[st.target].t - TU_LEAD) arrive(st);
+      };
+    }
+  }
+
+  // ---------------------------------------------------------------- the state machine
+  function leave(st, why) {
+    if (st.entered || !st.v.paused) note(st, 'left (' + why + ')');
+    st.gen++; pause(st); staticStill(st); st.entered = false; st.away = null; st.blanked = false; phase(st, 'static');
+  }
+  function reconcile(st, why) {
+    if (!live(st)) {
+      if (st.degraded) { pause(st); staticStill(st); return; }
+      // the overview or a hidden tab over the present slide: a playing part pauses and resumes on return
+      if (present(st) && st.entered && !receiver() && !printing() && (Reveal.isOverview() || document.hidden)) {
+        if (st.away) return;
+        st.away = { k: st.k, playing: st.phase === 'playing', seeking: st.phase === 'seeking' };
+        st.gen++; pause(st);
+        if (st.phase === 'playing') phase(st, 'paused');
+        note(st, 'away (' + why + ')');
+        return;
+      }
+      return leave(st, why);
+    }
+    load(st);
+    var k = kOf(st);
+    if (!st.entered) {
+      st.entered = true; st.k = k; st.kAt = performance.now();
+      note(st, 'enter with ' + k + ' cue(s) shown (' + why + ')');
+      if (k === 0 && !st.key) return playTo(st, T(st, 0), 0);
+      return hold(st, T(st, k), 'enter');
+    }
+    if (st.away) {
+      var away = st.away; st.away = null;
+      if (k === away.k) {
+        note(st, 'back (' + why + ')');
+        if (away.playing && st.phase === 'paused') return playTo(st, st.target, null);
+        if (away.seeking) return hold(st, T(st, k), 'back from away');
+        return;
+      }
+    }
+    if (k === st.k) return;
+    var prev = st.k; st.k = k; st.kAt = performance.now();
+    note(st, 'cues ' + prev + ' -> ' + k + ' (' + why + ')');
+    if (k < prev) return hold(st, T(st, k), 'previous');
+    // forward: a part that plays plays on through the coming stop; a hold or a pause plays from where it is
+    if (st.phase === 'playing') { st.target = T(st, k); note(st, 'target -> ' + st.target); return; }
+    if (st.phase === 'holding' || st.phase === 'paused') return playTo(st, T(st, k), null);
+    if (st.phase === 'blocked') return playTo(st, T(st, k), st.at);
+    return playTo(st, T(st, k), T(st, k) - 1);
+  }
+
+  function current() {
+    var s = Reveal.getCurrentSlide();
+    for (var i = 0; i < clips.length; i++) if (clips[i].slide === s) return clips[i];
+    return null;
+  }
+  function all(why) {
+    clips.forEach(function (st) { reconcile(st, why); });
+    preloadNear();
+    backstop();
+  }
+  function preloadNear() {
+    if (receiver() || printing()) return;
+    var cur = Reveal.getIndices().h;
+    clips.forEach(function (st) { if (Math.abs(st.h - cur) <= 1 && !st.degraded) load(st); });
+  }
+  // every 250 ms and on every event: a part that ran past its target is put back on it
+  function backstop() {
+    clips.forEach(function (st) {
+      if (st.phase === 'playing' && st.target >= 0 && st.v.currentTime > st.bounds[st.target].t + 2 / st.fps) {
+        note(st, 'overshoot: back to ' + st.target); hold(st, st.target, 'overshoot');
+      }
+      if (!st.v.paused && !live(st) && !st.away) { note(st, 'backstop: paused'); st.v.pause(); }
+    });
+  }
+
+  // ---------------------------------------------------------------- keys (called by live-head.html)
+  function space() {
+    var st = current();
+    if (!st || !live(st)) return false;
+    if (st.phase === 'playing') { st.gen++; pause(st); phase(st, 'paused'); note(st, 'Space: pause'); }
+    else if (st.phase === 'paused') { note(st, 'Space: resume'); playTo(st, st.target, null); }
+    else if (st.phase === 'blocked') { note(st, 'Space: play'); playTo(st, st.target, st.at); }
+    else if (st.phase === 'holding') {
+      if (st.at < last(st)) Reveal.next(); else note(st, 'Space at the last hold: nothing');
+    }
+    return true;
+  }
+  function replay() {
+    var st = current();
+    if (!st || !live(st)) return false;
+    var b = T(st, st.k);
+    if (b > 0) { note(st, 'R: part to ' + b); st.kAt = performance.now(); playTo(st, b, b - 1); }
+    return true;
+  }
+
+  // what the review tools read: phase, state, boundary, frame on screen, the last pause and hold
+  function state(id) {
+    var st = null;
+    for (var i = 0; i < clips.length; i++) if (clips[i].id === id || (id === undefined && clips[i] === current())) st = clips[i];
+    if (!st) return null;
+    var shown = Array.prototype.filter.call(st.box.querySelectorAll('img.lk-still'), function (img) {
+      return getComputedStyle(img).opacity === '1';
+    }).map(function (img) { return +img.getAttribute('data-lk-b'); });
+    return {
+      id: st.id, phase: st.phase, k: st.k, at: st.at, target: st.target, key: st.key, plays: st.plays,
+      paused: st.v.paused, t: st.v.currentTime, frame: frameAt(st, st.v.currentTime), driving: st.box.classList.contains('lk-driving'),
+      stills: shown, src: st.v.getAttribute('src'), blob: st.blob, degraded: st.degraded, fps: st.fps,
+      bounds: st.bounds, expected: st.bounds[T(st, kOf(st))], lastPause: st.lastPause, lastHold: st.lastHold
+    };
+  }
+
+  var inited = false;
+  function init() {
+    if (inited) return; inited = true;
+    var hs = Reveal.getHorizontalSlides();
+    document.querySelectorAll('.reveal .lk-seg').forEach(function (box) {
+      var v = box.querySelector('video'), slide = box.closest('section');
+      if (!v || !slide) return;
+      var top = slide; while (top.parentElement && top.parentElement.tagName === 'SECTION') top = top.parentElement;
+      var st = {
+        id: box.getAttribute('data-lk-seg'), box: box, v: v, slide: slide, h: hs.indexOf(top),
+        fps: parseFloat(box.getAttribute('data-lk-fps')), bounds: JSON.parse(box.getAttribute('data-lk-bounds')),
+        key: box.getAttribute('data-lk-start') === 'key', ver: box.getAttribute('data-lk-v') || '',
+        gen: 0, k: 0, kAt: 0, at: -1, target: -1, phase: 'static', entered: false, degraded: false, blob: false,
+        away: null, blanked: false, lastMedia: 0, lastPause: null, lastHold: null, plays: 0
+      };
+      v.addEventListener('play', function () {
+        st.plays++;
+        if (st.phase !== 'playing' || !live(st)) {
+          note(st, 'a play it did not start: paused'); st.v.pause();
+          if (st.phase === 'holding' && live(st)) hold(st, st.at, 'after a foreign play');
+        }
+      });
+      v.addEventListener('loadedmetadata', function () { checkSeekable(st); });
+      v.addEventListener('error', function () { if (v.getAttribute('src')) degrade(st, 'media error'); });
+      clips.push(st); attrs(st);
+    });
+    if (!clips.length) return;
+    ['slidechanged', 'fragmentshown', 'fragmenthidden', 'overviewshown', 'overviewhidden'].forEach(function (ev) {
+      Reveal.on(ev, function () { all(ev); });
+    });
+    // after a backward entry every cue is visible, but the notes plugin posted the slide's notes: post again
+    Reveal.on('slidechanged', function () {
+      var st = current();
+      if (st && !receiver() && kOf(st) > 0) setTimeout(function () { Reveal.dispatchEvent({ type: 'resumed' }); }, 0);
+    });
+    Reveal.on('paused', function () {
+      clips.forEach(function (st) { if (st.phase === 'playing') { st.gen++; pause(st); phase(st, 'paused'); st.blanked = true; } });
+    });
+    Reveal.on('resumed', function () {
+      clips.forEach(function (st) {
+        if (st.blanked) { st.blanked = false; if (st.phase === 'paused' && live(st)) playTo(st, st.target, null); }
+      });
+    });
+    document.addEventListener('visibilitychange', function () { all('visibility'); });
+    setInterval(backstop, 250);
+    all('ready');
+  }
+
+  window.lecturekitSegments = {
+    here: function () { return !!(window.Reveal && Reveal.isReady && Reveal.isReady() && current()); },
+    space: space, replay: replay, state: state, clips: clips, log: log
+  };
+  window.addEventListener('load', function () {
+    if (!window.Reveal) return;
+    if (Reveal.isReady && Reveal.isReady()) init(); else Reveal.on('ready', init);
+  });
+})();
+</script>
