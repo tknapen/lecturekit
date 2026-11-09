@@ -1,0 +1,20 @@
+# Render environment for the features family: `uv sync` here creates .venv with Manim and the
+# manim8 render bridge. The control plane (`manim8`) is deliberately absent. uv.lock is shareable; .venv is not.
+[project]
+name = "family-features"
+version = "0.1.0"
+description = "Pinned render environment for the features family."
+requires-python = ">=3.12"
+# manim8-core is listed explicitly so that uv applies its source (ADR-008).
+dependencies = ["manim8-bridge", "manim8-core"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+# The bridge and the contracts from git: SCIANIM_BRIDGE_SOURCE (ADR-043).
+manim8-bridge = { git = "https://github.com/tknapen/manim8", rev = "v0.1.0a0", subdirectory = "packages/scianim_bridge" }
+manim8-core = { git = "https://github.com/tknapen/manim8", rev = "v0.1.0a0", subdirectory = "packages/scianim_core" }

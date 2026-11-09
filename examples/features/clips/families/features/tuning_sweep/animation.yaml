@@ -1,0 +1,30 @@
+schema_version: "1.0"
+id: tuning_sweep
+title: "A tuning curve, swept"
+sources: []
+output:
+  duration_seconds: 6
+  width_px: 1280
+  height_px: 720
+  aspect_ratio: "16:9"
+  fps: 30
+  container: mp4
+  video_codec: h264
+  audio: none
+style:
+  name: lecturekit_paper
+  version: "0.1.0"
+  overrides: {}
+equations: []
+objective: "Show the two ways a tuning curve can change: its gain scales the peak, its width spreads the curve; both on one fixed pair of axes."
+scientific_constraints:
+  - id: toy_label
+    kind: hard
+    text: "The curve is a toy analytic Gaussian, not a measurement; the plot says so."
+timeline: []
+direction:
+  tone: plain, didactic
+  avoid:
+    - decorative motion
+    - titles inside the clip
+extensions: {}

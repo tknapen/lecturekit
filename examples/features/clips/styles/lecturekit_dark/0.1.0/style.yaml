@@ -1,0 +1,103 @@
+schema_version: '1.0'
+name: lecturekit_dark
+version: 0.1.0
+description: lecturekit brand 'lecturekit dark' (dark) mapped onto manim8 palette
+  roles; written by `lk theme --manim8`, a new version per change.
+inherits: default@0.5.0
+palette:
+  background: '#000000'
+  foreground: '#E6F4EA'
+  secondary_text: '#6FA98A'
+  neutral: '#2A2A2A'
+  muted: '#4C6A5A'
+  grid: '#151515'
+  primary_signal: '#6FB3E8'
+  normalization_pool: '#F2A15F'
+  emphasis: '#8FB8E8'
+  warning: '#F08C83'
+  comparison: '#C9B6F2'
+  uncertainty: '#111B23'
+  selection: '#090E13'
+  primary_signal_soft: '#273F51'
+  normalization_pool_soft: '#553821'
+  emphasis_soft: '#324051'
+  warning_soft: '#54312E'
+  comparison_soft: '#464055'
+  css: '#F28CB0'
+  css_soft: '#55313E'
+  dn: '#5FD1D1'
+  dn_soft: '#214949'
+  dog: '#F0C060'
+  dog_soft: '#544322'
+  anchor: '#5FD1C4'
+  anchor_soft: '#214945'
+  body: '#8FD8B0'
+  caveat: '#F08C83'
+  caveat_soft: '#54312E'
+  concept: '#8FB8E8'
+  concept_soft: '#324051'
+  context: '#C9B6F2'
+  context_soft: '#464055'
+  example: '#E8B960'
+  example_soft: '#514122'
+  future: '#C9B6F2'
+  future_soft: '#464055'
+  gauss: '#8FB8E8'
+  gauss_soft: '#324051'
+  hairline: '#2A2A2A'
+  heading: '#C9B6F2'
+  ink: '#E6F4EA'
+  input: '#6FB3E8'
+  input_soft: '#273F51'
+  paper: '#000000'
+  question: '#C9B6F2'
+  question_soft: '#464055'
+  slide: '#000000'
+  state: '#5FD1C4'
+  state_soft: '#214945'
+  update: '#F2A15F'
+  update_soft: '#553821'
+typography:
+  title:
+    font_family: Roboto
+    font_fallbacks:
+    - TeX Gyre Heros
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif
+    weight: regular
+  body:
+    font_family: Roboto
+    font_fallbacks:
+    - TeX Gyre Heros
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif
+  annotation:
+    font_family: Roboto
+    font_fallbacks:
+    - TeX Gyre Heros
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif
+  axis_label:
+    font_family: Roboto
+    font_fallbacks:
+    - TeX Gyre Heros
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif
+  tick_label:
+    font_family: Roboto
+    font_fallbacks:
+    - TeX Gyre Heros
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif
+  caption:
+    font_family: Roboto
+    font_fallbacks:
+    - TeX Gyre Heros
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif

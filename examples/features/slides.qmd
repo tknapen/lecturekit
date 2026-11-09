@@ -132,6 +132,17 @@ Say: each key brings the next step; the step it covers stops, and stepping back 
 `still="midway"` names a checkpoint of the clip's entry; the PDF shows the bar halfway.
 :::
 
+## A clip from manim8 {role=example time=0.5}
+
+::: {.movie clip="tuning_sweep" height=4cm}
+A manim8 project in `clips/`, made by `lk clips`; the PDF shows its last checkpoint.
+:::
+
+::: notes
+Say: a toy tuning curve; its gain doubles the peak, then its width spreads it.
+Status: `lk clips . --only tuning_sweep`, and `--mode dark` for the dark preset.
+:::
+
 ## Revealed step by step {role=explanation time=1.5}
 
 ::: incremental

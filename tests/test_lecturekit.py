@@ -134,6 +134,8 @@ def test_features_live_deck(built_features):
     assert '<div class="nm-foot"' in html                                # the per-slide foot
     assert "<video" in html and "data-lk-autoplay" in html               # movie blocks, played by the runtime
     assert 'poster="assets/clips/bar_bold.png"' in html                 # the seam supplies the still
+    assert 'src="assets/clips/tuning_sweep.mp4"' in html                # the manim8 clip, through the same seam
+    assert 'poster="assets/clips/tuning_sweep.widened.png"' in html     # its latest checkpoint as the poster
     assert 'class="tikz"' in html and "_lecturekit/tikz/" in html        # TikZ as SVG
     assert "Study-only detail" not in html                              # study-only slide dropped
     assert "The clip's last frame" not in html                          # study-only block dropped
@@ -146,17 +148,19 @@ def test_features_live_deck(built_features):
 @needs_tex
 def test_features_study_pdf(built_features):
     pdf = built_features / "_build" / "slides-study.pdf"
-    assert pdf_pages(pdf) == 15
+    assert pdf_pages(pdf) == 16
     text = pdf_text(pdf)
     assert "STUDY-ONLY DETAIL" in text                                   # study-only slide kept, title in capitals
     assert "CORE CONCEPT" in text and "TAKEAWAYS" in text                # eyebrows
     assert "FEATURES" in text                                            # the foot's short title
     assert "Named in assets/clips/clips.json" in text                    # the seam's still carries its caption
+    assert "the PDF shows its last checkpoint" in text                   # the manim8 clip's still and caption
     tex = (built_features / "slides.tex").read_text()
     assert re.search(r"\\textcolor\{nmInput\}\{a live deck\s+and a study PDF\}", tex)   # coloured spans (Pandoc wraps lines)
     assert "{\\footnotesize\\itshape " in tex                           # citations italic and small
     assert "\\begin{frame}[fragile,nmrole=concept]" in tex              # roles as frame options, fragile allowed
     assert "\\nmfigureh{4.2cm}{assets/figures/pipeline.tex}" in tex     # the raw figure form stays
+    assert "assets/clips/tuning_sweep.widened.png" in tex                # the manim8 checkpoint as the still
     tokens_tex = (built_features / "_lecturekit" / "tokens.tex").read_text()
     assert "\\definecolor{nmConcept}{HTML}{175B8E}" in tokens_tex
 
@@ -197,7 +201,7 @@ def test_review_tools(built_features, tmp_path):
     from lecturekit.review.shoot import shoot
     deck = built_features / "_build" / "slides-live.html"
     result = shoot(deck, tmp_path / "shots", sheet=True)
-    assert result["slides"] == 14
+    assert result["slides"] == 15
     assert (tmp_path / "shots" / "slide-14.png").exists()
     assert (tmp_path / "shots" / "report.json").exists()
     assert not [r for r in result["report"] if r["over"]], result["report"]

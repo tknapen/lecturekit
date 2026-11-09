@@ -1,0 +1,11 @@
+# Written by `scianim workspace init` (ADR-043). Renders, job records, caches and environments are rebuilt from
+# the files that stay versioned: specs, styles, code/, data/, revisions/, feedback/ and each family's uv.lock.
+renders/
+.scianim/
+.venv/
+# Manim's own media folder, when Manim runs outside a job (a job keeps its media under .scianim/).
+media/
+!assets/**/media/
+!families/**/assets/**/media/
+__pycache__/
+*.pyc

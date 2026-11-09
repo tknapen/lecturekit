@@ -1,0 +1,75 @@
+schema_version: "1.0"
+project_id: tuning_sweep
+based_on_animation_revision: working
+scenes:
+  - id: gain
+    start_seconds: 0
+    end_seconds: 3
+    purpose: "The gain rises: the peak doubles while the preferred value and the width stay put."
+    narration:
+      text: "The gain doubles the peak in place."
+    objects:
+      - id: gain_curve
+        kind: function_plot
+        style_role: primary_signal
+        params:
+          x_label: "stimulus value x"
+          y_label: "response r"
+          x_range: [-4, 4]
+          y_range: [0, 2.2]
+          parameters: {g: 1, s: 0.8}
+          series:
+            - {label: "toy tuning curve", expression: "g * exp(-(x * x) / (2 * s * s))"}
+          data_label: "toy analytic curve, not data"
+          width_fraction: 0.8
+          height_fraction: 0.8
+    actions:
+      - id: raise_gain
+        kind: vary_parameter
+        target: gain_curve
+        parameter: g
+        to: 2
+        at_seconds: 0.9
+        duration_seconds: 1.3
+        value_label: "gain g"
+    snapshots:
+      - id: gain_low
+        at_seconds: 0.88
+        description: "The toy curve at gain 1 and width 0.8, peaking at r = 1 over x = 0, before the sweep."
+      - id: gain_high
+        at_seconds: 2.3
+        description: "The same curve at gain 2: the peak at r = 2, the width unchanged; the readout reads g = 2.0."
+  - id: width
+    start_seconds: 3
+    end_seconds: 6
+    purpose: "The width grows: the curve spreads while its peak stays at the raised gain."
+    narration:
+      text: "A wider curve reaches further stimuli."
+    objects:
+      - id: width_curve
+        kind: function_plot
+        style_role: primary_signal
+        params:
+          x_label: "stimulus value x"
+          y_label: "response r"
+          x_range: [-4, 4]
+          y_range: [0, 2.2]
+          parameters: {g: 2, s: 0.8}
+          series:
+            - {label: "toy tuning curve", expression: "g * exp(-(x * x) / (2 * s * s))"}
+          data_label: "toy analytic curve, not data"
+          width_fraction: 0.8
+          height_fraction: 0.8
+    actions:
+      - id: widen
+        kind: vary_parameter
+        target: width_curve
+        parameter: s
+        to: 1.6
+        at_seconds: 3.9
+        duration_seconds: 1.3
+        value_label: "width s"
+    snapshots:
+      - id: widened
+        at_seconds: 5.3
+        description: "The curve at gain 2 and width 1.6: twice as wide as before, the peak still at r = 2; the readout reads s = 1.6."

@@ -1,0 +1,95 @@
+schema_version: '1.0'
+name: lecturekit_paper
+version: 0.1.0
+description: lecturekit brand 'lecturekit paper' (light) mapped onto manim8 palette
+  roles; written by `lk theme --manim8`, a new version per change.
+inherits: default@0.5.0
+palette:
+  background: '#FFFFFF'
+  foreground: '#202B33'
+  secondary_text: '#566573'
+  neutral: '#C8C3BA'
+  muted: '#8F9496'
+  grid: '#E4E1DC'
+  primary_signal: '#0072B2'
+  normalization_pool: '#C45A00'
+  emphasis: '#175B8E'
+  warning: '#A33A32'
+  comparison: '#7A5195'
+  uncertainty: '#D9EAF3'
+  selection: '#EBF4F9'
+  primary_signal_soft: '#A6CEE4'
+  normalization_pool_soft: '#EAC5A6'
+  emphasis_soft: '#AEC6D7'
+  warning_soft: '#DFBAB7'
+  comparison_soft: '#D0C2DA'
+  css: '#B63564'
+  css_soft: '#E5B8C9'
+  dn: '#009999'
+  dn_soft: '#A6DBDB'
+  dog: '#B87400'
+  dog_soft: '#E6CEA6'
+  anchor: '#006C65'
+  anchor_soft: '#A6CCC9'
+  caveat: '#A33A32'
+  caveat_soft: '#DFBAB7'
+  concept: '#175B8E'
+  concept_soft: '#AEC6D7'
+  context: '#7A5195'
+  context_soft: '#D0C2DA'
+  example: '#956000'
+  example_soft: '#DAC7A6'
+  future: '#7A5195'
+  future_soft: '#D0C2DA'
+  gauss: '#175B8E'
+  gauss_soft: '#AEC6D7'
+  hairline: '#C8C3BA'
+  ink: '#202B33'
+  input: '#0072B2'
+  input_soft: '#A6CEE4'
+  paper: '#F3F2EE'
+  question: '#70508C'
+  question_soft: '#CDC2D7'
+  slide: '#FFFFFF'
+  state: '#007F73'
+  state_soft: '#A6D2CE'
+  update: '#C45A00'
+  update_soft: '#EAC5A6'
+typography:
+  title:
+    font_family: TeX Gyre Pagella
+    font_fallbacks:
+    - Palatino
+    - P052
+    - serif
+    weight: regular
+  body:
+    font_family: TeX Gyre Heros
+    font_fallbacks:
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif
+  annotation:
+    font_family: TeX Gyre Heros
+    font_fallbacks:
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif
+  axis_label:
+    font_family: TeX Gyre Heros
+    font_fallbacks:
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif
+  tick_label:
+    font_family: TeX Gyre Heros
+    font_fallbacks:
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif
+  caption:
+    font_family: TeX Gyre Heros
+    font_fallbacks:
+    - Helvetica
+    - Nimbus Sans
+    - sans-serif

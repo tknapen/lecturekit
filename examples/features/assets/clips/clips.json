@@ -12,5 +12,27 @@
     "still": "assets/clips/bar_bold.png",
     "video": "assets/clips/bar_bold.mp4",
     "width": 960
+  },
+  "tuning_sweep": {
+    "checkpoints": {
+      "gain_high": "assets/clips/tuning_sweep.gain_high.png",
+      "gain_low": "assets/clips/tuning_sweep.gain_low.png",
+      "widened": "assets/clips/tuning_sweep.widened.png"
+    },
+    "duration": 6.0,
+    "fps": 30.0,
+    "height": 720,
+    "job": {
+      "cache_key": "sha256:270d160d874c4d3c00fcd78b66c8bce7b023e9564aa7f546c5098dc99a5cb9d1",
+      "id": "job_20261109T093158_861a32",
+      "registry_version": "0.5.0",
+      "style": "lecturekit_paper@0.1.0"
+    },
+    "producer": "manim8",
+    "revision": "working",
+    "source": "clips/families/features/tuning_sweep",
+    "still": "assets/clips/tuning_sweep.widened.png",
+    "video": "assets/clips/tuning_sweep.mp4",
+    "width": 1280
   }
 }

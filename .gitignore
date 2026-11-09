@@ -12,6 +12,7 @@
 /examples/*/timing.txt
 /examples/*/pacing.js
 /examples/*/movie.js
+_quarto_internal_scss_error.scss
 
 # review output (the review tools' package in src/ is source, not output)
 review/
@@ -30,6 +31,9 @@ build/
 # clip renders
 media/
 anim/media/
+# manim8 workspaces (each also has the .gitignore `scianim workspace init` writes)
+renders/
+.scianim/
 
 # decks: outputs and caches beside each deck
 **/_build/
