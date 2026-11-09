@@ -139,6 +139,9 @@ def test_features_live_deck(built_features):
     assert f'src="assets/clips/tuning_sweep.mp4?v={sha8}"' in html
     assert f'poster="assets/clips/tuning_sweep.widened.png?v={sha8}"' in html
     assert 'src="assets/clips/bar_bold.mp4"' in html                    # an entry without a sha256: no version
+    # the compiled theme finds the brand's font files (Quarto writes their project paths, which the CSS cannot reach)
+    theme = next((built_features / "_build").glob("slides_files/libs/revealjs/dist/theme/*.css")).read_text()
+    assert 'url("_extensions/' not in theme and 'url("../../../../../_extensions/lecturekit/fonts/' in theme
     assert 'class="tikz"' in html and "_lecturekit/tikz/" in html        # TikZ as SVG
     # three clips in parts: one cue per key, the video loaded by the runtime only, versioned by its sha256
     cues = re.findall(r'<div class="fragment lk-cue"[^>]*data-lk-for="([^"]+)"', html)

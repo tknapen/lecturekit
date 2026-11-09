@@ -94,6 +94,8 @@ def build(project: Path | None = None, to: str | None = None, profile: str | Non
         if strict:
             print("lecturekit: the build failed: --strict treats warnings as errors", file=sys.stderr)
             return proc.returncode or 1
+    if proc.returncode == 0:
+        theme_font_urls(output_dir(proj, profile))
     if report:
         print(report)
     timing = output_dir(proj, profile) / "timing.txt"
@@ -115,6 +117,36 @@ def output_dir(proj: Path, profile: str | None = None) -> Path:
         if out:
             return proj / out
     return proj / "_build"
+
+
+_CSS_URL_RE = re.compile(r'url\("([^":)]+)"\)')
+
+
+def theme_font_urls(out: Path) -> int:
+    """Point the compiled Reveal theme's font URLs at the fonts. Quarto writes the brand's `source: file` fonts into
+    the theme CSS with their paths from the project (`_extensions/lecturekit/fonts/...`), which a browser resolves
+    from the CSS, four folders below the deck: the live view never asks for them (the deck's own rules come later),
+    but the print view does, and logs a 404 for each. A path that is missing beside the CSS and present in the output
+    is rewritten relative to the CSS. Returns the number of URLs rewritten."""
+    n = 0
+    for css in out.glob("**/libs/revealjs/dist/theme/*.css"):
+        text = css.read_text(encoding="utf-8")
+
+        def fix(m: re.Match) -> str:
+            nonlocal n
+            rel = m.group(1)
+            if rel.startswith(("/", "../", "data")) or (css.parent / rel).exists():
+                return m.group(0)
+            for base in (css.parent, *css.parent.parents):
+                if (base / rel).exists() and base.is_relative_to(out):
+                    n += 1
+                    return f'url("{os.path.relpath(base / rel, css.parent).replace(os.sep, "/")}")'
+            return m.group(0)
+
+        new = _CSS_URL_RE.sub(fix, text)
+        if new != text:
+            css.write_text(new, encoding="utf-8")
+    return n
 
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
