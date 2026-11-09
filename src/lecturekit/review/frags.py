@@ -52,23 +52,24 @@ STEP_JS = """
   }"""
 
 
-SEG_JS = "() => window.lecturekitSegments ? window.lecturekitSegments.state() : null"
+SEG_JS = "(id) => window.lecturekitSegments ? window.lecturekitSegments.state(id || undefined) : null"
 ASK_JS = """() => {
   const s = Reveal.getCurrentSlide();
   return [...s.querySelectorAll('.lk-stop-notes')].map(d => [d.getAttribute('data-lk-ref'), d.textContent.includes('Ask:')]);
 }"""
 
 
-def _wait_hold(page, b: int, timeout: float) -> tuple[float | None, dict]:
-    """Wait until the current slide's clip in parts holds on boundary b; (seconds waited or None, its state)."""
+def _wait_hold(page, b: int, timeout: float, sid: str | None = None) -> tuple[float | None, dict]:
+    """Wait until the clip in parts `sid` (default: the current slide's) holds on boundary b; (seconds waited or
+    None, its state)."""
     t0 = time.monotonic()
     while time.monotonic() - t0 < timeout:
-        st = page.evaluate(SEG_JS)
+        st = page.evaluate(SEG_JS, sid)
         if st and st["phase"] == "holding" and st["at"] == b:
             page.wait_for_timeout(120)              # a late frame, if any, before reading
-            return time.monotonic() - t0, page.evaluate(SEG_JS)
+            return time.monotonic() - t0, page.evaluate(SEG_JS, sid)
         page.wait_for_timeout(10)
-    return None, page.evaluate(SEG_JS)
+    return None, page.evaluate(SEG_JS, sid)
 
 
 def _hold_line(label: str, st: dict, b: int, dt: float | None) -> tuple[str, bool]:
@@ -98,7 +99,7 @@ def walk_parts(page, i: int, out: Path) -> int:
     problems = 0
     goto(page, i, -1, settle=50)
     st = page.evaluate(SEG_JS)
-    nb, key = len(st["bounds"]) - 1, st["key"]
+    sid, nb, key = st["id"], len(st["bounds"]) - 1, st["key"]
     ncues = nb if key else nb - 1
     limit = max(d["t"] for d in st["bounds"]) + 5.0
     print(f"      a clip in parts: {st['id']}, {nb} parts, start={'key' if key else 'auto'}, {ncues} key(s)")
@@ -106,27 +107,29 @@ def walk_parts(page, i: int, out: Path) -> int:
         if k:
             page.keyboard.press("ArrowRight")
         b = k if key else k + 1
-        dt, st = _wait_hold(page, b, limit)
+        dt, st = _wait_hold(page, b, limit, sid)
         line, bad = _hold_line(f"step {k}", st, b, dt)
         print(line)
         problems += bad
         page.screenshot(path=str(out / f"s{i:02d}-f{k}.png"))
     total = page.evaluate("() => Reveal.getTotalSlides()")
     if i < total:
-        goto(page, i + 1, settle=300)
+        goto(page, i + 1, -1, settle=300)           # no fragment shown, so that Left leaves the next slide
         plays = st["plays"]
         page.keyboard.press("ArrowLeft")
-        dt, st = _wait_hold(page, nb, 5.0)
+        dt, st = _wait_hold(page, nb, 5.0, sid)
         line, bad = _hold_line("backward entry", st, nb, dt)
         if st["plays"] != plays:
             line, bad = line + f"  <- it played ({st['plays'] - plays} play(s))", True
+        if page.evaluate("() => Reveal.getState().indexh") != i - 1:
+            line, bad = line + "  <- Left did not come back to this slide", True
         print(line)
         problems += bad
     goto(page, 1 if i > 1 else total, settle=300)
     plays = page.evaluate("(h) => { const c = window.lecturekitSegments.clips.find(s => s.h === h); return c ? c.plays : 0; }", i - 1)
     page.evaluate("([h]) => Reveal.slide(h, 0, 0)", [i - 1])
     b = 1 if key else 2
-    dt, st = _wait_hold(page, b, 5.0)
+    dt, st = _wait_hold(page, b, 5.0, sid)
     line, bad = _hold_line("jump to the first cue", st, b, dt)
     if st["plays"] != plays:
         line, bad = line + f"  <- it played ({st['plays'] - plays} play(s))", True
