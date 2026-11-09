@@ -40,7 +40,7 @@ STEP_JS = """
     const vis = frags.map(f => f.classList.contains('visible') ? 1 : 0).join('');
     const imgs = [...s.querySelectorAll('img')].filter(shown)
       .map(e => { const r = e.getBoundingClientRect(); return [(e.getAttribute('src') || '').split('/').pop().slice(0, 18), Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; });
-    const vids = [...s.querySelectorAll('video')].map(v => ({ shown: shown(v), paused: v.paused, src: (v.getAttribute('src') || '').split('/').pop() }));
+    const vids = [...s.querySelectorAll('video')].map(v => ({ shown: shown(v), paused: v.paused, src: (v.getAttribute('src') || '').split('/').pop().split('?')[0] }));
     // a fragment whose clip has no .live-only box between the fragment and the video (at the fragment or inside it);
     // an r-stack step is stacked in the r-stack's box
     const misplaced = frags.filter(f => {

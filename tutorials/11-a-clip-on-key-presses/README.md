@@ -115,7 +115,7 @@ Say: the peak doubled in place; next the width grows.
       step 0: hold 1 of 3, frame 36 (1.200 s), shown 36, paused at frame 34, key to hold 0.99 s
       step 1: hold 2 of 3, frame 69 (2.300 s), shown 69, paused at frame 67, key to hold 1.17 s
       step 2: hold 3 of 3, frame 179 (5.967 s), shown 179, paused at frame 177, key to hold 3.74 s
-      backward entry: hold 3 of 3, frame 179 (5.967 s), shown 179, paused at frame 177, key to hold 0.14 s
+      backward entry: hold 3 of 3, frame 179 (5.967 s), shown 179, key to hold 0.14 s
       jump to the first cue: hold 2 of 3, frame 69 (2.300 s), shown 69, key to hold 0.15 s
       <- the hold 2 (gain_high) has no "Ask:" in its notes
 ```

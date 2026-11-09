@@ -349,6 +349,7 @@ def wait_hold(page, b, cid="k30", timeout=15.0):
 def assert_hold(page, b, frames, cid="k30", plays=None):
     s = wait_hold(page, b, cid)
     assert s["barcode"] == frames[b] and s["frame"] == frames[b] and s["paused"], s
+    assert s["stills"] == [b], s                                     # the still of that very frame covers the video
     if plays is not None:
         assert s["plays"] == plays, ("it played", s)
     return s
@@ -398,9 +399,13 @@ def test_markup(runtime_deck):
 @needs_browser
 @pinned
 def test_forward_holds_exact_frames_and_back_never_plays(runtime_deck):
+    sha8 = json.loads((runtime_deck.parent.parent / "assets/clips/clips.json").read_text())["k30"]["sha256"][:8]
     with browser_page(runtime_deck) as (page, _, _):
         s = seg(page)
-        assert s["src"] and s["paused"] and s["plays"] == 0                                  # the neighbour is loaded
+        assert s["src"].endswith(f"k30.mp4?v={sha8}") and s["paused"] and s["plays"] == 0    # the neighbour is loaded
+        # every still is loaded at once, not when Reveal comes near its slide: a jump finds its hold's still ready
+        assert page.evaluate("document.querySelectorAll('img.lk-still[data-src]').length") == 0
+        page.wait_for_function("() => [...document.querySelectorAll('img.lk-still')].every(i => i.complete && i.naturalWidth)")
         page.keyboard.press("ArrowRight")                                                    # enter: part 1 plays
         pauses = []
         for b in (1, 2, 3, 4):
@@ -455,6 +460,46 @@ def test_a_key_during_a_part_plays_through(runtime_deck):
         no_hidden_playback(page)
 
 
+ARRIVING = "id => { const st = lecturekitSegments.clips.find(c => c.id === id); return st.phase === 'playing' && st.v.paused; }"
+
+
+@needs_quarto
+@needs_browser
+@pinned
+def test_a_key_as_a_part_reaches_its_stop_plays_on(runtime_deck):
+    """The watcher pauses two frames early and seeks onto the stop; a key in that seek is a key during the part."""
+    with browser_page(runtime_deck, hash_="#/2") as (page, _, _):
+        page.wait_for_function(ARRIVING, arg="k30", polling="raf", timeout=10000)           # part 1 is arriving
+        page.keyboard.press("ArrowRight")
+        s = assert_hold(page, 2, F30)
+        assert s["k"] == 1, s
+        log = [m for _, _, m in page.evaluate("lecturekitSegments.log")]
+        assert "target -> 2" in log, log[-12:]
+        page.wait_for_timeout(300)
+        page.keyboard.press("ArrowRight")
+        page.wait_for_function(ARRIVING, arg="k30", polling="raf", timeout=10000)           # part 3 is arriving
+        page.keyboard.press("ArrowRight")
+        s = assert_hold(page, 4, F30)
+        assert s["k"] == 3, s
+        no_hidden_playback(page)
+
+
+@needs_quarto
+@needs_browser
+@pinned
+def test_a_second_key_on_entry_plays_part_one_through(runtime_deck):
+    """Two keys at once from the slide before (a clicker's bounce): part 1 plays from frame 0, then on to stop 2."""
+    with browser_page(runtime_deck, hash_="#/1") as (page, _, _):
+        page.keyboard.press("ArrowRight")
+        page.keyboard.press("ArrowRight")
+        s = assert_hold(page, 2, F30)
+        assert s["k"] == 1 and s["plays"] == 1, s
+        log = [m for _, _, m in page.evaluate("lecturekitSegments.log")]
+        assert "play to 1 from 0" in log and "target -> 2" in log, log[-12:]
+        assert not [m for m in log if m.startswith("play to 2 from 1") or m.startswith("reached 1")], log[-12:]
+        no_hidden_playback(page)
+
+
 @needs_quarto
 @needs_browser
 @pinned
@@ -496,6 +541,10 @@ def test_backward_entry_holds_the_last_frame_and_reposts_the_notes(runtime_deck)
         assert previews and all(f.evaluate("() => !document.querySelector('.lk-seg video[src]')") for f in previews)
         speaker.keyboard.press(" ")
         assert_hold(page, 4, F30)
+        plays = seg(page)["plays"]
+        speaker.keyboard.press("Shift+Space")                                                # the speaker's back key
+        assert_hold(page, 3, F30, plays=plays)
+        assert seg(page)["k"] == 2
         no_hidden_playback(page)
 
 
@@ -964,7 +1013,8 @@ def test_frags_walks_the_parts(runtime_deck, tmp_path, capsys):
     k30 = [s for s in steps][:4]
     assert [(int(b), int(f), int(sh)) for _, b, f, _, sh, _, _ in k30] == [(1, 90, 90), (2, 180, 180), (3, 270, 270), (4, 359, 359)]
     assert all(int(f) - 4 <= int(p) <= int(f) for _, _, f, _, _, p, _ in k30)               # the pause lands early
-    assert "backward entry: hold 4 of 4, frame 359 (11.967 s), shown 359" in out
+    assert "backward entry: hold 4 of 4, frame 359 (11.967 s), shown 359, key to hold" in out    # no pause: no play
+    assert "jump to the first cue: hold 2 of 4, frame 180 (6.000 s), shown 180, key to hold" in out
     assert "jump to the first cue: hold 2 of 4, frame 180 (6.000 s), shown 180" in out
     assert "it played" not in out and "not the stop frame" not in out
     assert 'the hold 3 (strict) has no "Ask:" in its notes' in out
@@ -977,3 +1027,28 @@ def test_frags_walks_the_parts(runtime_deck, tmp_path, capsys):
     assert "it played" not in key and "not the stop frame" not in key and "no hold" not in key
     assert 'the hold 0 (start)' not in key and 'the hold 1 (lenient) has no "Ask:"' in key
     assert (tmp_path / "frags" / "s03-f3.png").exists()
+
+
+def test_frags_flags_a_hold_off_its_frame_and_a_late_pause():
+    from lecturekit.review.frags import _hold_line
+    bounds = [{"f": 0, "t": 0.0}, {"f": 90, "t": 3.0}, {"f": 359, "t": 11.967}]
+    good = {"bounds": bounds, "frame": 90, "phase": "holding", "at": 1, "lastPause": {"b": 1, "frame": 88}}
+    line, bad = _hold_line("step 0", good, 1, 0.2)
+    assert not bad and line.endswith("shown 90, paused at frame 88, key to hold 0.20 s"), line
+    line, bad = _hold_line("step 0", dict(good, frame=91), 1, 0.2)                          # off the stop frame
+    assert bad and line.endswith("<- not the stop frame"), line
+    line, bad = _hold_line("step 0", dict(good, lastPause={"b": 1, "frame": 92}), 1, 0.2)  # paused after the stop
+    assert bad and line.endswith("<- the pause landed after the stop"), line
+    line, bad = _hold_line("step 0", dict(good, lastPause={"b": 2, "frame": 300}), 1, 0.2)  # another hold's pause
+    assert not bad and "paused at" not in line, line
+    line, bad = _hold_line("step 0", good, 1, None)                                          # no hold at all
+    assert bad and "<- no hold within the time" in line, line
+
+
+@needs_quarto
+@needs_browser
+@pinned
+def test_frags_exits_1_when_a_clip_in_parts_misbehaves(runtime_deck, tmp_path, monkeypatch):
+    from lecturekit.review import frags as F
+    monkeypatch.setattr(F, "walk_parts", lambda page, i, out: 1)
+    assert F.frags(runtime_deck, tmp_path / "frags", [3]) == 1

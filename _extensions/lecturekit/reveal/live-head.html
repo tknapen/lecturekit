@@ -14,7 +14,8 @@
 //
 // Keys go through Reveal's keyboard configuration, which Reveal consults before Quarto's bindings and its own
 // defaults; keys pressed in the speaker window reach the same bindings through Reveal's triggerKey, in the preview,
-// which hands clip actions to the main window:
+// which hands clip actions to the main window. triggerKey carries the key code alone, so the preview reads Shift from
+// the speaker window's own key events:
 //   Space    pauses or resumes the clip on stage; with no clip on stage, the next step (Shift+Space: the previous);
 //            on a clip in parts: pauses or resumes a playing part, at a hold the next step, at the last hold nothing
 //   R        replays the clip on stage from its start, or re-runs a flash slide (Quarto's Scroll View key is not bound);
@@ -143,6 +144,39 @@
   if (channel) channel.onmessage = function (e) { receive(e.data); };
 
   // ---------------------------------------------------------------- the keys
+  // Shift as the speaker window sees it: the notes plugin forwards a key to the preview as its key code alone. Where
+  // the preview can reach the speaker window's document (http and https), it reads Shift from that window's own key
+  // events. Where it cannot (file://), it watches the codes forwarded: a Space whose last forwarded key before it was
+  // Shift, less than a second earlier, is Shift+Space
+  var shiftHeld = false, exactShift = false, lastCode = null, lastAt = 0;
+  function watchShift() {
+    if (!speaker()) return;
+    try {
+      var doc = window.parent && window.parent !== window ? window.parent.document : null;
+      if (doc) {
+        var on = function (e) { shiftHeld = !!e.shiftKey; };
+        doc.addEventListener('keydown', on, true);
+        doc.addEventListener('keyup', on, true);
+        exactShift = true;
+      }
+    } catch (e) { exactShift = false; }
+    if (exactShift) return;
+    window.addEventListener('message', function (e) {
+      var d = e.data;
+      if (typeof d !== 'string' || d.indexOf('triggerKey') < 0) return;
+      try { d = JSON.parse(d); } catch (err) { return; }
+      if (!d || d.method !== 'triggerKey' || !d.args) return;
+      if (d.args[0] !== 32) { lastCode = d.args[0]; lastAt = Date.now(); }
+    });
+  }
+  function backwards(e) {
+    if (e && e.shiftKey) return true;
+    if (!speaker()) return false;
+    if (exactShift) return shiftHeld;
+    var back = lastCode === 16 && Date.now() - lastAt < 1000;
+    lastCode = 32;                      // a Space after this one is a Space, unless Shift comes again
+    return back;
+  }
   function replay() {
     var v = currentClip();
     if (v) { restart(v); return true; }
@@ -151,18 +185,18 @@
     return false;
   }
   function spaceKey(e) {
-    var seg = parts();
-    if (seg && !(e && e.shiftKey)) {
+    var seg = parts(), back = backwards(e);
+    if (seg && !back) {
       if (speaker()) { tellMain('parts-space'); return; }
       if (seg.space()) return;
     }
-    if (!seg && !(e && e.shiftKey)) {
+    if (!seg && !back) {
       var v = currentClip();
       if (v) { if (speaker()) tellMain('toggle'); else toggle(v); return; }
     }
     if (Reveal.isOverview()) Reveal.toggleOverview(false);
     var opts = { skipFragments: !!(e && e.altKey) };
-    if (e && e.shiftKey) Reveal.prev(opts); else Reveal.next(opts);
+    if (back) Reveal.prev(opts); else Reveal.next(opts);
   }
   function replayKey() {
     var seg = parts();
@@ -239,7 +273,7 @@
 
   // ---------------------------------------------------------------- wiring
   function ready() {
-    bindKeys();
+    bindKeys(); watchShift();
     stage(); flash(Reveal.getCurrentSlide()); tick();
     Reveal.on('slidechanged', function (e) { stage(); flash(e.currentSlide); tick(); });
     Reveal.on('fragmentshown', stage);

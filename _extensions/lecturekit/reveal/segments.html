@@ -33,7 +33,8 @@
 //
 //   entering with k = 0      start=auto: play part 1 from frame 0; start=key: hold frame 0
 //   entering with k > 0      (back from the next slide, a jump, a hash) hold T(k) at once, never play
-//   a next key               while a part plays: play on through the coming stop to T(k); while holding: play to T(k)
+//   a next key               while a part plays (from the seek to its start to the seek onto its stop): play on
+//                            through the coming stop to T(k); while holding: play to T(k)
 //   a previous key           hold T(k) at once, never play backwards
 //   reaching the target      pause two frames before it (requestVideoFrameCallback; else timeupdate 0.3 s before),
 //                            then seek to the middle of the target frame and hold it exactly
@@ -164,9 +165,10 @@
     st.lastHold = { b: b, frame: frameAt(st, st.v.currentTime), ms: st.kAt ? Math.round(performance.now() - st.kAt) : null };
   }
 
-  // play towards boundary `target`, from boundary `from` (sought first) or from where the video is (from = null)
+  // play towards boundary `target`, from boundary `from` (sought first) or from where the video is (from = null). The
+  // seek before a part plays is a part about to play: a next key in it moves the target (st.starting), as while playing
   function playTo(st, target, from) {
-    var gen = ++st.gen; st.target = target;
+    var gen = ++st.gen; st.target = target; st.starting = from === null ? -1 : gen;
     function go() {
       if (gen !== st.gen) return;
       phase(st, 'playing', from === null ? st.at : from);
@@ -183,17 +185,24 @@
     }
     if (from === null) return go();
     pause(st); showStill(st, from); phase(st, 'seeking', from);
-    seek(st, from, gen).then(function (ok) { if (ok) go(); });
+    // a seek that missed leaves the part unstarted: the next key starts it afresh, as before any part
+    seek(st, from, gen).then(function (ok) { if (st.starting === gen) st.starting = -1; if (ok) go(); });
   }
 
-  // the watched frame is at the target: pause, then seek onto it exactly
+  // the watched frame is at the target: pause, then seek onto it exactly. The part still counts as playing until the
+  // frame is up, so a next key in the meantime moves the target, and the clip plays on from the stop to it
   function arrive(st) {
     var b = st.target, g = ++st.gen;
     pause(st);
     st.lastPause = { b: b, media: st.lastMedia, frame: Math.round(st.lastMedia * st.fps), t: st.v.currentTime };
     seek(st, b, g).then(function (ok) {
       if (!ok) return;
-      rest(st, b); phase(st, 'holding', b); held(st, b);
+      rest(st, b);
+      if (st.target > b) {
+        note(st, 'reached ' + b + ' with a key pressed on the way: on to ' + st.target);
+        st.at = b; return playTo(st, st.target, null);
+      }
+      phase(st, 'holding', b); held(st, b);
       note(st, 'reached ' + b + ' (paused at ' + st.lastMedia.toFixed(4) + ')');
     });
   }
@@ -219,6 +228,7 @@
   function leave(st, why) {
     if (st.entered || !st.v.paused) note(st, 'left (' + why + ')');
     st.gen++; pause(st); staticStill(st); st.entered = false; st.away = null; st.blanked = false; phase(st, 'static');
+    st.lastPause = null;                // state() reports this visit's pause only: an entry from elsewhere never plays
   }
   function reconcile(st, why) {
     if (!live(st)) {
@@ -226,7 +236,8 @@
       // the overview or a hidden tab over the present slide: a playing part pauses and resumes on return
       if (present(st) && st.entered && !receiver() && !printing() && (Reveal.isOverview() || document.hidden)) {
         if (st.away) return;
-        st.away = { k: st.k, playing: st.phase === 'playing', seeking: st.phase === 'seeking' };
+        st.away = { k: st.k, playing: st.phase === 'playing', seeking: st.phase === 'seeking',
+                    starting: st.phase === 'seeking' && st.starting === st.gen };
         st.gen++; pause(st);
         if (st.phase === 'playing') phase(st, 'paused');
         note(st, 'away (' + why + ')');
@@ -247,6 +258,7 @@
       if (k === away.k) {
         note(st, 'back (' + why + ')');
         if (away.playing && st.phase === 'paused') return playTo(st, st.target, null);
+        if (away.starting) return playTo(st, st.target, st.at);     // the part had not started: it starts now
         if (away.seeking) return hold(st, T(st, k), 'back from away');
         return;
       }
@@ -255,8 +267,11 @@
     var prev = st.k; st.k = k; st.kAt = performance.now();
     note(st, 'cues ' + prev + ' -> ' + k + ' (' + why + ')');
     if (k < prev) return hold(st, T(st, k), 'previous');
-    // forward: a part that plays plays on through the coming stop; a hold or a pause plays from where it is
-    if (st.phase === 'playing') { st.target = T(st, k); note(st, 'target -> ' + st.target); return; }
+    // forward: a part that plays, or is about to (the seek to its start), plays on through the coming stop; a hold or
+    // a pause plays from where it is
+    if (st.phase === 'playing' || (st.phase === 'seeking' && st.starting === st.gen)) {
+      st.target = T(st, k); note(st, 'target -> ' + st.target); return;
+    }
     if (st.phase === 'holding' || st.phase === 'paused') return playTo(st, T(st, k), null);
     if (st.phase === 'blocked') return playTo(st, T(st, k), st.at);
     return playTo(st, T(st, k), T(st, k) - 1);
@@ -330,12 +345,18 @@
     document.querySelectorAll('.reveal .lk-seg').forEach(function (box) {
       var v = box.querySelector('video'), slide = box.closest('section');
       if (!v || !slide) return;
+      // the stills load and decode now, not when Reveal comes near the slide: a jump onto a hold must find its still
+      // ready, or the video's poster (frame 0) shows through it for a moment
+      box.querySelectorAll('img.lk-still[data-src]').forEach(function (img) {
+        img.src = img.getAttribute('data-src'); img.removeAttribute('data-src');
+        if (img.decode) img.decode().catch(function () {});
+      });
       var top = slide; while (top.parentElement && top.parentElement.tagName === 'SECTION') top = top.parentElement;
       var st = {
         id: box.getAttribute('data-lk-seg'), box: box, v: v, slide: slide, h: hs.indexOf(top),
         fps: parseFloat(box.getAttribute('data-lk-fps')), bounds: JSON.parse(box.getAttribute('data-lk-bounds')),
         key: box.getAttribute('data-lk-start') === 'key', ver: box.getAttribute('data-lk-v') || '',
-        gen: 0, k: 0, kAt: 0, at: -1, target: -1, phase: 'static', entered: false, degraded: false, blob: false,
+        gen: 0, k: 0, kAt: 0, at: -1, target: -1, starting: -1, phase: 'static', entered: false, degraded: false, blob: false,
         away: null, blanked: false, lastMedia: 0, lastPause: null, lastHold: null, plays: 0
       };
       v.addEventListener('play', function () {
