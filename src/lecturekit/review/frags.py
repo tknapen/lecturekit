@@ -4,8 +4,17 @@
     lk review frags _build/slides-live.html --slides 4 6     # these slides (1-based, as the foot shows them)
 
 Per step: a PNG (`review/frags/s04-f1.png`), which fragments are visible, where the images sit, and whether a clip
-is shown and playing. Flags a clip's `.fragment` that is not inside `.live-only` (the study PDF would then carry a
-fragment step that does not exist on paper) and an r-stack whose steps have different sizes.
+is shown and playing. Flags, and exits 1 on:
+
+* a clip's `.fragment` inside the clip's `.live-only` box rather than around it (`.live-only > .fragment > .movie`):
+  the box keeps its place below the title while the clip is hidden, so the hidden clip covers the slide. The
+  prescribed form is `.fragment > .live-only > .movie`; a `clip=` movie, which the filter boxes itself, may sit in a
+  `.fragment` directly; a step of an `.r-stack` sequence (`.live-only > .r-stack > .fragment > .movie`) is stacked in
+  the r-stack's box and passes;
+* a clip that plays while it is hidden (in a hidden fragment, or in an r-stack step a later one covers).
+
+It also notes an r-stack whose steps have different sizes. The study PDF is not affected by fragments: Beamer gets
+no overlay from them, and `.live-only` content is not in it.
 """
 
 from __future__ import annotations
@@ -25,8 +34,14 @@ STEP_JS = """
     const imgs = [...s.querySelectorAll('img')].filter(shown)
       .map(e => { const r = e.getBoundingClientRect(); return [(e.getAttribute('src') || '').split('/').pop().slice(0, 18), Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; });
     const vids = [...s.querySelectorAll('video')].map(v => ({ shown: shown(v), paused: v.paused, src: (v.getAttribute('src') || '').split('/').pop() }));
-    const misplaced = frags.filter(f => f.querySelector('video') && !f.closest('.live-only')).length;
-    return { vis, imgs, vids, misplaced, nfrag: frags.length };
+    // a fragment whose clip has no .live-only box between the fragment and the video (at the fragment or inside it);
+    // an r-stack step is stacked in the r-stack's box
+    const misplaced = frags.filter(f => {
+      if (f.parentElement && f.parentElement.classList.contains('r-stack')) return false;
+      return [...f.querySelectorAll('video')].some(v => { const box = v.closest('.live-only'); return !box || !f.contains(box); });
+    }).length;
+    const hiddenPlaying = vids.filter(v => !v.shown && !v.paused).length;
+    return { vis, imgs, vids, misplaced, hiddenPlaying, nfrag: frags.length };
   }"""
 
 
@@ -43,18 +58,24 @@ def frags(deck_html: Path, out: Path, slides: list[int] | None = None) -> int:
                 continue
             print(f"{i:2d}  {info['title'][:60]}  ({info['fragments']} fragments)")
             k = 0
+            hidden_playing = False
             while True:
                 step = page.evaluate(STEP_JS)
                 page.screenshot(path=str(out / f"s{i:02d}-f{k}.png"))
                 clips = ", ".join(f"{v['src']}: {'shown' if v['shown'] else 'hidden'}{', paused' if v['paused'] else ', playing'}" for v in step["vids"])
                 imgs = "; ".join(f"{s} at {x},{y} {w}x{h}" for s, x, y, w, h in step["imgs"])
                 print(f"      step {k}: fragments {step['vis'] or '-'}  images [{imgs}]  clips [{clips}]")
+                if step["hiddenPlaying"]:
+                    hidden_playing = True
+                    print("      <- a hidden clip is playing")
                 if not next_fragment(page):
                     break
                 k += 1
             if step["misplaced"]:
                 problems += 1
-                print("      <- a clip's .fragment outside .live-only")
+                print("      <- a clip's .fragment inside its .live-only box: put the .fragment around the .live-only block")
+            if hidden_playing:
+                problems += 1
             sizes = {(w, h) for _, _, _, w, h in step["imgs"]}
             if page.evaluate("() => !!Reveal.getCurrentSlide().querySelector('.r-stack')") and len(sizes) > 1:
                 print(f"      <- r-stack steps differ in size: {sorted(sizes)}")

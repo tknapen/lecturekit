@@ -1,8 +1,10 @@
 """A headless browser on a built live deck, shared by shoot, frags and measure.
 
 The deck is served from a local HTTP server on loopback rather than opened from disk: fonts and clips do not load
-reliably from file:// URLs. Transitions are switched off before anything is measured, so a screenshot taken right
-after a slide change shows that slide alone. Slide numbers are 1-based, as the foot shows them (the title slide is 1).
+reliably from file:// URLs. The server answers byte ranges (206 Partial Content), as a web server does: Chromium seeks
+a clip, to replay it or to show a given frame, only when its server does. Transitions are switched off before
+anything is measured, so a screenshot taken right after a slide change shows that slide alone. Slide numbers are
+1-based, as the foot shows them (the title slide is 1).
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import functools
 import os
+import re
 import threading
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,26 +26,94 @@ def _browsers_path() -> None:
         os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/opt/pw-browsers"
 
 
-class _Quiet(SimpleHTTPRequestHandler):
+_RANGE_RE = re.compile(r"bytes=(\d*)-(\d*)")
+
+
+class RangeHandler(SimpleHTTPRequestHandler):
+    """Static files, quietly, with single byte ranges (RFC 9110): `Range: bytes=a-b`, `a-` and `-n` get 206 and the
+    slice, a range past the end gets 416; anything else gets the whole file with 200, as before."""
+
+    _remaining: int | None = None
+
     def log_message(self, *args):  # noqa: D401
+        pass
+
+    def end_headers(self):
+        self.send_header("Accept-Ranges", "bytes")
+        super().end_headers()
+
+    def send_head(self):
+        self._remaining = None
+        m = _RANGE_RE.fullmatch((self.headers.get("Range") or "").strip())
+        path = self.translate_path(self.path)
+        if not m or not (m.group(1) or m.group(2)) or os.path.isdir(path):
+            return super().send_head()
+        try:
+            f = open(path, "rb")
+        except OSError:
+            self.send_error(404, "File not found")
+            return None
+        st = os.fstat(f.fileno())
+        size = st.st_size
+        if m.group(1):
+            start = int(m.group(1))
+            end = min(int(m.group(2)), size - 1) if m.group(2) else size - 1
+        else:
+            start, end = max(size - int(m.group(2)), 0), size - 1
+        if start >= size or start > end:
+            f.close()
+            self.send_response(416)
+            self.send_header("Content-Range", f"bytes */{size}")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return None
+        self.send_response(206)
+        self.send_header("Content-Type", self.guess_type(path))
+        self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+        self.send_header("Content-Length", str(end - start + 1))
+        self.send_header("Last-Modified", self.date_time_string(st.st_mtime))
+        self.end_headers()
+        f.seek(start)
+        self._remaining = end - start + 1
+        return f
+
+    def copyfile(self, source, outputfile):
+        remaining, self._remaining = self._remaining, None
+        if remaining is None:
+            return super().copyfile(source, outputfile)
+        while remaining > 0:
+            chunk = source.read(min(64 * 1024, remaining))
+            if not chunk:
+                break
+            outputfile.write(chunk)
+            remaining -= len(chunk)
+
+
+class _Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        # the browser drops a clip's connection when it has what it needs; that is not an error worth a traceback
         pass
 
 
 @contextlib.contextmanager
 def served(deck_html: Path):
-    """Serve the deck's directory on loopback; yields the deck's URL."""
+    """Serve the deck's directory on loopback, with byte ranges; yields the deck's URL (the directory's, when given a
+    directory without a deck in it)."""
     deck_html = deck_html.resolve()
     if deck_html.suffix != ".html" and deck_html.is_dir():
         for cand in ("slides-live.html", "index.html"):
             if (deck_html / cand).exists():
                 deck_html = deck_html / cand
                 break
-    handler = functools.partial(_Quiet, directory=str(deck_html.parent))
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    root = deck_html if deck_html.is_dir() else deck_html.parent
+    handler = functools.partial(RangeHandler, directory=str(root))
+    server = _Server(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield f"http://127.0.0.1:{server.server_address[1]}/{deck_html.name}"
+        yield f"http://127.0.0.1:{server.server_address[1]}/" + ("" if deck_html.is_dir() else deck_html.name)
     finally:
         server.shutdown()
         server.server_close()
