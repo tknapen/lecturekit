@@ -485,3 +485,47 @@ def test_style_is_selected_through_a_manim8_proposal(scianim, tmp_path, monkeypa
     assert len(scianim.calls("propose")) == 1                                 # already selected: no new proposal
 
 
+# ---------------------------------------------------------------- vendoring
+def _shared(tmp_path: Path) -> tuple[Path, Path]:
+    shared = tmp_path / "shared" / "_extensions"
+    shutil.copytree(extension_source(), shared / "lecturekit")
+    (shared / "lecturekit" / "MARKER").write_text("the shared copy")
+    (shared / "other").mkdir()
+    (shared / "other" / "_extension.yml").write_text("title: other\n")
+    proj = tmp_path / "shared" / "proj"
+    proj.mkdir()
+    os.symlink("../_extensions", proj / "_extensions")
+    return shared, proj
+
+
+def test_vendor_replaces_a_dangling_extensions_link(tmp_path):
+    proj = tmp_path / "copied-out"
+    proj.mkdir()
+    os.symlink("../_extensions", proj / "_extensions")                         # as `cp -r` out of the expo leaves it
+    dest = vendor_extension(proj)
+    assert not (proj / "_extensions").is_symlink() and (dest / "_extension.yml").exists()
+
+
+def test_vendor_replaces_a_dangling_lecturekit_link(tmp_path):
+    (tmp_path / "proj" / "_extensions").mkdir(parents=True)
+    os.symlink("../../nowhere/lecturekit", tmp_path / "proj" / "_extensions" / "lecturekit")
+    dest = vendor_extension(tmp_path / "proj")
+    assert not dest.is_symlink() and (dest / "_extension.yml").exists()
+
+
+def test_vendor_keeps_a_shared_copy_without_force(tmp_path):
+    shared, proj = _shared(tmp_path)
+    vendor_extension(proj)
+    assert (proj / "_extensions").is_symlink() and (shared / "lecturekit" / "MARKER").exists()
+
+
+def test_vendor_force_never_overwrites_a_shared_copy(tmp_path, capsys):
+    shared, proj = _shared(tmp_path)
+    dest = vendor_extension(proj, force=True)
+    assert not (proj / "_extensions").is_symlink()
+    assert (shared / "lecturekit" / "MARKER").read_text() == "the shared copy"   # untouched
+    assert not (dest / "MARKER").exists() and (dest / "_extension.yml").exists()
+    assert (proj / "_extensions" / "other" / "_extension.yml").exists()        # the other extensions came along
+    assert "now a real directory" in capsys.readouterr().err
+
+
