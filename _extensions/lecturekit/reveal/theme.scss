@@ -85,9 +85,11 @@ $code-block-border-color: transparent;
 .reveal ol > li::before{content:counter(nm,decimal-leading-zero);position:absolute;left:0;top:.26em;font-size:.68em;color:var(--role,var(--heading))}
 .reveal video{display:block;width:100%;height:440px;margin:auto;object-fit:contain;cursor:pointer}
 /* A clip slide gives the clip everything below the title: the section becomes a column (Reveal sets display:block
-   inline on the present slide, hence !important), the title block tightens, and the clip’s wrapper grows to the foot
-   at the clip’s own 16:9, so the controls sit on the frame. The video itself fills the wrapper. */
-.reveal .slides>section.present:has(video){display:flex !important;flex-direction:column;padding-top:15px;padding-bottom:42px}
+   inline on the slides it shows, hence !important), the title block tightens, and the clip’s wrapper grows to the foot
+   at the clip’s own 16:9, so the controls sit on the frame. The video itself fills the wrapper. The rules hold for
+   every slide Reveal shows, the one fading out included (it is past by then), and not for those it hides with an
+   inline display:none; the print view (?print-pdf) gives each page the same column. */
+.reveal .slides>section:is(.present,.past,.future):not([style*="display: none"]):has(video){display:flex !important;flex-direction:column;padding-top:15px;padding-bottom:42px}
 .reveal .slides section:has(video) h2{margin-bottom:12px}
 .reveal .slides section:has(video) .live-only:has(> video){flex:1 1 0;min-height:0;aspect-ratio:16/9;align-self:center;position:relative;width:auto;max-width:100%}
 .reveal .slides section:has(video) video{position:absolute;inset:0;width:100%;height:100%;margin:0;object-fit:contain}
@@ -172,13 +174,13 @@ $code-block-border-color: transparent;
 /* The steps of an r-stack sit on the same spot: no margins of their own, so a staged figure does not jump. */
 .reveal .r-stack > *,.reveal .r-stack p{margin:0}
 /* Slides with an r-stack keep their content above the footer (its top sits 54 px above the slide’s bottom edge). */
-.reveal .slides>section.present:has(.r-stack){padding-bottom:58px}
+.reveal .slides>section:is(.present,.past,.future):not([style*="display: none"]):has(.r-stack){padding-bottom:58px}
 /* A build in an r-stack replaces the step before it: once a later fragment of the stack is visible, every earlier child
    fades out, so figures and clips of different extent never show through one another. */
 .reveal .r-stack > :has(~ .fragment.visible){opacity:0 !important;visibility:hidden !important;transition:opacity .25s ease,visibility 0s linear .25s}
 /* On a clip slide the title block and an equation under the clip keep their margins small, so the clip gets the
    height. */
-.reveal .slides>section.present:has(video){padding-top:10px}
+.reveal .slides>section:is(.present,.past,.future):not([style*="display: none"]):has(video){padding-top:10px}
 .reveal .slides section:has(video)[data-role-label]::before{margin-bottom:4px}
 .reveal .slides section:has(video)[data-role-label] > h2::before{margin:0 0 8px}
 .reveal .slides section:has(video) h2{margin-bottom:6px}
@@ -189,7 +191,11 @@ $code-block-border-color: transparent;
 .reveal .eqline{text-align:center;margin:8px 0 0}
 .reveal .eqline p{margin:0}
 /* A clip slide with an equation or a line of text under the clip keeps that line above the footer, like an r-stack. */
-.reveal .slides>section.present:has(video):has(> .live-only ~ :is(p, ul, .fragment, .eqline, .movie-caption)){padding-bottom:58px}
+.reveal .slides>section:is(.present,.past,.future):not([style*="display: none"]):has(video):has(> .live-only ~ :is(p, ul, .fragment, .eqline, .movie-caption)){padding-bottom:58px}
+/* The print view (?print-pdf) zeroes every slide's padding (!important) and stretches it to the page (740 px): a clip
+   page gets back the slide's height and the clip column's top and bottom padding, so the clip stays above the foot. */
+.reveal-print .reveal .slides .pdf-page>section:has(video){display:flex !important;flex-direction:column;height:720px;padding-top:10px !important;padding-bottom:42px !important}
+.reveal-print .reveal .slides .pdf-page>section:has(video):has(> .live-only ~ :is(p, ul, .fragment, .eqline, .movie-caption)){padding-bottom:58px !important}
 .reveal .movie-caption{font-size:.7em;color:var(--muted);text-align:center;margin:4px 0 8px;line-height:1.2}
 .reveal .movie-caption p{margin:0}
 /* Columns keep the figure beside its text. */

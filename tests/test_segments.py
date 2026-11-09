@@ -750,6 +750,33 @@ def test_previews_and_print_never_load_the_clip(runtime_deck):
             s = seg(page, cid)
             assert s["src"] is None and s["stills"] == [4], (cid, s)                         # the last hold
         assert page.evaluate("document.querySelectorAll('.lk-seg video[src]').length") == 0
+        # each page keeps the slide's clip column: the box and its caption end above the foot, as in the live view
+        geo = page.evaluate("""() => [...document.querySelectorAll('.pdf-page section:has(.lk-seg)')].map(s => {
+          const r = e => e ? e.getBoundingClientRect() : null, b = r(s.querySelector('.lk-seg'));
+          const c = r(s.querySelector('.movie-caption')), f = r(s.querySelector('.nm-foot'));
+          return [b.bottom, c ? c.bottom : null, f.top, b.width, b.height]; })""")
+        assert len(geo) == 3 and all(b <= f and (c is None or c <= f) and h <= 545 for b, c, f, w, h in geo), geo
+
+
+@needs_quarto
+@needs_browser
+@pinned
+def test_the_clip_keeps_its_box_while_its_slide_fades_out(runtime_deck):
+    """The slide that is left is past (or future) while it fades: the clip column's layout holds for it too."""
+    with browser_page(runtime_deck, hash_="#/2") as (page, _, _):
+        assert_hold(page, 1, F30)
+        page.evaluate("""() => { const sec = Reveal.getCurrentSlide(), box = sec.querySelector('.lk-seg');
+          const r0 = box.getBoundingClientRect(); window.__fade = { r0: [r0.width, r0.height], out: [] };
+          const f = () => { const r = box.getBoundingClientRect();
+            window.__fade.out.push([r.width, r.height, +getComputedStyle(sec).opacity]);
+            if (window.__fade.out.length < 40) requestAnimationFrame(f); };
+          requestAnimationFrame(f); }""")
+        page.keyboard.press("ArrowLeft")                                                     # leave for the slide before
+        page.wait_for_function("() => window.__fade.out.length >= 40")
+        fade = page.evaluate("window.__fade")
+        w0, h0 = fade["r0"]
+        shown = [o for o in fade["out"] if o[2] > 0.02]
+        assert shown and all(w <= w0 + 1 and h <= h0 + 1 for w, h, _ in shown), (fade["r0"], shown)
 
 
 # ---------------------------------------------------------------- the filter's checks
