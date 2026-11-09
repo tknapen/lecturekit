@@ -438,6 +438,26 @@ def test_manim8_crop_keeps_the_frames_and_forces_keyframes(tmp_path):
     assert [(s["rest_before"], s["rest_after"]) for s in rec["stops"]] == [(120, 419), (390, 149)]
 
 
+def test_a_crop_starts_on_an_even_pixel_so_the_video_and_its_stills_agree(tmp_path):
+    """ffmpeg's crop of a 4:2:0 video moves an odd offset down to an even one; Pillow cuts a still where it is told.
+    Content whose box (with the margin) starts on an odd pixel must still give a video and stills that agree."""
+    im = Image.new("RGB", (W, H), (235, 238, 242))
+    d = ImageDraw.Draw(im)
+    for x in range(59, 260, 6):                               # stripes three pixels wide, from x = 59 and y = 41
+        d.rectangle([x, 41, x + 2, 140], fill=(0, 0, 0))
+    png = tmp_path / "frame.png"
+    im.save(png)
+    x, y, w, h = box = clips.content_box(png, "#ebeef2")
+    assert (x % 2, y % 2, w % 2, h % 2) == (0, 0, 0, 0), box
+    assert x <= 59 - 24 and y <= 41 - 24 and x + w >= 260 + 22 and y + h >= 141 + 22, box   # the margin kept
+    assert clips.union_box([(35, 17, 10, 10), (40, 20, 10, 10)])[:2] == (34, 16)
+    video = write_video(tmp_path / "v.mp4", [im] * 3, 30, "-crf", "10")
+    clips.crop_video(video, tmp_path / "c.mp4", box, expect=3)
+    clips.extract_frames(tmp_path / "c.mp4", [0], [tmp_path / "f.png"])
+    clips.crop_image(png, tmp_path / "s.png", box)
+    assert clips.mean_difference(tmp_path / "f.png", tmp_path / "s.png") < 5   # a pixel apart: about 46
+
+
 # ---------------------------------------------------------------- kit: checkpoint() and the section sums
 def load_checkpoint_module():
     """nmcheckpoint without the kit package, whose __init__ imports Manim."""

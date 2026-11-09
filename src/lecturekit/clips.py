@@ -182,7 +182,10 @@ def probe(video: Path) -> tuple[int, int, float]:
 
 
 def content_box(image_path: Path, background: str, margin: int = 24) -> tuple[int, int, int, int] | None:
-    """Bounding box of everything that is not the background colour, with a margin, even-sized."""
+    """Bounding box of everything that is not the background colour, with a margin, at an even offset and even-sized.
+
+    Even, because ffmpeg's crop of a 4:2:0 video moves an odd offset down to an even one, while a still is cut at the
+    offset it is given: an odd box would leave the video and its stills a pixel apart."""
     from PIL import Image, ImageChops
     im = Image.open(image_path).convert("RGB")
     bg = Image.new("RGB", im.size, background)
@@ -192,17 +195,19 @@ def content_box(image_path: Path, background: str, margin: int = 24) -> tuple[in
         return None
     x0, y0, x1, y1 = box
     x0, y0 = max(0, x0 - margin), max(0, y0 - margin)
+    x0, y0 = x0 - x0 % 2, y0 - y0 % 2
     x1, y1 = min(im.width, x1 + margin), min(im.height, y1 + margin)
     w, h = (x1 - x0) // 2 * 2, (y1 - y0) // 2 * 2
     return x0, y0, w, h
 
 
 def union_box(boxes: list[tuple[int, int, int, int]]) -> tuple[int, int, int, int] | None:
-    """The box around several content boxes (x, y, w, h), even-sized."""
+    """The box around several content boxes (x, y, w, h), at an even offset and even-sized (see content_box)."""
     if not boxes:
         return None
     x0 = min(b[0] for b in boxes)
     y0 = min(b[1] for b in boxes)
+    x0, y0 = x0 - x0 % 2, y0 - y0 % 2
     x1 = max(b[0] + b[2] for b in boxes)
     y1 = max(b[1] + b[3] for b in boxes)
     return x0, y0, (x1 - x0) // 2 * 2, (y1 - y0) // 2 * 2
