@@ -137,6 +137,12 @@ def test_features_live_deck(built_features):
     assert 'src="assets/clips/tuning_sweep.mp4"' in html                # the manim8 clip, through the same seam
     assert 'poster="assets/clips/tuning_sweep.widened.png"' in html     # its latest checkpoint as the poster
     assert 'class="tikz"' in html and "_lecturekit/tikz/" in html        # TikZ as SVG
+    # three clips in parts: one cue per key, the video loaded by the runtime only, versioned by its sha256
+    assert html.count('class="fragment lk-cue" data-lk-for="bar_steps"') == 3
+    assert html.count('class="fragment lk-cue" data-lk-for="tuning_sweep"') == 2
+    assert html.count('class="fragment lk-cue" data-lk-for="gauss-parts"') == 2      # start=key adds one
+    assert 'data-lk-src="assets/clips/bar_steps.mp4"' in html and ' src="assets/clips/bar_steps.mp4' not in html
+    assert 'data-lk-start="key"' in html and "Ask: the bar rests left of centre." in html
     assert "Study-only detail" not in html                              # study-only slide dropped
     assert "The clip's last frame" not in html                          # study-only block dropped
     assert 'class="citation"' in html                                    # citations (italic by CSS)
@@ -148,7 +154,7 @@ def test_features_live_deck(built_features):
 @needs_tex
 def test_features_study_pdf(built_features):
     pdf = built_features / "_build" / "slides-study.pdf"
-    assert pdf_pages(pdf) == 16
+    assert pdf_pages(pdf) == 19
     text = pdf_text(pdf)
     assert "STUDY-ONLY DETAIL" in text                                   # study-only slide kept, title in capitals
     assert "CORE CONCEPT" in text and "TAKEAWAYS" in text                # eyebrows
@@ -161,6 +167,13 @@ def test_features_study_pdf(built_features):
     assert "\\begin{frame}[fragile,nmrole=concept]" in tex              # roles as frame options, fragile allowed
     assert "\\nmfigureh{4.2cm}{assets/figures/pipeline.tex}" in tex     # the raw figure form stays
     assert "assets/clips/tuning_sweep.widened.png" in tex                # the manim8 checkpoint as the still
+    # the clips in parts print a strip of their holds: four panels for bar_steps (three stops and the end), three
+    # for tuning_sweep, two for gauss-parts (start=key: the strip shows the hold after each part)
+    strips = re.findall(r"^\\lkstrip\{([^}]*)\}\{(\d)\}\{(\d)\}", tex, re.M)
+    assert strips == [("4.8cm", "2", "2"), ("4.8cm", "3", "1"), ("4.8cm", "2", "1")], strips
+    assert "\\lkpanel{assets/clips/bar_steps.f0042.png}{1}{left of centre}" in tex
+    assert "\\lkpanel{assets/clips/tuning_sweep.f0069.png}{2}{gain 2}" in tex
+    assert "1 left of centre" in text and "2 gain 2" in text and "1 half the width" in text
     tokens_tex = (built_features / "_lecturekit" / "tokens.tex").read_text()
     assert "\\definecolor{nmConcept}{HTML}{175B8E}" in tokens_tex
 
@@ -201,7 +214,7 @@ def test_review_tools(built_features, tmp_path):
     from lecturekit.review.shoot import shoot
     deck = built_features / "_build" / "slides-live.html"
     result = shoot(deck, tmp_path / "shots", sheet=True)
-    assert result["slides"] == 15
+    assert result["slides"] == 18
     assert (tmp_path / "shots" / "slide-14.png").exists()
     assert (tmp_path / "shots" / "report.json").exists()
     assert not [r for r in result["report"] if r["over"]], result["report"]

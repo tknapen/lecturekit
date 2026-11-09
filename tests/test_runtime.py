@@ -428,7 +428,8 @@ STATE_JS = """() => {
       if (cs.visibility === 'hidden' || cs.display === 'none' || parseFloat(cs.opacity) === 0) return false; }
     return true; };
   const vids = [...document.querySelectorAll('.reveal .slides video')].map(v => ({
-    slide: slides.indexOf(v.closest('.reveal .slides > section')), src: v.getAttribute('src').split('/').pop(),
+    slide: slides.indexOf(v.closest('.reveal .slides > section')),
+    src: (v.getAttribute('src') || v.getAttribute('data-lk-src') || '').split('/').pop().split('?')[0],
     playing: !v.paused, t: v.currentTime, present: cur.contains(v), shown: cur.contains(v) && shown(v) }));
   return { h: Reveal.getState().indexh, f: Reveal.getState().indexf, scroll: Reveal.isScrollView(), vids };
 }"""

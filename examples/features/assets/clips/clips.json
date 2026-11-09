@@ -13,6 +13,98 @@
     "video": "assets/clips/bar_bold.mp4",
     "width": 960
   },
+  "bar_steps": {
+    "checkpoints": {
+      "centre": "assets/clips/bar_steps.f0096.png",
+      "left": "assets/clips/bar_steps.f0042.png",
+      "right": "assets/clips/bar_steps.f0150.png"
+    },
+    "duration": 6.5,
+    "end": {
+      "frame": 194,
+      "pts": 6.466667,
+      "still": "assets/clips/bar_steps.f0194.png"
+    },
+    "format": 2,
+    "fps": 30.0,
+    "frames": 195,
+    "height": 540,
+    "poster": "assets/clips/bar_steps.f0000.png",
+    "producer": "external",
+    "revision": "2ca5a23c3549",
+    "sha256": "af82352b4c7f01a2e88572dcf828153a6043168287a36efde8fbb45a527eb657",
+    "source": "bar_steps.mp4",
+    "still": "assets/clips/bar_steps.png",
+    "stops": [
+      {
+        "frame": 42,
+        "frozen": [],
+        "id": "left",
+        "label": "left of centre",
+        "pts": 1.4,
+        "rest_after": 17,
+        "rest_before": 16,
+        "still": "assets/clips/bar_steps.f0042.png"
+      },
+      {
+        "frame": 96,
+        "frozen": [],
+        "id": "centre",
+        "label": "at the centre",
+        "pts": 3.2,
+        "rest_after": 17,
+        "rest_before": 19,
+        "still": "assets/clips/bar_steps.f0096.png"
+      },
+      {
+        "frame": 150,
+        "frozen": [],
+        "id": "right",
+        "label": "right of centre",
+        "pts": 5.0,
+        "rest_after": 17,
+        "rest_before": 19,
+        "still": "assets/clips/bar_steps.f0150.png"
+      }
+    ],
+    "video": "assets/clips/bar_steps.mp4",
+    "width": 960
+  },
+  "gauss-parts": {
+    "checkpoints": {
+      "narrowed": "assets/clips/gauss-parts.f0051.png"
+    },
+    "duration": 3.5,
+    "end": {
+      "frame": 104,
+      "pts": 3.466667,
+      "still": "assets/clips/gauss-parts.f0104.png"
+    },
+    "format": 2,
+    "fps": 30.0,
+    "frames": 105,
+    "height": 720,
+    "poster": "assets/clips/gauss-parts.f0000.png",
+    "producer": "kit",
+    "revision": "f9bcb9306ed3",
+    "sha256": "c028e899fb4d8ce4a8cae8a4f41c01dac2f5d0a97ea7c3ef2eac52de9e2b8e34",
+    "source": "anim/clip_gauss_parts.py:GaussParts",
+    "still": "assets/clips/gauss-parts.png",
+    "stops": [
+      {
+        "frame": 51,
+        "frozen": [],
+        "id": "narrowed",
+        "label": "half the width",
+        "pts": 1.7,
+        "rest_after": 9,
+        "rest_before": 9,
+        "still": "assets/clips/gauss-parts.f0051.png"
+      }
+    ],
+    "video": "assets/clips/gauss-parts.mp4",
+    "width": 1280
+  },
   "tuning_sweep": {
     "checkpoints": {
       "gain_high": "assets/clips/tuning_sweep.gain_high.png",

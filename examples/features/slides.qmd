@@ -36,7 +36,7 @@ Ask: who has kept two versions of the same lecture in sync by hand?
 Say: the filter is the only thing that knows about two outputs.
 :::
 
-## The budget is checked {role=caveat time=1.5}
+## The budget is checked {role=caveat time=1}
 
 :::: columns
 ::: {.column width="55%"}
@@ -61,7 +61,7 @@ Say: the filter is the only thing that knows about two outputs.
 Line: the clock is the lecturer's, not the slide's.
 :::
 
-## A clip, autoplaying {role=example time=2}
+## A clip, autoplaying {role=example time=1}
 
 :::: {.live-only}
 ::: {.movie src="assets/clips/bar_bold.mp4" label="A bar sweeps a disc from left to right"}
@@ -78,7 +78,7 @@ The clip's last frame; the live deck plays the sweep.
 Say: a click or the space bar pauses the clip, R replays it; the study PDF carries the still.
 :::
 
-## A clip through the seam {role=example time=1}
+## A clip through the seam {role=example time=0.5}
 
 ::: {.movie clip="bar_bold" height=4cm}
 Named in `assets/clips/clips.json`: the live deck gets the video, the study PDF the still, and both the shape.
@@ -143,7 +143,52 @@ Say: a toy tuning curve; its gain doubles the peak, then its width spreads it.
 Status: `lk clips . --only tuning_sweep`, and `--mode dark` for the dark preset.
 :::
 
-## Revealed step by step {role=explanation time=1.5}
+## A clip in parts {role=example time=1.5}
+
+::: {.movie clip="bar_steps" stops="all"}
+`stops="all"` holds the clip at each stop of its entry; the PDF prints the holds.
+
+:::: {.stop ref="left"}
+Ask: the bar rests left of centre. Where does it stop next?
+::::
+:::: {.stop ref="centre"}
+Say: each key plays one part; a key pressed during a part plays on to the next stop.
+::::
+:::: {.stop ref="right"}
+Say: Left goes back one hold at once; R replays the part that ends here.
+::::
+:::: {.stop ref="end"}
+Say: an MP4 made elsewhere, brought in by `lk clips adopt` with its stops in seconds.
+::::
+:::
+
+## A manim8 clip in parts {role=example time=1.5}
+
+::: {.movie clip="tuning_sweep" stops="gain_low gain_high"}
+The storyboard marks stops (`stop: true`); the deck chooses which to hold.
+
+:::: {.stop ref="gain_low"}
+Ask: the gain doubles next. Where does the peak go, and does the curve widen?
+::::
+:::: {.stop ref="gain_high"}
+Say: the peak doubled in place; next the width grows.
+::::
+:::
+
+## A kit clip in parts {role=example time=1.5}
+
+::: {.movie clip="gauss-parts" stops="narrowed" start=key}
+`checkpoint()` in a kit scene marks the stop; `start=key` waits on frame 0.
+
+:::: {.stop ref="start"}
+Ask: the width halves next. What happens to the peak?
+::::
+:::: {.stop ref="narrowed"}
+Say: the peak doubles and the area stays one; next the mean moves.
+::::
+:::
+
+## Revealed step by step {role=explanation time=1}
 
 ::: incremental
 - First the question
@@ -155,7 +200,7 @@ Status: `lk clips . --only tuning_sweep`, and `--mode dark` for the dark preset.
 The study page shows the three points at once; the reveal is a live device.
 :::
 
-## A quiz carries its answer {role=question time=2}
+## A quiz carries its answer {role=question time=1}
 
 Which of the two outputs decides the pixel budget of a slide?
 
@@ -167,7 +212,7 @@ Which of the two outputs decides the pixel budget of a slide?
 **Answer.** The live deck. 1280 by 720 pixels; the study PDF reflows what the live budget drops.
 :::
 
-## Citations and claims {role=concept time=1}
+## Citations and claims {role=concept time=0.5}
 
 - The model: population receptive fields [@Dumoulin2008].
 - The result: joint visual and somatotopic tuning [@Hedger2025].
@@ -185,7 +230,7 @@ that the live budget drops but the reader wants.
 | `.incremental` | revealed | complete |
 | `.movie` | `<video>` | the still |
 
-## Takeaways {role=summary time=1}
+## Takeaways {role=summary time=0.5}
 
 - One source, [two outputs]{.blue}, one theme file.
 - Every rule has a command that checks it.
