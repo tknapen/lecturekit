@@ -216,14 +216,15 @@ def test_older_manim8_without_json_finds_the_job_by_cache_key(scianim, tmp_path,
     record["job"]["cache_key"] = "sha256:" + "0" * 64
     (decoy / "manifest.json").write_text(json.dumps(record))
     (decoy / "job_29991231T235959_ffffff.mp4").write_bytes(b"decoy")
+    future = 4_102_444_800                                                # 2100-01-01: newer than any render
+    for f in decoy.iterdir():
+        os.utime(f, (future, future))
     index, failures = clips.run_clips(deck)
     assert failures == []
-    future = 4_102_444_800                                                # 2100-01-01
-    os.utime(decoy / "manifest.json", (future, future))
     assert "--json" not in scianim.calls("render")[-1]
     (job,) = [j for j in jobs(project) if j != decoy]
     assert sha(deck / index["divisive_normalization"]["video"]) == sha(job / f"{job.name}.mp4")
-    index, failures = clips.run_clips(deck)                               # a cache hit, after the decoy got newer
+    index, failures = clips.run_clips(deck)                               # a cache hit: the same job again
     assert failures == [] and index["divisive_normalization"]["job"]["id"] == job.name
 
 
