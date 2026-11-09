@@ -399,7 +399,8 @@ def render_kit_scene(deck: Path, script: Path, scene: str, size: str = KIT_SIZE,
     exe = _manim_exe()
     if not exe:
         raise ClipError(INSTALL_MANIM)
-    media = deck / "anim" / "media"
+    anim = (deck / "anim").resolve()   # Manim runs in anim/: its paths must not be relative to the caller's
+    media = anim / "media"
     name = clip_name(script, scene, deck)
     w0, h0 = (int(v) for v in size.lower().split("x"))
     env = tool_env(deck)
@@ -407,8 +408,8 @@ def render_kit_scene(deck: Path, script: Path, scene: str, size: str = KIT_SIZE,
     env["LECTUREKIT_MODE"] = m
     env.setdefault("LECTUREKIT_BRAND", str(_brand_for(deck, m)))
     cmd = [exe, "--disable_caching", "--progress_bar", "none", "-r", f"{w0},{h0}",
-           "--media_dir", str(media), "-o", name, str(script), scene]
-    rc, _, reason = run_tool(cmd, cwd=deck / "anim", env=env)
+           "--media_dir", str(media), "-o", name, str(Path(script).resolve()), scene]
+    rc, _, reason = run_tool(cmd, cwd=anim, env=env)
     if rc:
         raise ClipError(f"manim exited {rc}: {reason}" if reason else f"manim exited {rc}")
     produced = sorted(media.rglob(f"{name}.mp4"), key=lambda p: p.stat().st_mtime)

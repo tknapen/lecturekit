@@ -364,6 +364,8 @@ FAKE_MANIM = """import json, os, subprocess, sys
 from pathlib import Path
 args = sys.argv[1:]
 media, name = Path(args[args.index("--media_dir") + 1]), args[args.index("-o") + 1]
+if not Path(args[-2]).is_file():                     # Manim reads the scene file from its working directory
+    sys.exit(f"FileNotFoundError: {Path.cwd() / args[-2]} not found")
 w, h = args[args.index("-r") + 1].split(",")
 out = media / "videos" / "clip" / f"{h}p30" / f"{name}.mp4"
 out.parent.mkdir(parents=True, exist_ok=True)
@@ -399,6 +401,26 @@ def test_kit_clips_follow_the_preset(scianim, tmp_path, monkeypatch):
     assert rec["source"] == "anim/clip_bar_bold.py:BarBold" and no_nulls(rec)
     assert (deck / rec["video"]).exists() and (deck / rec["still"]).exists()
     assert not (deck / "assets" / "clips" / "clips.json").exists()           # the paper index is untouched
+
+
+@needs_ffmpeg
+def test_kit_clips_from_a_relative_deck_path(scianim, tmp_path, monkeypatch):
+    deck = make_deck(tmp_path, projects=())
+    (deck / "anim").mkdir()
+    (deck / "anim" / "clip_bar_bold.py").write_text("class BarBold(Scene):\n    pass\n")
+    fake = tmp_path / "manim"
+    fake.write_text(f"#!/bin/sh\nexec \"{sys.executable}\" \"{tmp_path / 'fake_manim.py'}\" \"$@\"\n")
+    fake.chmod(0o755)
+    (tmp_path / "fake_manim.py").write_text(FAKE_MANIM)
+    monkeypatch.setattr(clips, "_manim_exe", lambda: str(fake))
+    monkeypatch.setenv("FFMPEG", clips._ffmpeg())
+    monkeypatch.setenv("FAKE_MANIM_ENV", str(tmp_path / "env.json"))
+    monkeypatch.chdir(tmp_path)                                        # `lk clips deck` from the parent folder
+    index, failures = clips.run_clips(Path("deck"), only=["bar_bold"])
+    assert failures == [], failures
+    assert index["bar-bold"]["video"] == "assets/clips/bar-bold.mp4"
+    assert (deck / "assets" / "clips" / "bar-bold.mp4").exists()
+    assert not (deck / "anim" / "deck").exists()                       # nothing written under a doubled path
 
 
 def test_dark_mode_needs_a_bridged_dark_style(scianim, tmp_path):
