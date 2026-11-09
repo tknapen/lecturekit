@@ -1,6 +1,6 @@
 # Tutorials
 
-Ten short episodes, each one repository action shown end to end with the prompt visible and the result on screen. Each has a folder here with its script (the README), the exact prompts and commands, and the before and after artefacts, so that a viewer can replay the episode without the video. The worked example throughout is the kickoff deck, `examples/kickoff`: the opening talk of the Coimbra pRF workshop, 15 minutes, seven slides, eight TikZ figures, one clip, a storyboard, a plan, checked facts and a manifest.
+Eleven short episodes, each one repository action shown end to end with the prompt visible and the result on screen. Each has a folder here with its script (the README), the exact prompts and commands, and the before and after artefacts, so that a viewer can replay the episode without the video. The worked example throughout is the kickoff deck, `examples/kickoff`: the opening talk of the Coimbra pRF workshop, 15 minutes, seven slides, eight TikZ figures, one clip, a storyboard, a plan, checked facts and a manifest.
 
 | # | Episode | What the viewer sees | Length |
 | --- | --- | --- | --- |
@@ -14,10 +14,11 @@ Ten short episodes, each one repository action shown end to end with the prompt 
 | 8 | [Publish and share](08-publish-and-share/README.md) | The continuous build, GitHub Pages, exporting the PDF, how a colleague forks a project | 5 min |
 | 9 | [A talk from a paper](09-a-talk-from-a-paper/README.md) | Hedger et al. (2025) dropped into a new project; a 20-slide talk built in dialogue, the author correcting the assistant's reading on camera; figures redrawn and recomputed; `FACTS.md` from the paper | 12 to 15 min, or two parts |
 | 10 | [A clip from a brief](10-a-clip-from-a-brief/README.md) | A manim8 clip from a one-paragraph brief, through checkpoints and review, into a slide through the seam, in both presets | 8 min |
+| 11 | [A clip on key presses](11-a-clip-on-key-presses/README.md) | Stops marked in a manim8 storyboard (and refused until the timing leaves a rest), the clip rendered, a slide that holds it at each stop, presented key by key; `lk review frags` and the study strip | 8 min |
 
 ## What can be replayed today
 
-Episodes 1, 2, 4, 5, 6 and 7 run on `examples/kickoff`, which builds in both formats and both presets from a fresh clone; episode 2 can also be followed on `examples/features`, the small deck that exercises every construct. Episode 3 runs on a fresh `lk new` project, with the kickoff's own `STORYBOARD.md` and `PLAN.md` as the model of what comes out. Episode 8 shows the continuous build in `.github/workflows/build.yml`, which builds both example decks and publishes them to Pages; the fork half needs a project repository on the released engine, which is still to come. Episode 9 is a new project from a paper. Episode 10 is a new project made with `lk new --manim8`; it needs manim8 0.1.0a0, which lecturekit's `manim8` extra installs on Python 3.12 or later.
+Episodes 1, 2, 4, 5, 6 and 7 run on `examples/kickoff`, which builds in both formats and both presets from a fresh clone; episode 2 can also be followed on `examples/features`, the small deck that exercises every construct. Episode 3 runs on a fresh `lk new` project, with the kickoff's own `STORYBOARD.md` and `PLAN.md` as the model of what comes out. Episode 8 shows the continuous build in `.github/workflows/build.yml`, which builds both example decks and publishes them to Pages; the fork half needs a project repository on the released engine, which is still to come. Episode 9 is a new project from a paper. Episode 10 is a new project made with `lk new --manim8`; it needs manim8 0.1.0a0, which lecturekit's `manim8` extra installs on Python 3.12 or later. Episode 11 runs on `examples/features`, whose slides 11 to 13 hold a clip in parts from each producer; its manim8 half needs the manim8 commit with stops that the extra names, and the other two producers need none.
 
 ## Folder layout
 

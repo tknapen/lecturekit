@@ -31,9 +31,9 @@ The build leaves `_build/` (both outputs, `timing.txt`, the copied assets), `_le
 ## Stages
 
 1. Storyboard. The lecturer writes what the lecture is for, in prose: the audience, the one thing they must take away, the argument in order, the moments that need a figure or a clip, the time. Nothing is built before this.
-2. Plan. The assistant turns the storyboard into `PLAN.md`: a slide per claim, a role per slide, minutes per slide against the budget (`budget:` in the deck header; `lk build` prints the plan against it), and for each slide the figure or clip and the numbers it needs. The lecturer edits the plan; this is the cheapest place to change a lecture.
+2. Plan. The assistant turns the storyboard into `PLAN.md`: a slide per claim, a role per slide, minutes per slide against the budget (`budget:` in the deck header; `lk build` prints the plan against it), and for each slide the figure or clip and the numbers it needs. A clip that the room should see in parts says so in the visual cell, with the stops it holds at and what the study page prints (`clip criterion_roc in parts: stops neutral, strict; PDF strip of 3`): a stop is a reveal and a prompt, so it is the lecturer's to choose, and the minutes include a minute per prompt. The lecturer edits the plan; this is the cheapest place to change a lecture.
 3. Numbers. Every quantitative figure comes from a script: a simulation with a config, or digitised values from a publication with the method recorded. Summaries land in `assets/data/*.json`; a figure whose data are missing becomes a labelled placeholder, so the deck always builds.
-4. Figures and clips. `make_assets.py` draws from the summaries on `lecturekit.tikz` (FIGURES.md); the build runs it as the project's pre-render step, and `python make_assets.py [name ...]` runs it by hand. Clips are scenes on the Manim kit in `anim/clip_*.py`, or manim8 projects in `clips/` made from a brief, both rendered by `lk clips <deck>` into `assets/clips/` with their stills and `clips.json`, and by `lk clips <deck> --mode dark` into `assets/clips/dark/` for the dark preset (CLIPS.md). `lk review figs <deck>` and the clip's frames are looked at before they enter a slide.
+4. Figures and clips. `make_assets.py` draws from the summaries on `lecturekit.tikz` (FIGURES.md); the build runs it as the project's pre-render step, and `python make_assets.py [name ...]` runs it by hand. Clips are scenes on the Manim kit in `anim/clip_*.py`, or manim8 projects in `clips/` made from a brief, both rendered by `lk clips <deck>` into `assets/clips/` with their stills and `clips.json`, and by `lk clips <deck> --mode dark` into `assets/clips/dark/` for the dark preset (CLIPS.md). A clip that a slide holds in parts gets its stops where it is made: `checkpoint()` in a kit scene, `stop: true` on a manim8 snapshot, `--stops` on `lk clips adopt` for an MP4 made elsewhere; `clips.json` lists them with a still of each (CLIPS.md, A clip in parts). `lk review figs <deck>` and the clip's frames are looked at before they enter a slide.
 5. Slides. `slides.qmd`, with every slide carrying its role and time, a visual, bullets of one line each, and notes: `Line:` the sentence the slide exists for; `Ask:` the question to the room and its answer; `Say:` what to say; `Status:` where the numbers come from (`[SIM]`, `[DRAWN]`, `[LIT]`). `lk build <deck>` renders both outputs and prints the timing report.
 6. Review rounds. Build; `lk review shoot <deck>/_build/slides-live.html --sheet` writes every slide as a PNG and a contact sheet; the lecturer reviews the PNGs or the live deck and lists changes by slide number; the assistant applies them, rebuilds, checks the layout rules (`lk review measure`, `lk review frags`) and the PDF (`lk review overflow <deck>`), and reports what changed and what it could not verify. `lk review shoot --against <earlier shots>` lists the slides that changed since the last round. Repeat.
 7. Facts. Before publishing, `FACTS.md` lists every claim with its source and check date and `MANIFEST.md` every image with its licence. A claim that cannot be sourced leaves the slide or is marked as the lecturer's own.
@@ -86,7 +86,7 @@ The audience: who is in the room and what they already know. The one thing to ta
 
 The argument in order: the moves of the lecture, one clause each, in the order they are made.
 
-Moments that need a visual: which slide moves (the only clip), which figures build in stages, which appear on a key press.
+Moments that need a visual: which slide moves (the only clip), which clip the room sees in parts and where it holds, which figures build in stages, which appear on a key press.
 
 Tone: how it should sound; where every number comes from; names in type, no logos.
 ```
@@ -102,6 +102,7 @@ Budget <N> minutes (the header's `budget: N`); <n> timed slides plus title and r
 |---|---|---|---|---|---|
 | 1 | Why we are here | concept | 2 | clip `bar-bold.mp4`; PDF: `bar-bold.tex` | `assets/data/s01.json`; the field's size from the proposal |
 | 2 | Credit where credit is due | explanation | 2 | `lineage.tex` | proposal section 9; package records |
+| 3 | Criterion and hit rate | example | 4 | clip `criterion_roc` in parts: stops `neutral`, `strict` (manim8 `stop: true`), start on a key; PDF strip of 3 | `assets/data/sdt.json` |
 | | References | | | | `references.bib` |
 
 Review rounds recorded in `README.md`: what each round changed, by slide.

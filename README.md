@@ -66,6 +66,25 @@ select an output, on a Div or on a whole slide. A `.movie` is an autoplaying cli
 (click or space pauses, R replays) and a still in the PDF. Figures are TikZ files beside the deck, placed with
 `\nmfigureh{height}{file}`, compiled once for the browser and set inline on the page, never scaled up.
 
+## A clip in parts
+
+One clip can play in parts, each started by the presenter's key and held exactly on the frame where it ends:
+
+```markdown
+::: {.movie clip="criterion_roc" stops="neutral strict" start=key}
+:::: {.stop ref="start"}
+Ask: if the criterion moves right, which rate falls faster?
+::::
+:::
+```
+
+The producer marks where a clip may hold, and `lk clips` lists those stops in `clips.json` with a still of each
+frame: `checkpoint()` in a kit scene, `stop: true` on a manim8 snapshot, `lk clips adopt clip.mp4 --stops 4.0 8.0`
+for an MP4 made elsewhere. The slide chooses the stops. A key pressed while a part plays lets it play on to the
+next stop; Left holds the previous one at once; coming back to the slide holds its last frame without playing. The
+speaker notes of each hold put its "Ask:" first, the study PDF prints a strip of the holds, and `lk review frags`
+walks the clip with real keys and checks every hold's frame (docs/CLIPS.md, docs/AUTHORING.md).
+
 ## One theme, one file
 
 The look is defined once, in Quarto's `_brand.yml`. Every palette entry is a token: `nmConcept` in Beamer and TikZ,
@@ -83,7 +102,7 @@ lk review contrast examples/kickoff/_brand-dark.yml --mode dark
 ```sh
 lk review shoot   _build/slides-live.html --sheet     # a PNG per slide, what crosses the foot, page errors
 lk review measure _build/slides-live.html             # free pixels above the foot line, wrapping bullets
-lk review frags   _build/slides-live.html             # fragment steps, clips shown and playing
+lk review frags   _build/slides-live.html             # fragment steps, clips shown and playing, holds of a clip in parts
 lk review overflow .                                  # overfull frames of the study PDF, by title
 lk review figs    .                                   # the deck's TikZ figures standalone, with their sizes
 lk review contrast _brand.yml                         # WCAG AA on every surface

@@ -1,13 +1,13 @@
 # Clips
 
-A clip is a short animation that plays in the live deck and prints as a still in the study PDF. The clip shows the mechanism and nothing else; the slide supplies the claim. This page gives the rules a clip follows, the seam between a deck and whatever rendered the clip (`assets/clips/clips.json` and the `clip=` form of the movie block), what `lk clips` does, the stops where a deck may hold a clip, `lk clips adopt` for an MP4 made elsewhere, the Manim kit in brief, and manim8, the second producer.
+A clip is a short animation that plays in the live deck and prints as a still in the study PDF. The clip shows the mechanism and nothing else; the slide supplies the claim. This page gives the rules a clip follows, the seam between a deck and whatever rendered the clip (`assets/clips/clips.json` and the `clip=` form of the movie block), what `lk clips` does, a clip in parts (the stops where a deck may hold a clip, from each producer, and what the deck does with them), `lk clips adopt` for an MP4 made elsewhere, the Manim kit in brief, and manim8, the second producer.
 
 ## Rules
 
 - Render at 1280 by 720 with a white background (the slide colour); the multiply blend handles paper slides. The kit sets this when it is imported; `lk clips --size WxH` or the environment variable `NM_CLIP_SIZE` changes it, and the frame stays 9 scene units high. A manim8 clip renders at its project's `output` in `animation.yaml` (`lk new --manim8` starts projects at 1280 by 720 and 30 fps); `--size` does not reach it, and `lk clips` warns when a manim8 clip is not at the deck's size (`--size` when given, else 1280 by 720) or not at 30 fps. Rendering on the paper colour directly is also fine for a clip that will only ever sit on a paper slide.
 - No titles or captions in the clip: the slide carries the title, the speaker the words. A legend, tick labels and a marker inside the drawing are part of the mechanism and stay.
 - Every clip has a static equivalent in the study PDF: the still that `lk clips` writes and `clip=` places, or a `.study-only` figure drawn from the same numbers (the kickoff's `bar-bold.tex` and its clip share one forward model).
-- Clips play without browser controls. A click or the space bar pauses and resumes the clip; R replays it from the start; space does not advance the slide while a clip is shown. A clip starts when its slide appears and stops when the slide is left.
+- Clips play without browser controls. A click or the space bar pauses and resumes the clip; R replays it from the start; space does not advance the slide while a clip is shown. A clip starts when its slide appears and stops when the slide is left. A clip in parts (below) takes the same keys with a meaning of its own: at a hold, Space plays the next part, and R replays the part that ends there.
 - Browsers cache clips by file name. Every entry `lk clips` writes carries the `sha256` of the delivered video, which changes with every render, so that a deck can version the clip's URL by it (`?v=` and its first eight hex digits); a clip named by `src=` alone has no such version, and a re-rendered one that looks unchanged on screen needs a new file name.
 - `aspect` is the clip's pixel ratio. The `clip=` form reads it from `clips.json`; the `src=` form takes `aspect="4:3"` or `"1:1"` for a clip in a column, or any `W:H` for a clip cropped to its content. A wrong aspect letterboxes the clip and wastes height.
 - A clip on a key press: `::: {.fragment}` around `:::: {.live-only}` around the `.movie`, never the other way round. A sequence of clips is an `.r-stack` inside `.live-only`, each later clip in a `.fragment`; the step's clip starts when its fragment appears and the earlier one stops. Check: `lk review frags <live.html>` prints, per step, whether each clip is shown and playing, and flags the reverse order (a `.fragment` inside the clip's `.live-only` box) and a hidden clip that plays.
@@ -148,9 +148,13 @@ Failures. A clip that cannot be made is reported with its producer and a one-lin
 
 Presets. `--mode dark` (or `LECTUREKIT_MODE=dark`) makes the dark preset's clips: kit scenes render with `LECTUREKIT_MODE=dark` and `LECTUREKIT_BRAND` set to the dark brand (the file the project's `_quarto-dark.yml` names, else `_brand-dark.yml`, else the dark side of `_brand.yml`), so `nmstyle` takes the dark slide colour as the background and the dark tokens as the colours; manim8 projects render with `--style lecturekit_dark@<newest version>`, the bridged dark style that `lk theme --manim8` wrote. The files and their own `clips.json` go to `assets/clips/dark/`. In the paper preset a manim8 project that selects the bridged paper style renders under its newest version; a project that selects another style keeps it. A bridged style changes colours and fonts, never timing, so one generated scene renders under both.
 
-## Stops: where a deck may hold a clip
+## A clip in parts
 
-A clip in parts is one video that the live deck holds at chosen frames, each part started by the presenter's next key; the study PDF prints the holds. The deck chooses the stops (AUTHORING.md); `clips.json` lists the candidates, and each producer has one way to name them:
+A clip in parts is one video that the live deck holds at chosen frames, each part started by the presenter's next key; the study PDF prints the holds. The producer marks the frames where a deck may hold the clip, its stops; `clips.json` lists them as candidates, with a still of each and the rest around it; the deck chooses which to hold. The clip stays one movie: nothing is cut, and a hold is exact because it is a frame number, not a time.
+
+### The producer side: stops
+
+Each producer has one way to name the candidates:
 
 - a kit scene calls `checkpoint(self, "first_sweep", label="rightward sweep", rest=0.6)` where the clip may hold (MANIM.md). It waits half the rest, opens a Manim section of type `lecturekit.checkpoint`, and waits the other half; the stop is the section's first frame, the sum of the frames of the sections before it in Manim's sections index. `lk clips` checks that the sections add up to the movie's decoded frames and that each checkpoint section's first frame is the movie's frame there, and fails the clip otherwise, as it does for a checkpoint with no frames after it (two checkpoints with nothing between them, or one at the end of the scene) and for one at the first frame;
 - a manim8 snapshot marked `stop: true`, with its `label` and, for a camera orbit that may turn through it, `stop_through` (manim8's ADR-045). manim8 validates the stop and lists it in the manifest's `result.stops` with its frame, its time and its rests. `lk clips` cross-checks each one: its frame must be its time on the movie's frame grid, and its still must be manim8's checkpoint picture of that frame (a mean difference of at most 1 of 255), or the clip fails; a stop where no play starts, or whose rest holds a play that moves, is a warning, which a draft render can give. A manifest without `result.stops` gives no candidates;
@@ -159,6 +163,34 @@ A clip in parts is one video that the live deck holds at chosen frames, each par
 The rest before a stop is what hides the live deck's early pause: it pauses a frame or two before the stop, and up to 0.3 s before it in a browser without `requestVideoFrameCallback`, then seeks to the stop's frame. `lk clips` measures both rests on the pixels, whatever the producer says, and warns about a stop with fewer than three frames of unchanged picture before it, which a deck refuses; 0.3 s before the stop (9 frames at 30 fps, `checkpoint(..., rest=0.6)`) is the usual amount. A stop that is not a keyframe is a warning, not an error: the hold is exact, and only the seek to it is slower. Every stop sits strictly between the first and the last frame, on a frame of its own; two stops closer than 0.5 s are a warning.
 
 A barcode clip, whose every frame shows its own number, has no rest at any stop: it serves to check that the stills are the frames they name, not as a clip in parts.
+
+### The deck side: stops=
+
+```markdown
+## A clip in parts {role=example time=1.5}
+
+::: {.movie clip="bar_steps" stops="left centre right"}
+The caption, under the clip and on the study page.
+
+:::: {.stop ref="left"}
+Ask: the bar rests left of centre. Where does it stop next?
+::::
+:::
+```
+
+`stops=` names candidates of the entry, in time order (or `all`); `start=key` opens the slide on frame 0 instead of playing part 1 at once; a `.stop` block holds the speaker notes of one hold (`start`, a stop's id or `end`); `study=` chooses the study page: a strip of the holds after each part (the default), `final`, or a list of holds. AUTHORING.md has the whole dialect and the checks that stop the build; POLICY.md the rule (a clip in parts is a reveal, with a prompt at each hold before the last).
+
+What the live deck does. The filter writes the video without Reveal's autoplay, a still of every boundary (frame 0, each chosen stop, the last frame) in the same box, and one empty fragment per key. The runtime makes the video agree with the number of fragments shown: Right plays the next part and holds on its last frame; a key pressed while a part plays lets it play on to the next stop; Left holds the previous stop at once and never plays backwards; entering the slide backwards, by a jump or from a URL holds that step's frame at once. To hold, it pauses the video a frame or two before the stop, seeks to the middle of the stop's frame, and shows that frame's still over the video while it holds, so the room sees exactly the frame `clips.json` names, whatever the browser has painted. Only the main window loads the video; the speaker view's previews show the stills. The study PDF prints the strip (`\lkstrip`, LAYOUT.md).
+
+Check: `lk review frags <live.html>` walks each clip in parts with real keys and reports, per step, the frame expected, the frame shown, where the pause landed and the time from key to hold, then a backward entry and a jump; it exits 1 when a hold is off its frame.
+
+### The feature deck: one clip in parts from each producer
+
+| Slide | Clip | Producer | How its stops are made |
+| --- | --- | --- | --- |
+| 11 A clip in parts | `bar_steps` | an MP4 made elsewhere | `make_clips.py` draws a bar that rests at three places, 0.6 s still on each side, and calls `adopt` with `left=1.4 centre=3.2 right=5.0` |
+| 12 A manim8 clip in parts | `tuning_sweep` | manim8 | `stop: true` on the snapshots `gain_low` and `gain_high` of `clips/families/features/tuning_sweep/storyboard.yaml`; `lk clips . --only tuning_sweep` |
+| 13 A kit clip in parts | `gauss-parts` | a kit scene | `checkpoint(self, "narrowed", label="half the width", rest=0.6)` in `anim/clip_gauss_parts.py`; `lk clips . --only gauss-parts`; `start=key` on the slide |
 
 ## lk clips adopt
 

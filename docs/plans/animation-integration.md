@@ -382,6 +382,16 @@ The expo needs:
 
 ## 3. Key-press segmentation
 
+> **Implemented in lecturekit 0.4.0, 9 November 2026**, with manim8's stops (ADR-045, commit `fa99e8f`). The
+> lecturer decided: a key pressed during a part plays through to the next stop; `study=strip` is the default;
+> manim8 gets the stop fields now; part 1 plays on entry (`start=key` opts out). Where the build differs from the
+> design below: the index has one `stops` list of candidates, with no interim from `result.reached`; the kit call
+> is `checkpoint(self, id, label=None, rest=0.0)`; stop ids compare exactly; P stays the pacing reset and the
+> keys go through the one `Reveal.configure({keyboard})` in `live-head.html`; notes put the "Ask:" first; two
+> pictures count as one rest when no grey level differs by more than 6 of 255 at 160 pixels wide (a keyframe in a
+> still rest differs by up to 5); and a hold shows the still of its frame over the video. CLIPS.md, AUTHORING.md
+> and tutorial 11 describe it as built; the feature deck's slides 11 to 13 show one clip in parts per producer.
+
 ### 3.1 The choice
 
 There were three candidate designs.
