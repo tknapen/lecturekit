@@ -181,17 +181,19 @@ def test_rests_are_frames_of_unchanged_picture(tmp_path):
 
 def test_a_keyframe_in_a_rest_is_the_same_picture():
     # H.264 codes a keyframe in a still rest afresh: at 160 px wide it differs from the frames before it by up to
-    # 5 grey levels on a few pixels (manim8's tuning_sweep), which is no change of picture; 9 levels is the tail of
-    # an eased motion, which is
+    # 10 grey levels (the expo's fields_to_map, a map of 1380 coloured marks; 5 on manim8's tuning_sweep), which is
+    # no change of picture. Something that starts to move on the keyframe differed by 62 or more.
     size = (16, 9)
     base = bytes([128] * (16 * 9))
     noise = bytearray(base)
-    noise[3] += 5
-    noise[40] -= 4
-    motion = bytearray(base)
-    motion[70] += 9
+    noise[3] += 10
+    noise[40] -= 8
+    noise[41] += 7
     assert clips.same_picture(base, bytes(noise), size)
-    assert not clips.same_picture(base, bytes(motion), size)
+    for change, same in ((clips.REST_TOLERANCE, True), (17, False), (62, False)):
+        moved = bytearray(base)
+        moved[70] += change
+        assert clips.same_picture(base, bytes(moved), size) is same
 
 
 # ---------------------------------------------------------------- adopt

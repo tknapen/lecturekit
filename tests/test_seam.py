@@ -137,7 +137,7 @@ def no_nulls(obj) -> bool:
 # ---------------------------------------------------------------- versions
 def test_versions_and_the_manim8_extra():
     meta = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-    assert meta["version"] == __version__ == extension_version() == "0.4.0"
+    assert meta["version"] == __version__ == extension_version() == "0.4.1"
     extra = meta["optional-dependencies"]["manim8"]
     assert any(re.match(r"manim8 @ git\+https://github\.com/tknapen/manim8@([0-9a-f]{40}|v\d[^ ;]*) ", d) for d in extra)
     assert any("#subdirectory=packages/scianim_core" in d and d.startswith("manim8-core @") for d in extra)

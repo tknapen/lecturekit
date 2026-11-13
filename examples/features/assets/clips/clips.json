@@ -43,7 +43,7 @@
         "label": "left of centre",
         "pts": 1.4,
         "rest_after": 17,
-        "rest_before": 16,
+        "rest_before": 19,
         "still": "assets/clips/bar_steps.f0042.png"
       },
       {
@@ -97,8 +97,8 @@
         "id": "narrowed",
         "label": "half the width",
         "pts": 1.7,
-        "rest_after": 9,
-        "rest_before": 9,
+        "rest_after": 10,
+        "rest_before": 10,
         "still": "assets/clips/gauss-parts.f0051.png"
       }
     ],
@@ -142,7 +142,7 @@
         "notes": "The toy curve at gain 1 and width 0.8, peaking at r = 1 over x = 0, before the sweep.",
         "pts": 1.2,
         "rest_after": 2,
-        "rest_before": 15,
+        "rest_before": 19,
         "still": "assets/clips/tuning_sweep.f0036.png"
       },
       {
@@ -152,8 +152,8 @@
         "label": "gain 2",
         "notes": "The same curve at gain 2: the peak at r = 2, the width unchanged; the readout reads g = 2.0.",
         "pts": 2.3,
-        "rest_after": 3,
-        "rest_before": 9,
+        "rest_after": 7,
+        "rest_before": 10,
         "still": "assets/clips/tuning_sweep.f0069.png"
       }
     ],

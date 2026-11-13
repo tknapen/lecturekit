@@ -388,8 +388,9 @@ The expo needs:
 > design below: the index has one `stops` list of candidates, with no interim from `result.reached`; the kit call
 > is `checkpoint(self, id, label=None, rest=0.0)`; stop ids compare exactly; P stays the pacing reset and the
 > keys go through the one `Reveal.configure({keyboard})` in `live-head.html`; notes put the "Ask:" first; two
-> pictures count as one rest when no grey level differs by more than 6 of 255 at 160 pixels wide (a keyframe in a
-> still rest differs by up to 5); and a hold shows the still of its frame over the video. CLIPS.md, AUTHORING.md
+> pictures count as one rest when no grey level differs by more than 16 of 255 at 160 pixels wide (6 in 0.4.0, raised
+> in 0.4.1 when a keyframe in a busier still rest differed by 8 to 10); and a hold shows the still of its frame over
+> the video. CLIPS.md, AUTHORING.md
 > and tutorial 11 describe it as built; the feature deck's slides 11 to 13 show one clip in parts per producer.
 
 ### 3.1 The choice

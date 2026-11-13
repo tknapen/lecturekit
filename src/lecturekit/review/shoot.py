@@ -6,8 +6,11 @@ the foot or the right edge.
     lk review shoot _build/slides-live.html --fragments     # one PNG per fragment step as well
     lk review shoot _build/slides-live.html --against review/shots-round3
 
-The frame is 1280 by 720 at device scale 1 (`--scale 2` for a sheet a person will read closely). The report lists,
-per slide, the elements whose box crosses the foot line or the right edge, and any page error or failed load.
+The frame is 1280 by 720 at device scale 1 (`--scale 2` for a sheet a person will read closely). Each clip on a
+slide is shot on its last frame, paused, as the study PDF shows it, rather than wherever it had played to: a clip
+that fades in would otherwise be caught empty, and two runs would differ by timing alone. A clip in parts is left
+to its runtime, which shows its last hold when a slide is reached by a jump. The report lists, per slide, the
+elements whose box crosses the foot line or the right edge, and any page error or failed load.
 `--against` compares with an earlier run and lists the slides whose pixels changed beyond anti-aliasing. Slide
 numbers are 1-based, as the foot shows them.
 """
@@ -35,6 +38,28 @@ OVER_JS = """
     return { over, titleLines: h ? Math.round(h.getBoundingClientRect().height / lh) : 0 };
   }"""
 
+# every clip of the current slide that is not a clip in parts: paused on its last frame, then two painted frames;
+# returns the number settled and those that did not seek in time (3 s each)
+SETTLE_JS = """
+  async () => {
+    const s = Reveal.getCurrentSlide();
+    const vids = [...s.querySelectorAll('video')].filter(v => !v.closest('.lk-seg'));
+    const late = [];
+    await Promise.all(vids.map(v => new Promise(done => {
+      const timer = setTimeout(() => { late.push(v.getAttribute('src') || v.currentSrc || 'video'); done(); }, 3000);
+      const end = () => { clearTimeout(timer); done(); };
+      const go = () => {
+        v.pause();
+        if (!v.seeking && v.duration && v.currentTime >= v.duration) return end();
+        v.addEventListener('seeked', end, { once: true });
+        v.currentTime = v.duration;
+      };
+      if (v.readyState >= 1 && v.duration) go(); else v.addEventListener('loadedmetadata', go, { once: true });
+    })));
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    return { settled: vids.length, late };
+  }"""
+
 
 def shoot(deck_html: Path, out: Path, fragments: bool = False, scale: int = 1, sheet: bool = False) -> dict:
     out.mkdir(parents=True, exist_ok=True)
@@ -48,10 +73,12 @@ def shoot(deck_html: Path, out: Path, fragments: bool = False, scale: int = 1, s
             if fragments and info["fragments"]:
                 for f in range(-1, info["fragments"]):
                     goto(page, i, f)
+                    settle_clips(page, errors)
                     p = out / f"slide-{i:02d}-f{f + 1}.png"
                     page.screenshot(path=str(p))
                     written.append(p)
                 goto(page, i)
+            settle_clips(page, errors)
             p = out / f"slide-{i:02d}.png"
             page.screenshot(path=str(p))
             written.append(p)
@@ -73,6 +100,14 @@ def shoot(deck_html: Path, out: Path, fragments: bool = False, scale: int = 1, s
         for e in errors:
             print(f"  {e}")
     return result
+
+
+def settle_clips(page, errors: list[str]) -> int:
+    """Pause every clip of the current slide on its last frame (clips in parts excepted); a clip that does not
+    seek within 3 s is reported with the page errors. Returns the number of clips settled."""
+    r = page.evaluate(SETTLE_JS)
+    errors.extend(f"clip did not settle on its last frame: {src}" for src in r["late"])
+    return r["settled"]
 
 
 def contact_sheet(files: list[Path], out: Path, cols: int = 3, width: int = 480) -> Path:

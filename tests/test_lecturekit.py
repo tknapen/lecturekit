@@ -224,6 +224,21 @@ def test_review_tools(built_features, tmp_path):
     assert (tmp_path / "shots" / "report.json").exists()
     assert not [r for r in result["report"] if r["over"]], result["report"]
     assert not result["errors"], result["errors"]
+    # every ordinary clip is shot paused on its last frame; a clip in parts is left to its runtime
+    from lecturekit.review.browser import deck_page, goto, slide_count
+    from lecturekit.review.shoot import settle_clips
+    settled = 0
+    with deck_page(deck) as (page, errors):
+        for i in range(1, slide_count(page) + 1):
+            goto(page, i)
+            n = settle_clips(page, errors)
+            state = page.evaluate("""() => [...Reveal.getCurrentSlide().querySelectorAll('video')]
+              .filter(v => !v.closest('.lk-seg')).map(v => [v.paused, v.currentTime, v.duration])""")
+            assert len(state) == n
+            assert all(p and t == d for p, t, d in state), (i, state)
+            settled += n
+        assert not errors, errors
+    assert settled >= 3
     assert measure(deck) == 0
     assert frags(deck, tmp_path / "frags") == 0
     assert report(built_features / "slides.log") in (0, 1)

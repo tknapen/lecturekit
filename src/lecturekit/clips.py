@@ -354,10 +354,15 @@ def frame_table(video: Path) -> FrameTable:
 
 
 #: two pictures are one when no luma value differs by more than this (of 255) with the video scaled to
-#: REST_WIDTH pixels wide; the rests before and after a stop are counted in such frames. H.264 codes a keyframe
-#: in a still rest afresh, and at that size it differs from the frames before it by up to 5 levels (manim8's
-#: tuning_sweep at 1280 by 720, every stop a keyframe), while the tail of an eased motion differs by 9 or more
-REST_TOLERANCE = 6
+#: REST_WIDTH pixels wide; the rests before and after a stop are counted in such frames, each compared with the
+#: stop's own frame, so a slow drift cannot add up. The bound is the coding noise of a still picture. Measured on
+#: the manim8 clips of the feature deck and the expo (1280 by 720, Manim's H.264 at CRF 23, 9 November 2026):
+#: across the 143 keyframes that sit in a still rest (every manim8 stop is one, coded afresh), frame k-1 and
+#: frame k differ by 1 to 10 levels, and inside one group of pictures by up to 7; the busier the picture, the
+#: larger (10 on a map of 1380 coloured marks). Where something starts to move on the keyframe, the difference
+#: was 62 or more (a readout appearing: 81). At 16 an edge of contrast 200 would have to move by less than
+#: 0.6 pixel at 1280 wide to pass as no change.
+REST_TOLERANCE = 16
 REST_WIDTH = 160
 
 
