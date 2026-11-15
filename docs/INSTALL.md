@@ -47,7 +47,7 @@ uv pip install -e ".[dev]"
 
 The extras below go in the brackets of either form (`"lecturekit[review,figures,clips] @ git+https://github.com/tknapen/lecturekit@main"`, or `-e ".[dev,clips]"` in a clone). Once lecturekit is installed, `pip install "lecturekit[clips]"` adds an extra's packages to it: pip finds the installed lecturekit and fetches only what the extra names. A project pins the commit (or, once tags are pushed, the tag) of the engine it was built with, in place of `main` (the expo's `requirements.txt` pins a commit).
 
-The command is `lk`, with `lecturekit` as an alias; `lk version` prints the package and extension versions and where Quarto was found. The `review` extra brings Playwright and the image tools for `lk review`; `figures` brings numpy, matplotlib, Pillow and PyMuPDF for `make_assets.py` and the figure conversion; `dev` brings both and pytest.
+The command is `lk`, with `lecturekit` as an alias; `lk version` prints the package and extension versions and where Quarto was found. The `review` extra brings Playwright and the image tools for `lk review`; `figures` brings numpy, matplotlib, Pillow and PyMuPDF for `make_assets.py` and the figure conversion; `export` brings python-pptx, Playwright, Pillow and ffmpeg (through imageio-ffmpeg) for `lk export pptx` (EXPORT.md); `dev` brings pytest with what the review and export tests need (Playwright, PyMuPDF, Pillow, imageio-ffmpeg, python-pptx).
 
 The review tools drive a headless Chromium:
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "lecturekit"
-version = "0.4.1"
+version = "0.4.2"
 description = "One Markdown source, a live Reveal.js deck and a Beamer study PDF: a Quarto extension, figure and clip kits, and review tools for computed lectures."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -30,7 +30,9 @@ manim8 = [
   "manim8 @ git+https://github.com/tknapen/manim8@bad3ae125aa36d2672f5b86cd601ee1673570334 ; python_version >= '3.12'",
   "manim8-core @ git+https://github.com/tknapen/manim8@bad3ae125aa36d2672f5b86cd601ee1673570334#subdirectory=packages/scianim_core ; python_version >= '3.12'",
 ]
-dev = ["pytest", "pymupdf>=1.24", "playwright>=1.45", "pillow", "imageio-ffmpeg"]
+# lk export pptx: the browser that shoots the deck, ffmpeg that cuts the clips, python-pptx that writes the file
+export = ["python-pptx>=1.0", "playwright>=1.45", "pillow", "imageio-ffmpeg"]
+dev = ["pytest", "pymupdf>=1.24", "playwright>=1.45", "pillow", "imageio-ffmpeg", "python-pptx>=1.0"]
 
 [project.scripts]
 lk = "lecturekit.cli:main"
@@ -52,6 +54,7 @@ packages = ["src/lecturekit"]
 "_extensions/lecturekit" = "lecturekit/_extension"
 "docs/AUTHORING.md" = "lecturekit/docs/AUTHORING.md"
 "docs/CLIPS.md" = "lecturekit/docs/CLIPS.md"
+"docs/EXPORT.md" = "lecturekit/docs/EXPORT.md"
 "docs/FIGURES.md" = "lecturekit/docs/FIGURES.md"
 "docs/INSTALL.md" = "lecturekit/docs/INSTALL.md"
 "docs/LAYOUT.md" = "lecturekit/docs/LAYOUT.md"

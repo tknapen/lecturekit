@@ -67,6 +67,7 @@ The lecturer owns the claims, the titles, the storyboard and what the lecture is
 | `lk review overflow [deck \| slides.log]` | Which frames of the study PDF overflow? |
 | `lk review figs [deck] [name ...]` | Do the figures read at display size, and how large are they? |
 | `lk review contrast [_brand.yml] [--mode dark]` | Do the text and role colours pass WCAG AA on every surface? |
+| `lk export pptx [dir \| live.html] [--profile dark] [--out FILE] [--video auto\|click\|still] [--slides 3,5-7]` | The built live deck as a PowerPoint file for a venue that demands one: each reveal step a slide, the clips as movies, the notes kept (EXPORT.md). Never builds. |
 | `lk theme [dir] [--mode dark] [--manim8 VERSION]` | The brand's tokens as files for scripts outside the build; with `--manim8`, the bridged manim8 styles of both presets, the paper one selected in every manim8 project. |
 
 ## Templates

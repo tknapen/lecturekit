@@ -28,13 +28,13 @@ slides 8  planned 15 min  untimed 1  budget 15 min  ok
 _extensions/lecturekit/   the Quarto extension: formats lecturekit-revealjs and lecturekit-beamer; the dialect
                           filter, the TikZ filter, the brand tokens; the Beamer theme and the live stylesheet
                           and script; the bundled fonts. A project vendors a copy (Quarto's convention).
-src/lecturekit/           the Python package and the lk command: new, build, clips, theme, review; the TikZ kit
+src/lecturekit/           the Python package and the lk command: new, build, clips, theme, review, export; the TikZ kit
                           (tikzkit) and the Manim kit (nmstyle, nmnet, nmpix, nmfield, nmprf); the scaffold
 examples/kickoff/         the worked example: the Coimbra workshop's opening deck with its storyboard, plan,
                           figures from make_assets.py, one clip, FACTS.md and MANIFEST.md
 examples/features/        every construct of the dialect on one small deck; the engine's test deck
 docs/                     AUTHORING (the dialect), LAYOUT (what fits where, with the check for each rule),
-                          WORKFLOW (the per-deck method), POLICY, THEMING, FIGURES, CLIPS, MANIM, INSTALL
+                          WORKFLOW (the per-deck method), POLICY, THEMING, FIGURES, CLIPS, MANIM, EXPORT, INSTALL
 tutorials/                one folder per episode of the video series: script, prompts, before and after
 AGENTS.md                 standing rules for an assistant working here (and for us)
 ```
@@ -107,6 +107,16 @@ lk review overflow .                                  # overfull frames of the s
 lk review figs    .                                   # the deck's TikZ figures standalone, with their sizes
 lk review contrast _brand.yml                         # WCAG AA on every surface
 ```
+
+## A PowerPoint file for a venue that wants one
+
+```sh
+lk export pptx . --profile dark                       # every reveal step a slide; clips as movies; notes kept
+```
+
+The built live deck becomes a `.pptx` that keeps its look (each step a picture of the page), plays its clips and
+the parts of a clip in parts as movies, and carries the speaker notes; text is not editable there. docs/EXPORT.md
+says what carries over, what does not, and what to test in PowerPoint before the talk.
 
 ## Status
 

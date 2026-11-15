@@ -6,6 +6,7 @@
     lk clips adopt <mp4>    copy an MP4 made elsewhere into assets/clips and write its entry (--name, --stops)
     lk theme [dir]          write tokens.tex, tokens.css, tokens.py (and the bridged manim8 styles)
     lk review <tool> ...    shoot | frags | measure | contrast | overflow | figs
+    lk export pptx [dir]    the built live deck as a PowerPoint file (reveals, clips, notes)
     lk docs                 where the documentation is
     lk version
 """
@@ -144,6 +145,15 @@ def cmd_review(a: argparse.Namespace) -> int:
     return main(rest)
 
 
+def cmd_export(a: argparse.Namespace) -> int:
+    if a.format == "pptx":
+        from .export.pptx import main
+    else:
+        print(f"unknown export format {a.format!r}; one of pptx", file=sys.stderr)
+        return 2
+    return main(a.rest)
+
+
 def cmd_docs(a: argparse.Namespace) -> int:
     candidates = [PACKAGE_DIR / "docs", PACKAGE_DIR.parents[1] / "docs"]
     for c in candidates:
@@ -219,6 +229,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("tool")
     p.add_argument("rest", nargs=argparse.REMAINDER)
     p.set_defaults(fn=cmd_review)
+
+    p = sub.add_parser("export", help="the built live deck in another format (lk export pptx --help)",
+                       epilog="lk export pptx [DIR|DECK.html] [--profile dark] [--out FILE] [--video auto|click|still] "
+                              "[--slides 3,5-7] [--scale 2]")
+    p.add_argument("format", help="pptx")
+    p.add_argument("rest", nargs=argparse.REMAINDER)
+    p.set_defaults(fn=cmd_export)
 
     p = sub.add_parser("docs", help="where the documentation is")
     p.set_defaults(fn=cmd_docs)

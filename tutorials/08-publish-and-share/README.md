@@ -4,7 +4,7 @@ Length: 5 minutes.
 
 ## Goal
 
-The continuous build, GitHub Pages, exporting the PDF, and how a colleague forks a project for their own course.
+The continuous build, GitHub Pages, exporting the PDF, a PowerPoint file for a venue that demands one, and how a colleague forks a project for their own course.
 
 ## What the viewer sees
 
@@ -15,6 +15,7 @@ A push. The workflow in `.github/workflows/build.yml` runs: Quarto and TeX, the 
 ```sh
 git push                      # .github/workflows/build.yml runs
 quarto publish gh-pages       # the manual route, from a project folder
+lk export pptx 00-kickoff     # the built live deck as 00-kickoff/_build/slides.pptx, for a venue's PowerPoint
 ```
 
 The colleague:
@@ -33,6 +34,7 @@ lk build 00-kickoff
 - The outputs can be committed beside the sources, so that a lecture can be read without the engine; the Pages site is the demonstration link.
 - The clips are committed with `clips.json`, so that nobody has to render them to read the deck; a changed `revision` shows a stale one.
 - `lk new --vendor-only --force <project>` upgrades a project's extension when a new engine is released.
+- A venue that takes only PowerPoint gets `lk export pptx`: each reveal step a slide, each clip a movie that starts by itself, the notes in Presenter View. The slides are pictures, so text cannot be edited there, and a key pressed while a part of a clip plays goes to the next slide. Open the file in PowerPoint and step through it before the talk (docs/EXPORT.md).
 
 ## Artefacts
 

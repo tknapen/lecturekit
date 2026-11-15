@@ -84,14 +84,18 @@ jobs:
           source .venv/bin/activate
           mkdir -p report/paper
           pytest -q -rs --junitxml=report/paper/pytest.xml
-          # the clip-in-parts runtime tests (Playwright, barcode clips) must have run, not been skipped
+          # the clip-in-parts runtime tests (Playwright, barcode clips) and the PowerPoint export tests (python-pptx,
+          # Playwright, ffmpeg) must have run, not been skipped
           python - <<'PY'
           import sys, xml.etree.ElementTree as ET
-          cases = [c for c in ET.parse("report/paper/pytest.xml").getroot().iter("testcase")
-                   if c.get("classname", "").endswith("test_segments")]
-          skipped = [c.get("name") for c in cases if c.find("skipped") is not None]
-          print(f"test_segments: {len(cases)} cases, {len(skipped)} skipped")
-          sys.exit(1 if not cases or skipped else 0)
+          bad = 0
+          for module in ("test_segments", "test_export_pptx"):
+              cases = [c for c in ET.parse("report/paper/pytest.xml").getroot().iter("testcase")
+                       if c.get("classname", "").endswith(module)]
+              skipped = [c.get("name") for c in cases if c.find("skipped") is not None]
+              print(f"{module}: {len(cases)} cases, {len(skipped)} skipped")
+              bad += not cases or bool(skipped)
+          sys.exit(1 if bad else 0)
           PY
 
       # this preset's part of the CI results page (.github/scripts/ci_site.py), uploaded whether or not a step failed

@@ -20,6 +20,7 @@ lk review frags <deck>/_build/slides-live.html [--slides N ...] # fragment steps
 lk review overflow <deck>                      # overfull frames of the study PDF, by title (slides.log, slides.tex)
 lk review figs <deck> [name ...]               # figures standalone, with their natural size in cm
 lk review contrast <_brand.yml> [--mode dark]  # WCAG AA of the brand's colours on its surfaces
+lk export pptx [dir] [--profile dark] [--video auto|click|still]   # the built live deck as a .pptx (docs/EXPORT.md)
 pytest -q                                      # the engine's tests: both example decks, the tools, a scaffolded project
 ```
 
