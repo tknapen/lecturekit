@@ -78,8 +78,10 @@ checked in PowerPoint (see "Test it in PowerPoint before the talk").
 - A flash slide shows its image (the brief exposure itself does not carry over).
 - A clip on a goals, summary, section or pause slide, which the live deck blends into the paper colour by
   multiplication (`.paper`; AUTHORING.md): its frames are multiplied by the colour of the page under it, which is
-  what the blend shows there. Such a clip is always re-encoded. The export shows what the deck shows, so where the
-  deck's blend hides a clip (a dark page), the PowerPoint hides it too.
+  what the blend shows there. Such a clip is always re-encoded. The export shows what the browser shows, faults
+  included: the PowerPoint hides a clip that the deck's blend hides (on a dark page), and leaves white a clip that
+  the deck leaves white (one that comes with a reveal step, or as a later step of an `.r-stack`, on such a slide:
+  the browser does not blend inside a shown fragment).
 
 ## What does not carry over
 
@@ -98,9 +100,9 @@ A slide added in PowerPoint gets these layouts, not the deck's look. The notes p
 
 ## The files PowerPoint gets
 
-The movies are H.264 in MP4 with yuv420p pixels and their index first. Parts of a clip in parts are without sound;
-a whole clip keeps the sound it has. A clip that already is such a file is embedded as it is; one with its index at
-the end is copied with the index moved to the front (no re-encoding); any other is re-encoded. The format is read
+The movies are H.264 in MP4 with yuv420p pixels and their index first, and without sound: the live deck plays every
+clip muted. A clip that already is such a file is embedded as it is; one with its index at the end or with a sound
+track is copied with the index in front and the sound left out (no re-encoding); any other is re-encoded. The format is read
 with ffprobe where it is installed, else from ffmpeg's own report, so this holds with the `export` extra alone. A
 part of a clip in parts is always re-encoded, cut by frame number, and checked to have exactly its frames. A clip
 used on several slides is stored once in the file. The timing of each slide is written in the form PowerPoint

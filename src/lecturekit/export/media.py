@@ -31,6 +31,7 @@ class Info:
     pix_fmt: str | None
     mp4: bool                           # an MP4 (or QuickTime) container
     index_first: bool                   # the moov atom before the mdat
+    audio: bool = False                 # it has a sound track
 
     @property
     def embeddable(self) -> bool:
@@ -76,18 +77,21 @@ def _multiply(tint: Colour) -> list[str]:
 
 
 def _stream(path: Path) -> dict:
-    """ffprobe's view of the first video stream (codec, pixel format, sample aspect ratio) and the container; where
-    there is no ffprobe (the `export` extra brings ffmpeg alone), the same read from `ffmpeg -i`."""
+    """ffprobe's view of the first video stream (codec, pixel format, sample aspect ratio), whether there is a sound
+    track, and the container; where there is no ffprobe (the `export` extra brings ffmpeg alone), the same read
+    from `ffmpeg -i`."""
     exe = clips._ffprobe()
     if not exe:
         return _stream_from_ffmpeg(path)
-    r = subprocess.run([exe, "-v", "error", "-select_streams", "v:0", "-show_entries",
-                        "stream=codec_name,pix_fmt,sample_aspect_ratio", "-show_entries", "format=format_name",
-                        "-of", "json", str(path)], capture_output=True, text=True, check=False)
+    r = subprocess.run([exe, "-v", "error", "-show_entries",
+                        "stream=codec_type,codec_name,pix_fmt,sample_aspect_ratio", "-show_entries",
+                        "format=format_name", "-of", "json", str(path)], capture_output=True, text=True, check=False)
     if r.returncode:
         raise clips.ClipError(f"ffprobe could not read {path.name}")
     data = json.loads(r.stdout or "{}")
-    st = (data.get("streams") or [{}])[0]
+    streams = data.get("streams") or []
+    st = dict(next((x for x in streams if x.get("codec_type") == "video"), {}))
+    st["audio"] = any(x.get("codec_type") == "audio" for x in streams)
     st["format_name"] = (data.get("format") or {}).get("format_name", "")
     return st
 
@@ -98,7 +102,7 @@ def _stream_from_ffmpeg(path: Path) -> dict:
     [SAR 1:1 DAR 16:9], ...`."""
     exe = clips._need_ffmpeg()
     err = subprocess.run([exe, "-hide_banner", "-i", str(path)], capture_output=True, text=True, check=False).stderr
-    out: dict = {}
+    out: dict = {"audio": bool(re.search(r"Stream #0:\S*: Audio:", err))}
     fmt = re.search(r"^Input #0, (.+?), from ", err, re.M)
     if fmt:
         out["format_name"] = fmt.group(1)
@@ -141,7 +145,8 @@ class Media:
             first = "moov" in atoms and "mdat" in atoms and atoms.index("moov") < atoms.index("mdat")
             self._info[file] = Info(width=table.width, height=table.height, display=(table.width * sar, table.height),
                                     fps=table.fps, frames=table.frames, codec=table.codec or st.get("codec_name"),
-                                    pix_fmt=st.get("pix_fmt"), mp4=mp4, index_first=first)
+                                    pix_fmt=st.get("pix_fmt"), mp4=mp4, index_first=first,
+                                    audio=bool(st.get("audio")))
         return self._info[file]
 
     def duration_ms(self, cut: Cut) -> int:
@@ -174,8 +179,9 @@ class Media:
 
     def movie(self, cut: Cut) -> Path:
         """The file of a movie: a part cut frame-exactly (frames a to b, both included) by re-encoding; a whole clip
-        as it is when PowerPoint can take it, moved to index first by stream copy when it is not, else re-encoded. A
-        movie with a tint is always re-encoded, its frames multiplied by the tint."""
+        as it is when PowerPoint can take it and it is silent; copied without re-encoding, its index first and its
+        sound track left out, when that is all it lacks; else re-encoded. A movie with a tint is always re-encoded,
+        its frames multiplied by the tint. No movie has sound: the live deck plays every clip muted."""
         if cut in self._cuts:
             return self._cuts[cut]
         info = self.info(cut.file)
@@ -184,11 +190,12 @@ class Media:
         mark = f".x{_hex(cut.tint)}" if cut.tint else ""
         even = ["scale=trunc(iw/2)*2:trunc(ih/2)*2" + (f":flags={_EXACT}" if tint else ""), "format=yuv420p"]
         if cut.whole:
-            if info.embeddable and info.index_first and not tint:
+            if info.embeddable and info.index_first and not info.audio and not tint:
                 out = cut.file
             elif info.embeddable and not tint:
                 out = self.work / f"{stem}.mp4"
-                clips.faststart(cut.file, out)
+                clips._ff(["-i", str(cut.file), "-map", "0:v:0", "-c", "copy", "-an", "-movflags", "+faststart",
+                           str(out)], f"remux {cut.file.name}")
             else:
                 out = self.work / f"{stem}{mark}.h264.mp4"
                 clips.reencode(cut.file, out, [*tint, *even], [], info.frames)

@@ -385,6 +385,33 @@ def test_a_tinted_clip_is_multiplied_by_the_page_colour(tmp_path):
         assert near(at(tmp_path / "first.png"), at(tinted), 2)                   # the movie as its poster
 
 
+@needs_ffmpeg
+def test_no_movie_has_sound(tmp_path, monkeypatch):
+    """The live deck plays every clip muted, so a sound track is left out of the movie: by stream copy, the picture
+    not re-encoded."""
+    exe = clips._need_ffmpeg()
+    src = tmp_path / "loud.mp4"
+    subprocess.run([exe, "-y", "-v", "error", "-f", "lavfi", "-i", "testsrc2=s=320x180:r=30:d=1", "-f", "lavfi", "-i",
+                    "sine=f=440:d=1", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest",
+                    "-movflags", "+faststart", str(src)], check=True)
+
+    def sound(path: Path) -> bool:
+        err = subprocess.run([exe, "-hide_banner", "-i", str(path)], capture_output=True, text=True, check=False).stderr
+        return "Audio:" in err
+
+    assert sound(src)
+    for probe in ("ffprobe", "ffmpeg"):
+        if probe == "ffmpeg":
+            monkeypatch.setattr(clips, "_ffprobe", lambda: None)
+        media = Media(tmp_path / probe)
+        info = media.info(src)
+        assert info.audio and info.embeddable and info.index_first
+        monkeypatch.setattr(clips, "reencode", lambda *a, **k: pytest.fail("the picture was re-encoded"))
+        out = media.movie(Cut(src, 0, info.frames - 1, whole=True))
+        assert out != src and not sound(out) and clips.frame_table(out).frames == info.frames
+        monkeypatch.undo()
+
+
 def test_the_checklist_names_parts_only_when_there_are_some():
     from lecturekit.export.pptx import checks
     assert not [c for c in checks("auto", 1) if "parts" in c]
@@ -622,13 +649,86 @@ BLEND_SLIDES = """## On paper {role=summary}
 ::: {.movie src="assets/clips/bar_bold.mp4" label="kept white" .keepwhite}
 :::
 ::::
+
+## With a step {role=summary}
+
+Text first.
+
+::: {.fragment}
+:::: {.live-only}
+::: {.movie src="assets/clips/bar_bold.mp4" label="with a step"}
+:::
+::::
+:::
+
+## A sequence {role=summary}
+
+:::: {.live-only}
+::::: {.r-stack}
+::: {.movie src="assets/clips/bar_bold.mp4" label="first"}
+:::
+:::: {.fragment}
+::: {.movie src="assets/clips/bar_bold.mp4" label="second"}
+:::
+::::
+:::::
+::::
+
+## In a box {role=summary}
+
+::: {style="background:#dde6f0"}
+:::: {.live-only}
+::: {.movie src="assets/clips/bar_bold.mp4" label="in a box"}
+:::
+::::
+:::
 """
+
+# the clip on top at a step, paused on its first frame and shown by the browser itself: its top-left corner
+LIVE_CLIP_JS = """async () => {
+  const s = Reveal.getCurrentSlide();
+  const shown = v => { for (let n = v; n && n.tagName !== 'SECTION'; n = n.parentElement)
+    if (n.classList.contains('fragment') && !n.classList.contains('visible')) return false; return true; };
+  const vs = [...s.querySelectorAll('video')].filter(shown), v = vs[vs.length - 1];
+  if (!v) return null;
+  if (v.readyState < 2) await new Promise(r => v.addEventListener('loadeddata', r, {once: true}));
+  v.pause();
+  if (v.currentTime !== 0) await new Promise(r => { v.addEventListener('seeked', r, {once: true}); v.currentTime = 0; });
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  const b = v.getBoundingClientRect(); return [b.left, b.top];
+}"""
+
+
+def live_corners(deck_html: Path) -> dict[tuple[int, int], tuple | None]:
+    """What the browser shows in the corner of the clip on top, at every step of every slide: the ground truth of a
+    blend (None where no clip is shown)."""
+    from PIL import Image
+
+    from lecturekit.review.browser import deck_page
+    out = {}
+    with deck_page(deck_html, scale=1) as (page, errors):
+        steps = page.evaluate("Reveal.getHorizontalSlides().map(s => [...new Set([...s.querySelectorAll('.fragment')]"
+                              ".map(f => +f.getAttribute('data-fragment-index')))].sort((a, b) => a - b))")
+        for h, fs in enumerate(steps):
+            for i, f in enumerate([-1, *fs]):
+                page.evaluate("([h, f]) => Reveal.slide(h, 0, f)", [h, f])
+                page.wait_for_timeout(400)
+                at = page.evaluate(LIVE_CLIP_JS)
+                if at is None:
+                    out[(h + 1, i)] = None
+                    continue
+                with Image.open(io.BytesIO(page.screenshot())) as im:
+                    out[(h + 1, i)] = im.convert("RGB").getpixel((round(at[0]) + 8, round(at[1]) + 8))
+        assert not errors, errors
+    return out
 
 
 def test_a_clip_on_a_paper_slide_takes_the_page_colour(tmp_path, barcode):  # noqa: F811
     """theme.scss blends a clip of a goals, summary, section or pause slide with the page by multiplication: the
-    clip's white becomes the page colour. The export multiplies the frames by the colour under the clip. A clip
-    forced to `.paper` on a white slide and one kept white stay as they are."""
+    clip's white becomes the page colour. The export multiplies the frames by the colour under the clip, where the
+    browser blends it: at every step of every slide the poster's corner is what the browser shows in the clip's
+    corner. A clip forced to `.paper` on a white slide and one kept white stay as they are; so does a clip that
+    comes with a reveal step, which the browser does not blend (a shown fragment is a group of its own)."""
     if shutil.which("quarto") is None or not _have("playwright") or not _have("pptx"):
         pytest.skip("quarto, playwright and python-pptx are needed")
     from PIL import Image
@@ -660,6 +760,18 @@ def test_a_clip_on_a_paper_slide_takes_the_page_colour(tmp_path, barcode):  # no
     assert page(by[3][0]) == (255, 255, 255) and corner(poster) == (255, 255, 255) and movie == source
     (movie, poster, _), = movies_of(by[4][0])                                   # kept white on the paper page
     assert page(by[4][0]) == paper and corner(poster) == (255, 255, 255) and movie == source
+    # every step against the browser's own picture of it
+    live = live_corners(deck / "_build" / "slides-live.html")
+    seen = set()
+    for (number, i), colour in live.items():
+        movies = movies_of(by[number][i])
+        if colour is None:
+            assert movies == [], (number, i)
+            continue
+        (_, poster, _), = movies
+        assert all(abs(a - b) <= 2 for a, b in zip(corner(poster), colour)), (number, i, corner(poster), colour)
+        seen.add(colour)
+    assert len(live) == 9 and paper in seen and (255, 255, 255) in seen and len(seen) >= 3    # the box's colour too
 
 
 def test_runtime_deck_click_and_still(runtime_export):

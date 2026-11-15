@@ -13,9 +13,12 @@ notes of the current fragments, else the slide's `data-notes`, else every `aside
 fragment. Where two fragments share an index, the notes of both are taken (the speaker view shows the first only).
 
 A clip the page blends by multiplication (`mix-blend-mode: multiply`, which theme.scss gives a video of class
-`paper`) is recorded with the colour it is blended with: the nearest background colour from its parent up to the
-slide's section. The blend's backdrop ends there (Reveal's own background layer lies outside it), so a clip with no
-such colour above it shows unblended in the live deck and gets no tint here.
+`paper`) is recorded with the colour it is blended with: the nearest background colour from its parent upwards.
+The search ends where the blend's backdrop ends: at the first ancestor that is a group of its own to the browser (a
+stacking context), and at the slide's section at the latest (Reveal's own background layer lies outside it). A
+clip with no colour within that group shows unblended in the live deck and gets no tint here. A shown `.fragment`
+is such a group (Reveal leaves `will-change: opacity` on it), so a clip that comes with a reveal step, or as a
+later step of an `.r-stack`, is not blended by the live deck, and not here.
 """
 
 from __future__ import annotations
@@ -76,11 +79,23 @@ RECORD_JS = """() => {
   }
   const opaque = c => c && c !== 'transparent' && !/rgba\\(.*,\\s*0\\)$/.test(c);
   const blended = el => !!el && getComputedStyle(el).mixBlendMode === 'multiply';
+  // whether the browser paints an element as a group of its own (a stacking context): a blend inside it sees
+  // nothing painted outside it
+  function isolates(n) {
+    const s = getComputedStyle(n), none = v => !v || v === 'none';
+    const lifted = s.zIndex !== 'auto' && (s.position !== 'static'
+      || /flex|grid/.test(n.parentElement ? getComputedStyle(n.parentElement).display : ''));
+    return s.isolation === 'isolate' || parseFloat(s.opacity) < 1 || s.mixBlendMode !== 'normal'
+      || !none(s.transform) || !none(s.filter) || !none(s.backdropFilter) || !none(s.perspective)
+      || !none(s.clipPath) || !none(s.maskImage) || s.position === 'fixed' || s.position === 'sticky' || lifted
+      || /opacity|transform|filter|perspective|clip-path|mask|isolation|mix-blend-mode/.test(s.willChange || '')
+      || /layout|paint|strict|content/.test(s.contain || '');
+  }
   function backdrop(el) {
     for (let n = el.parentElement; n; n = n.parentElement) {
       const c = getComputedStyle(n).backgroundColor;
       if (opaque(c)) return c;
-      if (n === slide) break;
+      if (n === slide || isolates(n)) break;
     }
     return null;
   }
